@@ -158,12 +158,59 @@ describe('MembersPage', () => {
     mockMemberRepository.setMembership(members[0]?.id as string, {
       planName: 'Monthly Pass',
       startsAt: '2026-08-01',
-      endsAt: '2026-08-31'
+      endsAt: '2099-08-31',
+      status: 'active'
     });
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/Monthly Pass until Aug 31, 2026/)).toBeTruthy();
+      expect(screen.getByText(/Monthly Pass until Aug 31, 2099/)).toBeTruthy();
+    });
+  });
+
+  it('flags an expired membership in red', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Juan Dela Cruz',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    mockMemberRepository.setMembership(members[0]?.id as string, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-07-01',
+      endsAt: '2026-07-31',
+      status: 'expired'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Expired Jul 31, 2026/)).toBeTruthy();
+    });
+  });
+
+  it('flags a membership expiring within a week', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Juan Dela Cruz',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    const inFourDays = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
+    mockMemberRepository.setMembership(members[0]?.id as string, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-08-01',
+      endsAt: inFourDays,
+      status: 'active'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      const text = screen.getByText(/^Expires /);
+      expect(text.textContent).toMatch(/^Expires /);
     });
   });
 

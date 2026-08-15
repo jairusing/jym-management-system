@@ -54,7 +54,8 @@ class MockPaymentRepository implements PaymentRepository {
       mockMemberRepository.setMembership(input.memberId, {
         planName: plan.name,
         startsAt: phDateToday(),
-        endsAt: phDateInDays(plan.durationDays)
+        endsAt: phDateInDays(plan.durationDays),
+        status: 'active'
       });
     }
     const payment: Payment = {

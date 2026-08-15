@@ -5,7 +5,7 @@ import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { formatDate, phDateToday } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
-import { mockMemberRepository, type Member } from './memberRepository';
+import { mockMemberRepository, type Member, type Membership } from './memberRepository';
 import { SupabaseMemberRepository } from './supabaseMemberRepository';
 
 const inputClass =
@@ -16,6 +16,22 @@ const buttonClass =
 
 function today() {
   return phDateToday();
+}
+
+function membershipState(membership: Membership | null): { tone: 'active' | 'expiring' | 'expired'; label: string } {
+  if (!membership) {
+    return { tone: 'expired', label: 'No membership' };
+  }
+  const expiresIn = Math.ceil(
+    (new Date(`${membership.endsAt}T23:59:59`).getTime() - new Date(`${today()}T23:59:59`).getTime()) / 86400000
+  );
+  if (expiresIn < 0) {
+    return { tone: 'expired', label: `Expired ${formatDate(membership.endsAt)}` };
+  }
+  if (expiresIn <= 7) {
+    return { tone: 'expiring', label: `Expires ${formatDate(membership.endsAt)}` };
+  }
+  return { tone: 'active', label: `${membership.planName} until ${formatDate(membership.endsAt)}` };
 }
 
 export function MembersPage() {
@@ -218,14 +234,23 @@ export function MembersPage() {
                     {member.phone ? ` · ${member.phone}` : ''}
                     {member.email ? ` · ${member.email}` : ''}
                   </p>
-                  {member.membership ? (
-                    <p className="mt-1 text-sm text-[#737373]">
-                      {member.membership.planName} until {formatDate(member.membership.endsAt)}
-                    </p>
-                  ) : null}
+                  <p
+                    className={`mt-1 text-sm ${
+                      membershipState(member.membership).tone === 'expired'
+                        ? 'font-semibold text-[#FF3D00]'
+                        : membershipState(member.membership).tone === 'expiring'
+                          ? 'text-[#FFB300]'
+                          : 'text-[#737373]'
+                    }`}
+                  >
+                    {membershipState(member.membership).label}
+                  </p>
                   {member.notes ? <p className="mt-1 text-sm text-[#737373]">{member.notes}</p> : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <a className={buttonClass} href={`/app/members/${member.id}`}>
+                    Statement
+                  </a>
                   <button
                     className={buttonClass}
                     type="button"

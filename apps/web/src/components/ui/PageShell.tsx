@@ -19,7 +19,8 @@ const navGroups: { label: string; items: { label: string; href: string }[] }[] =
       { label: 'Members', href: '/app/members' },
       { label: 'Check-ins', href: '/app/checkins' },
       { label: 'Classes', href: '/app/classes' },
-      { label: 'Payments', href: '/app/payments' }
+      { label: 'Payments', href: '/app/payments' },
+      { label: 'Staff', href: '/app/staff' }
     ]
   },
   {

@@ -226,4 +226,67 @@ describe('CheckInsPage', () => {
     const saved = await mockCheckInRepository.listTodayCheckIns();
     expect(saved.length).toBe(0);
   });
+
+  it('rejects checking in a member with an expired membership', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Ana Lim',
+      email: null,
+      phone: null,
+      joinedAt: '2026-07-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    await mockMemberRepository.setMembership(members[0]?.id as string, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-07-01',
+      endsAt: '2026-07-31',
+      status: 'active'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Ana Lim')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check in' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/membership expired/i)).toBeTruthy();
+    });
+
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(0);
+  });
+
+  it('allows checking in a member with an active membership', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Ben Cruz',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    await mockMemberRepository.setMembership(members[0]?.id as string, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-08-01',
+      endsAt: '2026-08-31',
+      status: 'active'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Ben Cruz')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check in' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/checked in\./i)).toBeTruthy();
+    });
+
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+    expect(saved[0]?.memberName).toBe('Ben Cruz');
+  });
 });

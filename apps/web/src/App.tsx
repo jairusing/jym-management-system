@@ -10,6 +10,8 @@ import { ClassSchedulePage } from './features/classes/ClassSchedulePage';
 import { PaymentsPage } from './features/payments/PaymentsPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { MyMembershipPage } from './features/membership/MyMembershipPage';
+import { MemberStatementPage } from './features/ledger/MemberStatementPage';
+import { StaffPage } from './features/staff/StaffPage';
 
 export default function App() {
   return (
@@ -21,9 +23,11 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/app" element={<DashboardPage />} />
             <Route path="/app/members" element={<MembersPage />} />
+            <Route path="/app/members/:memberId" element={<MemberStatementPage />} />
             <Route path="/app/checkins" element={<CheckInsPage />} />
             <Route path="/app/classes" element={<ClassSchedulePage />} />
             <Route path="/app/payments" element={<PaymentsPage />} />
+            <Route path="/app/staff" element={<StaffPage />} />
             <Route path="/app/my-membership" element={<MyMembershipPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>

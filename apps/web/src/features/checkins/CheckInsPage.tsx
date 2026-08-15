@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
-import { formatDateTime, phDateInDays, phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
+import { formatDate, formatDateTime, phDateInDays, phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { toAttendanceCsv } from './attendanceCsv';
 import { QrScanner } from './QrScanner';
@@ -94,9 +94,21 @@ export function CheckInsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const expiredMembershipMessage = (member: Member) => {
+    if (member.membership && member.membership.endsAt < phDateToday()) {
+      return `Membership expired ${formatDate(member.membership.endsAt)}. Renew before checking in.`;
+    }
+    return null;
+  };
+
   const handleCheckIn = async (member: Member) => {
     if (!member.isActive) {
       setError('Cannot check in an inactive member.');
+      return;
+    }
+    const expired = expiredMembershipMessage(member);
+    if (expired) {
+      setError(expired);
       return;
     }
     setError(null);
@@ -134,6 +146,11 @@ export function CheckInsPage() {
     }
     if (!member.isActive) {
       setError('Cannot check in an inactive member.');
+      return;
+    }
+    const expired = expiredMembershipMessage(member);
+    if (expired) {
+      setError(expired);
       return;
     }
     setError(null);

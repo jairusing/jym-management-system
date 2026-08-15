@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import { type Member, type MemberInput, type Membership } from './memberRepository';
+import { type Member, type MemberInput, type Membership, type MembershipStatus } from './memberRepository';
 
 function ensureSupabase() {
   if (!supabase) {
@@ -33,7 +33,8 @@ function mapMembership(row: MembershipRow): Membership {
     planName: (Array.isArray(row.membership_plans) ? row.membership_plans[0] : row.membership_plans)?.name ??
       'Unknown plan',
     startsAt: row.started_at,
-    endsAt: row.ended_at ?? row.started_at
+    endsAt: row.ended_at ?? row.started_at,
+    status: row.status as MembershipStatus
   };
 }
 

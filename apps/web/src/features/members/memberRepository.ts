@@ -1,9 +1,12 @@
 import { phDateToday } from '../../lib/dates';
 
+export type MembershipStatus = 'active' | 'expired' | 'cancelled' | 'paused';
+
 export type Membership = {
   planName: string;
   startsAt: string;
   endsAt: string;
+  status: MembershipStatus;
 };
 
 export type Member = {
@@ -37,9 +40,14 @@ export interface MemberRepository {
 
 class MockMemberRepository implements MemberRepository {
   private members: Member[] = [];
+  private history: Record<string, Membership[]> = {};
 
   async listMembers() {
     return [...this.members].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  listMembershipHistory(memberId: string) {
+    return this.history[memberId] ?? [];
   }
 
   async createMember(input: MemberInput) {
@@ -97,10 +105,15 @@ class MockMemberRepository implements MemberRepository {
     return updated;
   }
 
-  setMembership(memberId: string, membership: Membership) {
+  setMembership(memberId: string, membership: Membership | null) {
     this.members = this.members.map((member) =>
       member.id === memberId ? { ...member, membership } : member
     );
+  }
+
+  setMembershipHistory(memberId: string, memberships: Membership[]) {
+    this.setMembership(memberId, memberships[0] ?? null);
+    this.history = { ...this.history, [memberId]: memberships };
   }
 
   async deleteMember(id: string) {
