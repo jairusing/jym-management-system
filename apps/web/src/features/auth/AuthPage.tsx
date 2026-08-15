@@ -120,8 +120,8 @@ export function AuthPage() {
             .insert([
               {
                 id: data.user.id,
+                name: data.user.email?.split('@')[0] ?? 'Member',
                 email: data.user.email,
-                preferred_unit: 'kg',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               }

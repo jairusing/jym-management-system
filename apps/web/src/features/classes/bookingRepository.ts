@@ -1,0 +1,63 @@
+export type BookingStatus = 'booked' | 'cancelled' | 'attended' | 'no_show';
+
+export type Booking = {
+  id: string;
+  sessionId: string;
+  memberId: string;
+  memberName: string;
+  status: BookingStatus;
+  bookedAt: string;
+};
+
+export interface BookingRepository {
+  listBookings(): Promise<Booking[]>;
+  bookSession(sessionId: string, memberId: string, memberName?: string): Promise<Booking>;
+  cancelBooking(id: string): Promise<Booking>;
+}
+
+class MockBookingRepository implements BookingRepository {
+  private bookings: Booking[] = [];
+
+  async listBookings() {
+    return [...this.bookings].sort((a, b) => a.bookedAt.localeCompare(b.bookedAt));
+  }
+
+  async bookSession(sessionId: string, memberId: string, memberName?: string) {
+    if (!sessionId || !memberId) {
+      throw new Error('Select a member to book.');
+    }
+    if (this.bookings.some((booking) => booking.sessionId === sessionId && booking.memberId === memberId)) {
+      throw new Error('Member is already booked for this session.');
+    }
+    const booking: Booking = {
+      id: `booking-${Date.now()}-${this.bookings.length}`,
+      sessionId,
+      memberId,
+      memberName: memberName?.trim() || 'Unknown member',
+      status: 'booked',
+      bookedAt: new Date().toISOString()
+    };
+    this.bookings = [...this.bookings, booking];
+    return booking;
+  }
+
+  async cancelBooking(id: string) {
+    const index = this.bookings.findIndex((booking) => booking.id === id);
+    if (index === -1) {
+      throw new Error('Booking not found.');
+    }
+    const current = this.bookings[index];
+    if (!current) {
+      throw new Error('Booking not found.');
+    }
+    const updated: Booking = { ...current, status: 'cancelled' };
+    this.bookings = this.bookings.map((booking) => (booking.id === id ? updated : booking));
+    return updated;
+  }
+
+  reset() {
+    this.bookings = [];
+  }
+}
+
+export const mockBookingRepository = new MockBookingRepository();

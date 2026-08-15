@@ -2,6 +2,8 @@
 
 Backend: Supabase (PostgreSQL). All schema changes are migrations in `supabase/migrations/`, applied with `supabase db push`.
 
+Business schema (10 tables + `profiles.role`): see `docs/ERD.md` for the entity model and `docs/RLS.md` for the role policy matrix.
+
 ## Tables
 
 ### profiles

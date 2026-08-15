@@ -1,0 +1,51 @@
+export type CheckInMethod = 'manual' | 'qr';
+
+export type CheckIn = {
+  id: string;
+  memberId: string;
+  memberName: string;
+  checkedInAt: string;
+  method: CheckInMethod;
+  processedBy: string | null;
+};
+
+export type CheckInInput = {
+  memberId: string;
+  memberName: string;
+  method?: CheckInMethod;
+};
+
+export interface CheckInRepository {
+  listTodayCheckIns(): Promise<CheckIn[]>;
+  recordCheckIn(input: CheckInInput): Promise<CheckIn>;
+}
+
+class MockCheckInRepository implements CheckInRepository {
+  private checkIns: CheckIn[] = [];
+
+  async listTodayCheckIns() {
+    return [...this.checkIns].sort((a, b) => b.checkedInAt.localeCompare(a.checkedInAt));
+  }
+
+  async recordCheckIn(input: CheckInInput) {
+    if (!input.memberId || !input.memberName.trim()) {
+      throw new Error('Select a member to check in.');
+    }
+    const checkIn: CheckIn = {
+      id: `checkin-${Date.now()}-${this.checkIns.length}`,
+      memberId: input.memberId,
+      memberName: input.memberName.trim(),
+      checkedInAt: new Date().toISOString(),
+      method: input.method ?? 'manual',
+      processedBy: null
+    };
+    this.checkIns = [checkIn, ...this.checkIns];
+    return checkIn;
+  }
+
+  reset() {
+    this.checkIns = [];
+  }
+}
+
+export const mockCheckInRepository = new MockCheckInRepository();

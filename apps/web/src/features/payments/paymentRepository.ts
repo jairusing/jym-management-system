@@ -1,0 +1,69 @@
+import { mockInvoiceRepository } from './invoiceRepository';
+
+export type PaymentMethod = 'cash' | 'gcash' | 'card' | 'bank';
+
+export type Payment = {
+  id: string;
+  invoiceId: string | null;
+  invoiceNumber: string | null;
+  memberId: string;
+  memberName: string;
+  amount: number;
+  method: PaymentMethod;
+  reference: string | null;
+  paidAt: string;
+  processedBy: string | null;
+};
+
+export type PaymentInput = {
+  invoiceId: string;
+  invoiceNumber: string;
+  memberId: string;
+  memberName: string;
+  amount: number;
+  method: PaymentMethod;
+  reference: string | null;
+};
+
+export interface PaymentRepository {
+  listPayments(): Promise<Payment[]>;
+  recordPayment(input: PaymentInput): Promise<Payment>;
+}
+
+class MockPaymentRepository implements PaymentRepository {
+  private payments: Payment[] = [];
+
+  async listPayments() {
+    return [...this.payments].sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+  }
+
+  async recordPayment(input: PaymentInput) {
+    if (!input.invoiceId) {
+      throw new Error('Select an invoice to pay.');
+    }
+    if (!input.amount || input.amount <= 0) {
+      throw new Error('Payment amount must be greater than zero.');
+    }
+    await mockInvoiceRepository.markPaid(input.invoiceId);
+    const payment: Payment = {
+      id: `payment-${Date.now()}-${this.payments.length}`,
+      invoiceId: input.invoiceId,
+      invoiceNumber: input.invoiceNumber,
+      memberId: input.memberId,
+      memberName: input.memberName.trim(),
+      amount: input.amount,
+      method: input.method,
+      reference: input.reference?.trim() || null,
+      paidAt: new Date().toISOString(),
+      processedBy: null
+    };
+    this.payments = [payment, ...this.payments];
+    return payment;
+  }
+
+  reset() {
+    this.payments = [];
+  }
+}
+
+export const mockPaymentRepository = new MockPaymentRepository();

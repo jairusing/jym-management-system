@@ -4,29 +4,11 @@ import { PasswordResetCallback } from './features/auth/PasswordResetCallback';
 import { AuthProvider } from './features/auth/AuthContext';
 import { ProfilePage } from './features/auth/ProfilePage';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { PageShell } from './components/ui/PageShell';
-import { SectionCard } from './components/ui/SectionCard';
-import { ActionLink } from './components/ui/ActionLink';
-
-function DashboardPage() {
-  return (
-    <PageShell
-      eyebrow="Home"
-      title="Dashboard"
-      description="You are signed in. Build your app here."
-    >
-      <SectionCard title="Welcome" description="The skeleton is ready.">
-        <p className="text-sm text-[#737373]">
-          This starter ships auth, a protected shell, the repository pattern, and a tested Supabase setup.
-          Add your own features as folders under src/features/.
-        </p>
-        <div className="mt-6">
-          <ActionLink label="Profile" href="/profile" />
-        </div>
-      </SectionCard>
-    </PageShell>
-  );
-}
+import { MembersPage } from './features/members/MembersPage';
+import { CheckInsPage } from './features/checkins/CheckInsPage';
+import { ClassSchedulePage } from './features/classes/ClassSchedulePage';
+import { PaymentsPage } from './features/payments/PaymentsPage';
+import { DashboardPage } from './features/dashboard/DashboardPage';
 
 export default function App() {
   return (
@@ -37,6 +19,10 @@ export default function App() {
           <Route path="/auth/callback" element={<PasswordResetCallback />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/app" element={<DashboardPage />} />
+            <Route path="/app/members" element={<MembersPage />} />
+            <Route path="/app/checkins" element={<CheckInsPage />} />
+            <Route path="/app/classes" element={<ClassSchedulePage />} />
+            <Route path="/app/payments" element={<PaymentsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
           <Route path="/" element={<Navigate to="/auth" replace />} />

@@ -1,0 +1,120 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CheckInsPage } from './CheckInsPage';
+import { mockCheckInRepository } from './checkInRepository';
+import { mockMemberRepository } from '../members/memberRepository';
+
+vi.mock('../../lib/supabase', () => ({
+  hasSupabaseConfig: false,
+  supabase: null
+}));
+
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <CheckInsPage />
+    </MemoryRouter>
+  );
+}
+
+function seedMembers() {
+  return Promise.all([
+    mockMemberRepository.createMember({
+      fullName: 'Juan Dela Cruz',
+      email: 'juan@example.com',
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    }),
+    mockMemberRepository.createMember({
+      fullName: 'Maria Santos',
+      email: null,
+      phone: '0917 123 4567',
+      joinedAt: '2026-08-02',
+      notes: null
+    })
+  ]);
+}
+
+afterEach(() => {
+  cleanup();
+  mockMemberRepository.reset();
+  mockCheckInRepository.reset();
+});
+
+describe('CheckInsPage', () => {
+  it('renders the empty state when there are no members or check-ins', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/type a name/i)).toBeTruthy();
+    });
+    expect(screen.getByText(/add members first/i)).toBeTruthy();
+    expect(screen.getByText(/no check-ins yet today/i)).toBeTruthy();
+  });
+
+  it('filters members by search query', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+    expect(screen.getByText('Maria Santos')).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText(/type a name/i), { target: { value: 'maria' } });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Juan Dela Cruz')).toBeNull();
+    });
+    expect(screen.getByText('Maria Santos')).toBeTruthy();
+  });
+
+  it('checks in a member and lists them under today', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    const checkInButtons = screen.getAllByRole('button', { name: 'Check in' });
+    fireEvent.click(checkInButtons[0] as HTMLButtonElement);
+
+    await waitFor(() => {
+      expect(screen.getByText(/checked in\./i)).toBeTruthy();
+    });
+    expect(screen.getByText(/1 check-in today/i)).toBeTruthy();
+    expect(screen.getByText(/manual/i)).toBeTruthy();
+
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+    expect(saved[0]?.memberName).toBe('Maria Santos');
+  });
+
+  it('rejects checking in an inactive member', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Pedro Reyes',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    await mockMemberRepository.setMemberActive(members[0]?.id as string, false);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Pedro Reyes')).toBeTruthy();
+    });
+
+    const button = screen.getByRole('button', { name: 'Check in' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(button);
+
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(0);
+  });
+});

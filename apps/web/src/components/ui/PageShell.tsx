@@ -14,6 +14,15 @@ const navGroups: { label: string; items: { label: string; href: string }[] }[] =
     items: [{ label: 'Dashboard', href: '/app' }]
   },
   {
+    label: 'Management',
+    items: [
+      { label: 'Members', href: '/app/members' },
+      { label: 'Check-ins', href: '/app/checkins' },
+      { label: 'Classes', href: '/app/classes' },
+      { label: 'Payments', href: '/app/payments' }
+    ]
+  },
+  {
     label: 'Account',
     items: [{ label: 'Profile', href: '/profile' }]
   }
