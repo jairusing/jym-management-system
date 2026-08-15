@@ -77,6 +77,33 @@ export class SupabaseBookingRepository {
       throw new Error('Session is at full capacity.');
     }
 
+    const { data: existing, error: existingError } = await client
+      .from('class_bookings')
+      .select('id, status')
+      .eq('session_id', sessionId)
+      .eq('member_id', memberId)
+      .maybeSingle();
+
+    if (existingError) {
+      throw new Error(`Failed to check existing booking: ${existingError.message}`);
+    }
+
+    if (existing) {
+      if (existing.status !== 'cancelled') {
+        throw new Error('Member is already booked for this session.');
+      }
+      const { data: rebooked, error: rebookError } = await client
+        .from('class_bookings')
+        .update({ status: 'booked', booked_at: new Date().toISOString() })
+        .eq('id', existing.id)
+        .select(bookingColumns)
+        .single();
+      if (rebookError || !rebooked) {
+        throw new Error(`Failed to book session: ${rebookError?.message ?? 'unknown'}`);
+      }
+      return mapBooking(rebooked as BookingRow);
+    }
+
     const { data, error } = await client
       .from('class_bookings')
       .insert({ session_id: sessionId, member_id: memberId })

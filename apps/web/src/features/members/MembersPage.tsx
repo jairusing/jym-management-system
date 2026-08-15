@@ -96,6 +96,9 @@ export function MembersPage() {
   };
 
   const handleDelete = async (member: Member) => {
+    if (!window.confirm(`Delete ${member.fullName}? This cannot be undone.`)) {
+      return;
+    }
     const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
     try {
       await repo.deleteMember(member.id);

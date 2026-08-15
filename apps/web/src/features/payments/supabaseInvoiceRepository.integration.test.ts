@@ -100,4 +100,15 @@ describeLive('SupabaseInvoiceRepository (live)', () => {
     expect(found?.invoiceNumber).toBe(invoiceNumber);
     expect(found?.planName).toBeTruthy();
   });
+
+  it('voids an issued invoice', async () => {
+    const invoice = await invoiceRepo.createInvoice({
+      memberId: memberId as string,
+      memberName: memberName as string,
+      total: 700,
+      dueAt: null
+    });
+    const voided = await invoiceRepo.voidInvoice(invoice.id);
+    expect(voided.status).toBe('void');
+  });
 });

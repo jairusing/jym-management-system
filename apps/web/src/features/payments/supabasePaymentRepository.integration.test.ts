@@ -142,6 +142,47 @@ describeLive('SupabasePaymentRepository (live)', () => {
     expect(member?.membership?.endsAt).toBeTruthy();
   });
 
+  it('rejects paying an already-paid invoice', async () => {
+    await expect(
+      paymentRepo.recordPayment({
+        invoiceId: invoiceId as string,
+        invoiceNumber: invoiceNumber as string,
+        memberId: memberId as string,
+        memberName: memberName as string,
+        amount: 2500,
+        method: 'cash',
+        reference: null
+      })
+    ).rejects.toThrow('Invoice is not payable.');
+  });
+
+  it('rejects paying a voided invoice', async () => {
+    const invoice = await invoiceRepo.createInvoice({
+      memberId: memberId as string,
+      memberName: memberName as string,
+      total: 500,
+      dueAt: null
+    });
+    await invoiceRepo.voidInvoice(invoice.id);
+    await expect(
+      paymentRepo.recordPayment({
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        memberId: memberId as string,
+        memberName: memberName as string,
+        amount: 500,
+        method: 'cash',
+        reference: null
+      })
+    ).rejects.toThrow('Invoice is not payable.');
+  });
+
+  it('rejects voiding a paid invoice', async () => {
+    await expect(invoiceRepo.voidInvoice(invoiceId as string)).rejects.toThrow(
+      'A paid invoice cannot be voided.'
+    );
+  });
+
   it('lists payments including the created one', async () => {
     const payments = await paymentRepo.listPayments();
     const found = payments.find((payment) => payment.id === paymentId);

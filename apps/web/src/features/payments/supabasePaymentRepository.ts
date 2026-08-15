@@ -67,6 +67,21 @@ export class SupabasePaymentRepository {
       throw new Error('Payment amount must be greater than zero.');
     }
 
+    const { data: invoice, error: statusError } = await client
+      .from('invoices')
+      .select('status')
+      .eq('id', input.invoiceId)
+      .maybeSingle();
+    if (statusError) {
+      throw new Error(`Failed to load invoice: ${statusError.message}`);
+    }
+    if (!invoice) {
+      throw new Error('Invoice not found.');
+    }
+    if (invoice.status !== 'issued') {
+      throw new Error('Invoice is not payable.');
+    }
+
     const { data: sessionData } = await client.auth.getSession();
     const userId = sessionData.session?.user.id;
     if (!userId) {

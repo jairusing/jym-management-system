@@ -127,6 +127,21 @@ export class SupabaseInvoiceRepository {
   async voidInvoice(id: string): Promise<Invoice> {
     const client = ensureSupabase();
 
+    const { data: current, error: currentError } = await client
+      .from('invoices')
+      .select('status')
+      .eq('id', id)
+      .maybeSingle();
+    if (currentError) {
+      throw new Error(`Failed to load invoice: ${currentError.message}`);
+    }
+    if (!current) {
+      throw new Error('Invoice not found.');
+    }
+    if (current.status === 'paid') {
+      throw new Error('A paid invoice cannot be voided.');
+    }
+
     const { data, error } = await client
       .from('invoices')
       .update({ status: 'void' })

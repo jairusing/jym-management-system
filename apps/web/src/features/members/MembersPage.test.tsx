@@ -100,7 +100,8 @@ describe('MembersPage', () => {
     expect(afterReactivate[0]?.isActive).toBe(true);
   });
 
-  it('deletes a member', async () => {
+  it('deletes a member after confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     await mockMemberRepository.createMember({
       fullName: 'Pedro Reyes',
       email: null,
@@ -120,6 +121,29 @@ describe('MembersPage', () => {
     });
     const saved = await mockMemberRepository.listMembers();
     expect(saved.length).toBe(0);
+  });
+
+  it('does not delete when confirmation is declined', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await mockMemberRepository.createMember({
+      fullName: 'Pedro Reyes',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Pedro Reyes')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(screen.getByText('Pedro Reyes')).toBeTruthy();
+    });
+    const saved = await mockMemberRepository.listMembers();
+    expect(saved.length).toBe(1);
   });
 
   it('shows an active membership plan and expiry', async () => {

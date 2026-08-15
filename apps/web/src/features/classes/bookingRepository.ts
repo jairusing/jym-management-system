@@ -31,15 +31,27 @@ class MockBookingRepository implements BookingRepository {
     if (!sessionId || !memberId) {
       throw new Error('Select a member to book.');
     }
-    if (this.bookings.some((booking) => booking.sessionId === sessionId && booking.memberId === memberId)) {
-      throw new Error('Member is already booked for this session.');
-    }
     const capacity = this.capacities.get(sessionId) ?? Infinity;
     const activeCount = this.bookings.filter(
       (booking) => booking.sessionId === sessionId && booking.status !== 'cancelled'
     ).length;
     if (activeCount >= capacity) {
       throw new Error('Session is at full capacity.');
+    }
+    const existing = this.bookings.find(
+      (booking) => booking.sessionId === sessionId && booking.memberId === memberId
+    );
+    if (existing) {
+      if (existing.status !== 'cancelled') {
+        throw new Error('Member is already booked for this session.');
+      }
+      const rebooked: Booking = {
+        ...existing,
+        status: 'booked',
+        bookedAt: new Date().toISOString()
+      };
+      this.bookings = this.bookings.map((booking) => (booking.id === existing.id ? rebooked : booking));
+      return rebooked;
     }
     const booking: Booking = {
       id: `booking-${Date.now()}-${this.bookings.length}`,

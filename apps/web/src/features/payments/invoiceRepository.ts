@@ -110,6 +110,9 @@ class MockInvoiceRepository implements InvoiceRepository {
     if (!current) {
       throw new Error('Invoice not found.');
     }
+    if (current.status !== 'issued') {
+      throw new Error('Invoice is not payable.');
+    }
     const updated: Invoice = {
       ...current,
       status: 'paid',

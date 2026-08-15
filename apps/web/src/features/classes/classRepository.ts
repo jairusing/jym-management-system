@@ -90,7 +90,7 @@ class MockClassRepository implements ClassRepository {
       id: `session-${Date.now()}-${this.sessions.length}`,
       classId,
       className: gymClass.name,
-      scheduledAt: new Date(`${scheduledAt}T${gymClass.startTime}`).toISOString(),
+      scheduledAt: new Date(`${scheduledAt}T${gymClass.startTime}+08:00`).toISOString(),
       endTime: gymClass.endTime,
       capacity: gymClass.capacity,
       status: 'scheduled'

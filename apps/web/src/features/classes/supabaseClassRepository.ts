@@ -146,7 +146,7 @@ export class SupabaseClassRepository {
     }
 
     const startTime = classData.start_time.slice(0, 5);
-    const scheduledIso = new Date(`${scheduledAt}T${startTime}`).toISOString();
+    const scheduledIso = new Date(`${scheduledAt}T${startTime}+08:00`).toISOString();
 
     const { data, error } = await client
       .from('class_sessions')

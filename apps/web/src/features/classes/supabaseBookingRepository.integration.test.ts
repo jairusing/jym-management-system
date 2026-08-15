@@ -130,6 +130,18 @@ describeLive('SupabaseBookingRepository (live)', () => {
     expect(booking.status).toBe('cancelled');
   });
 
+  it('rebooks the cancelled booking for the same member', async () => {
+    const rebooked = await bookingRepo.bookSession(sessionId as string, memberId as string);
+    expect(rebooked.id).toBe(bookingId);
+    expect(rebooked.status).toBe('booked');
+  });
+
+  it('rejects a duplicate active booking', async () => {
+    await expect(bookingRepo.bookSession(sessionId as string, memberId as string)).rejects.toThrow(
+      'Member is already booked for this session.'
+    );
+  });
+
   it('cleans up: deletes the class, cascading session and booking', async () => {
     const classes = await classRepo.listClasses();
     for (const gymClass of classes) {
