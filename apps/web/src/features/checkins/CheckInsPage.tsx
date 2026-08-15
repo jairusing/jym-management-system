@@ -5,6 +5,7 @@ import { SectionCard } from '../../components/ui/SectionCard';
 import { formatDateTime, phDateInDays, phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { toAttendanceCsv } from './attendanceCsv';
+import { QrScanner } from './QrScanner';
 import { mockCheckInRepository, type CheckIn } from './checkInRepository';
 import { SupabaseCheckInRepository } from './supabaseCheckInRepository';
 import { mockMemberRepository, type Member } from '../members/memberRepository';
@@ -30,6 +31,7 @@ export function CheckInsPage() {
   const [qrCode, setQrCode] = useState('');
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [qrCheckingIn, setQrCheckingIn] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const load = async () => {
     if (!hasSupabaseConfig) {
@@ -119,8 +121,8 @@ export function CheckInsPage() {
     event.preventDefault();
   };
 
-  const handleQrCheckIn = async () => {
-    const id = qrCode.trim();
+  const handleQrCheckIn = async (code: string) => {
+    const id = code.trim();
     if (!id) {
       setError('Enter a member ID.');
       return;
@@ -167,7 +169,7 @@ export function CheckInsPage() {
 
       <SectionCard
         title="Check in a member"
-        description="Find the member by name, or enter the QR member ID."
+        description="Find the member by name, scan their QR, or enter the QR member ID."
       >
         {error ? <p className="mb-4 text-sm text-[#FF3D00]">{error}</p> : null}
         {success ? <p className="mb-4 text-sm text-[#FAFAFA]">{success}</p> : null}
@@ -234,8 +236,11 @@ export function CheckInsPage() {
               onChange={(event) => setQrCode(event.target.value)}
             />
           </label>
-          <div>
-            <button className={buttonClass} type="button" disabled={qrCheckingIn} onClick={() => void handleQrCheckIn()}>
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <button className={buttonClass} type="button" onClick={() => setScanning(true)}>
+              Scan QR
+            </button>
+            <button className={buttonClass} type="button" disabled={qrCheckingIn} onClick={() => void handleQrCheckIn(qrCode)}>
               {qrCheckingIn ? 'Checking in…' : 'Check in via QR'}
             </button>
           </div>
@@ -323,6 +328,20 @@ export function CheckInsPage() {
           </ul>
         )}
       </SectionCard>
+
+      {scanning ? (
+        <QrScanner
+          onCode={(code) => {
+            setScanning(false);
+            void handleQrCheckIn(code);
+          }}
+          onError={(message) => {
+            setScanning(false);
+            setError(message);
+          }}
+          onClose={() => setScanning(false)}
+        />
+      ) : null}
     </PageShell>
   );
 }

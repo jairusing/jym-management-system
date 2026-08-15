@@ -7,10 +7,28 @@ import { mockCheckInRepository } from './checkInRepository';
 import { phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
 import { mockMemberRepository } from '../members/memberRepository';
 
+const { scannedCode } = vi.hoisted(() => ({ scannedCode: { current: '' } }));
+
 vi.mock('../../lib/supabase', () => ({
   hasSupabaseConfig: false,
   supabase: null
 }));
+
+vi.mock('./qrDecoder', () => ({
+  decodeQrFromVideo: vi.fn(() => scannedCode.current)
+}));
+
+function stubCamera() {
+  HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: {
+      getUserMedia: vi.fn().mockResolvedValue({
+        getTracks: () => [{ stop: vi.fn() }]
+      })
+    }
+  });
+}
 
 function renderPage() {
   return render(
@@ -155,6 +173,29 @@ describe('CheckInsPage', () => {
       target: { value: members[0]?.id }
     });
     fireEvent.click(screen.getByRole('button', { name: 'Check in via QR' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/checked in via QR/i)).toBeTruthy();
+    });
+
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+    expect(saved[0]?.method).toBe('qr');
+  });
+
+  it('checks in a member via the camera scanner', async () => {
+    stubCamera();
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    const members = await mockMemberRepository.listMembers();
+    scannedCode.current = members[0]?.id ?? '';
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan QR' }));
 
     await waitFor(() => {
       expect(screen.getByText(/checked in via QR/i)).toBeTruthy();
