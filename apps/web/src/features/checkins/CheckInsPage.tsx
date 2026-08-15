@@ -174,7 +174,28 @@ export function CheckInsPage() {
         {error ? <p className="mb-4 text-sm text-[#FF3D00]">{error}</p> : null}
         {success ? <p className="mb-4 text-sm text-[#FAFAFA]">{success}</p> : null}
 
-        <form className="flex flex-col gap-4" onSubmit={handleSearch}>
+        <div className="flex flex-col gap-4 pb-4">
+          <label className="flex flex-col gap-2 text-sm">
+            <span>QR code or member ID</span>
+            <input
+              className={inputClass}
+              type="text"
+              placeholder="Scan or paste the member ID…"
+              value={qrCode}
+              onChange={(event) => setQrCode(event.target.value)}
+            />
+          </label>
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <button className={buttonClass} type="button" onClick={() => setScanning(true)}>
+              Scan QR
+            </button>
+            <button className={buttonClass} type="button" disabled={qrCheckingIn} onClick={() => void handleQrCheckIn(qrCode)}>
+              {qrCheckingIn ? 'Checking in…' : 'Check in via QR'}
+            </button>
+          </div>
+        </div>
+
+        <form className="flex flex-col gap-4 border-t border-[#262626] pt-4" onSubmit={handleSearch}>
           <label className="flex flex-col gap-2 text-sm">
             <span>Search members</span>
             <input
@@ -225,26 +246,6 @@ export function CheckInsPage() {
             </ul>
           )}
         </form>
-        <div className="flex flex-col gap-4 border-t border-[#262626] pt-4">
-          <label className="flex flex-col gap-2 text-sm">
-            <span>QR code or member ID</span>
-            <input
-              className={inputClass}
-              type="text"
-              placeholder="Scan or paste the member ID…"
-              value={qrCode}
-              onChange={(event) => setQrCode(event.target.value)}
-            />
-          </label>
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <button className={buttonClass} type="button" onClick={() => setScanning(true)}>
-              Scan QR
-            </button>
-            <button className={buttonClass} type="button" disabled={qrCheckingIn} onClick={() => void handleQrCheckIn(qrCode)}>
-              {qrCheckingIn ? 'Checking in…' : 'Check in via QR'}
-            </button>
-          </div>
-        </div>
       </SectionCard>
 
       <SectionCard
