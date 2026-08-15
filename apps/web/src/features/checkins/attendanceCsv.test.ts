@@ -27,8 +27,8 @@ describe('toAttendanceCsv', () => {
 
     expect(csv).toBe(
       'Member,Checked in,Method\r\n' +
-        '"Juan Dela Cruz","2026-08-16T06:30:45.000Z","manual"\r\n' +
-        '"Maria ""Mai"" Santos","2026-08-16T07:00:00.000Z","qr"'
+        '"Juan Dela Cruz","2026-08-16 14:30:45","manual"\r\n' +
+        '"Maria ""Mai"" Santos","2026-08-16 15:00:00","qr"'
     );
   });
 

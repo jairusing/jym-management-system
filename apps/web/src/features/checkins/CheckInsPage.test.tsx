@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CheckInsPage } from './CheckInsPage';
 import { mockCheckInRepository } from './checkInRepository';
+import { phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
 import { mockMemberRepository } from '../members/memberRepository';
 
 vi.mock('../../lib/supabase', () => ({
@@ -131,8 +132,8 @@ describe('CheckInsPage', () => {
     });
 
     const history = await mockCheckInRepository.listCheckIns(
-      `${new Date().toISOString().slice(0, 10)}T00:00:00`,
-      `${new Date().toISOString().slice(0, 10)}T23:59:59.999`
+      phDayStartUtc(phDateToday()),
+      phDayEndUtc(phDateToday())
     );
     expect(history.length).toBe(1);
     expect(history[0]?.memberName).toBe('Juan Dela Cruz');

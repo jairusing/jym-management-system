@@ -1,5 +1,6 @@
 import { mockInvoiceRepository } from './invoiceRepository';
 import { mockMemberRepository } from '../members/memberRepository';
+import { phDateInDays, phDateToday } from '../../lib/dates';
 
 export type PaymentMethod = 'cash' | 'gcash' | 'card' | 'bank';
 
@@ -50,12 +51,10 @@ class MockPaymentRepository implements PaymentRepository {
       ? (await mockInvoiceRepository.listPlans()).find((candidate) => candidate.id === paidInvoice.planId)
       : undefined;
     if (plan) {
-      const end = new Date();
-      end.setDate(end.getDate() + plan.durationDays);
       mockMemberRepository.setMembership(input.memberId, {
         planName: plan.name,
-        startsAt: new Date().toISOString().slice(0, 10),
-        endsAt: end.toISOString().slice(0, 10)
+        startsAt: phDateToday(),
+        endsAt: phDateInDays(plan.durationDays)
       });
     }
     const payment: Payment = {

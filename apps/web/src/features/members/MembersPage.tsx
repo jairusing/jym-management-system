@@ -3,7 +3,7 @@ import { toDataURL } from 'qrcode';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
-import { formatDate } from '../../lib/dates';
+import { formatDate, phDateToday } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { mockMemberRepository, type Member } from './memberRepository';
 import { SupabaseMemberRepository } from './supabaseMemberRepository';
@@ -15,7 +15,7 @@ const buttonClass =
   'inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50';
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return phDateToday();
 }
 
 export function MembersPage() {

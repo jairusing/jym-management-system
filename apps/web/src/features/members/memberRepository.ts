@@ -1,3 +1,5 @@
+import { phDateToday } from '../../lib/dates';
+
 export type Membership = {
   planName: string;
   startsAt: string;
@@ -50,7 +52,7 @@ class MockMemberRepository implements MemberRepository {
       fullName: input.fullName.trim(),
       email: input.email?.trim() || null,
       phone: input.phone?.trim() || null,
-      joinedAt: input.joinedAt || new Date().toISOString().slice(0, 10),
+      joinedAt: input.joinedAt || phDateToday(),
       notes: input.notes?.trim() || null,
       isActive: true,
       membership: null,

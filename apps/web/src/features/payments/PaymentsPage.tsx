@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
-import { formatDate, formatDateTime } from '../../lib/dates';
+import { formatDate, formatDateTime, phDateToday } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { mockInvoiceRepository, type Invoice, type Plan } from './invoiceRepository';
 import { SupabaseInvoiceRepository } from './supabaseInvoiceRepository';
@@ -25,7 +25,7 @@ const paymentMethods: { value: PaymentMethod; label: string }[] = [
 ];
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return phDateToday();
 }
 
 function formatMoney(amount: number) {

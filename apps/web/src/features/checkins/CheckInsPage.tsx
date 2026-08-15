@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
-import { formatDateTime } from '../../lib/dates';
+import { formatDateTime, phDateInDays, phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { toAttendanceCsv } from './attendanceCsv';
 import { mockCheckInRepository, type CheckIn } from './checkInRepository';
@@ -16,18 +16,12 @@ const inputClass =
 const buttonClass =
   'inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50';
 
-function daysAgo(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
-}
-
 export function CheckInsPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [history, setHistory] = useState<CheckIn[]>([]);
-  const [historyFrom, setHistoryFrom] = useState(daysAgo(7));
-  const [historyTo, setHistoryTo] = useState(daysAgo(0));
+  const [historyFrom, setHistoryFrom] = useState(phDateInDays(-7));
+  const [historyTo, setHistoryTo] = useState(phDateToday());
   const [historyLoading, setHistoryLoading] = useState(false);
   const [loading, setLoading] = useState(hasSupabaseConfig);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +63,7 @@ export function CheckInsPage() {
     setHistoryLoading(true);
     try {
       const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
-      setHistory(await repo.listCheckIns(`${historyFrom}T00:00:00`, `${historyTo}T23:59:59.999`));
+      setHistory(await repo.listCheckIns(phDayStartUtc(historyFrom), phDayEndUtc(historyTo)));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load attendance history.');
     } finally {

@@ -1,3 +1,5 @@
+import { phDateToday } from '../../lib/dates';
+
 export type InvoiceStatus = 'issued' | 'paid' | 'overdue' | 'void';
 
 export type Plan = {
@@ -70,7 +72,7 @@ class MockInvoiceRepository implements InvoiceRepository {
       memberId: input.memberId,
       memberName: input.memberName.trim(),
       total: input.total,
-      issuedAt: new Date().toISOString().slice(0, 10),
+      issuedAt: phDateToday(),
       dueAt: input.dueAt,
       paidAt: null,
       status: 'issued',
@@ -111,7 +113,7 @@ class MockInvoiceRepository implements InvoiceRepository {
     const updated: Invoice = {
       ...current,
       status: 'paid',
-      paidAt: new Date().toISOString().slice(0, 10)
+      paidAt: phDateToday()
     };
     this.invoices = this.invoices.map((invoice) => (invoice.id === id ? updated : invoice));
     return updated;

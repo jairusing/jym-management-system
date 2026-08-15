@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { phDateInDays, phDateToday } from '../../lib/dates';
 import { type Payment, type PaymentInput, type PaymentMethod } from './paymentRepository';
 
 function ensureSupabase() {
@@ -91,7 +92,7 @@ export class SupabasePaymentRepository {
 
     const { error: invoiceError } = await client
       .from('invoices')
-      .update({ status: 'paid', paid_at: new Date().toISOString().slice(0, 10) })
+      .update({ status: 'paid', paid_at: phDateToday() })
       .eq('id', input.invoiceId);
     if (invoiceError) {
       throw new Error(`Payment recorded but invoice not marked paid: ${invoiceError.message}`);
@@ -109,9 +110,7 @@ export class SupabasePaymentRepository {
       ? (Array.isArray(invoiceData.membership_plans) ? invoiceData.membership_plans[0] : invoiceData.membership_plans)
       : null;
     if (invoiceData.plan_id && plan) {
-      const startedAt = new Date().toISOString().slice(0, 10);
-      const end = new Date();
-      end.setDate(end.getDate() + plan.duration_days);
+      const startedAt = phDateToday();
 
       const { error: expireError } = await client
         .from('memberships')
@@ -126,7 +125,7 @@ export class SupabasePaymentRepository {
         member_id: input.memberId,
         plan_id: invoiceData.plan_id,
         started_at: startedAt,
-        ended_at: end.toISOString().slice(0, 10),
+        ended_at: phDateInDays(plan.duration_days),
         status: 'active'
       });
       if (insertError) {

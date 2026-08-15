@@ -3,6 +3,7 @@ import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { hasSupabaseConfig } from '../../lib/supabase';
+import { formatDateTime, PH_TIME_ZONE } from '../../lib/dates';
 import { dayOfWeekLabels, mockClassRepository, type ClassItem, type ClassSession } from './classRepository';
 import { SupabaseClassRepository } from './supabaseClassRepository';
 import { mockBookingRepository, type Booking } from './bookingRepository';
@@ -53,6 +54,7 @@ function formatWeekLabel(start: Date) {
 
 function formatSessionDate(date: Date) {
   return new Intl.DateTimeFormat('en-US', {
+    timeZone: PH_TIME_ZONE,
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -61,7 +63,11 @@ function formatSessionDate(date: Date) {
 }
 
 function formatTime(date: string) {
-  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(date));
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: PH_TIME_ZONE,
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(new Date(date));
 }
 
 function sortByDay(a: ClassSession, b: ClassSession) {
@@ -418,6 +424,7 @@ export function ClassSchedulePage() {
                         >
                           <p className="text-[#FAFAFA]">
                             {booking.memberName}
+                            <span className="ml-3 text-[#737373]">{formatDateTime(booking.bookedAt)}</span>
                             <span
                               className={`ml-3 text-[0.7rem] uppercase tracking-[0.2em] ${
                                 booking.status === 'cancelled' ? 'text-[#FF3D00]' : 'text-[#737373]'

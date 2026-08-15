@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { phDateToday, phDayStartUtc } from '../../lib/dates';
 import { type CheckIn, type CheckInInput } from './checkInRepository';
 
 function ensureSupabase() {
@@ -31,9 +32,7 @@ function mapCheckIn(row: CheckInRow): CheckIn {
 }
 
 function startOfToday() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return start.toISOString();
+  return phDayStartUtc(phDateToday());
 }
 
 export class SupabaseCheckInRepository {
