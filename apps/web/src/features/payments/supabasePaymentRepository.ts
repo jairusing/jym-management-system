@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import { phDateInDays, phDateToday } from '../../lib/dates';
+import { phDateToday } from '../../lib/dates';
 import { type Payment, type PaymentInput, type PaymentMethod } from './paymentRepository';
 
 function ensureSupabase() {
@@ -67,87 +67,30 @@ export class SupabasePaymentRepository {
       throw new Error('Payment amount must be greater than zero.');
     }
 
-    const { data: invoice, error: statusError } = await client
-      .from('invoices')
-      .select('status')
-      .eq('id', input.invoiceId)
-      .maybeSingle();
-    if (statusError) {
-      throw new Error(`Failed to load invoice: ${statusError.message}`);
-    }
-    if (!invoice) {
-      throw new Error('Invoice not found.');
-    }
-    if (invoice.status !== 'issued') {
-      throw new Error('Invoice is not payable.');
+    const { data, error } = await client.rpc('rpc_record_payment', {
+      p_invoice_id: input.invoiceId,
+      p_member_id: input.memberId,
+      p_amount: input.amount,
+      p_method: input.method,
+      p_reference: input.reference?.trim() || null,
+      p_paid_at: phDateToday()
+    });
+
+    if (error) {
+      throw new Error(`Failed to record payment: ${error.message}`);
     }
 
-    const { data: sessionData } = await client.auth.getSession();
-    const userId = sessionData.session?.user.id;
-    if (!userId) {
-      throw new Error('Failed to identify signed-in user: no active session.');
-    }
-
-    const { data, error } = await client
+    const paymentId = (data as { id?: string } | null)?.id;
+    const { data: paymentData, error: loadError } = await client
       .from('payments')
-      .insert({
-        invoice_id: input.invoiceId,
-        member_id: input.memberId,
-        amount: input.amount,
-        method: input.method,
-        reference: input.reference?.trim() || null,
-        processed_by: userId
-      })
       .select(paymentColumns)
+      .eq('id', paymentId as string)
       .single();
 
-    if (error || !data) {
-      throw new Error(`Failed to record payment: ${error?.message ?? 'unknown'}`);
+    if (loadError || !paymentData) {
+      throw new Error(`Payment recorded but failed to load: ${loadError?.message ?? 'unknown'}`);
     }
 
-    const { error: invoiceError } = await client
-      .from('invoices')
-      .update({ status: 'paid', paid_at: phDateToday() })
-      .eq('id', input.invoiceId);
-    if (invoiceError) {
-      throw new Error(`Payment recorded but invoice not marked paid: ${invoiceError.message}`);
-    }
-
-    const { data: invoiceData, error: planError } = await client
-      .from('invoices')
-      .select('plan_id, membership_plans(duration_days)')
-      .eq('id', input.invoiceId)
-      .single();
-    if (planError || !invoiceData) {
-      throw new Error(`Payment recorded but plan lookup failed: ${planError?.message ?? 'unknown'}`);
-    }
-    const plan = invoiceData.plan_id
-      ? (Array.isArray(invoiceData.membership_plans) ? invoiceData.membership_plans[0] : invoiceData.membership_plans)
-      : null;
-    if (invoiceData.plan_id && plan) {
-      const startedAt = phDateToday();
-
-      const { error: expireError } = await client
-        .from('memberships')
-        .update({ status: 'expired' })
-        .eq('member_id', input.memberId)
-        .eq('status', 'active');
-      if (expireError) {
-        throw new Error(`Payment recorded but memberships not expired: ${expireError.message}`);
-      }
-
-      const { error: insertError } = await client.from('memberships').insert({
-        member_id: input.memberId,
-        plan_id: invoiceData.plan_id,
-        started_at: startedAt,
-        ended_at: phDateInDays(plan.duration_days),
-        status: 'active'
-      });
-      if (insertError) {
-        throw new Error(`Payment recorded but membership not created: ${insertError.message}`);
-      }
-    }
-
-    return mapPayment(data as PaymentRow);
+    return mapPayment(paymentData as PaymentRow);
   }
 }

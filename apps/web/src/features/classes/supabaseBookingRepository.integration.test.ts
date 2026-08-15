@@ -142,6 +142,34 @@ describeLive('SupabaseBookingRepository (live)', () => {
     );
   });
 
+  it('blocks over-capacity bookings at the database level (trigger)', async () => {
+    const gymClass = await classRepo.createClass({
+      name: `IT Trigger Class ${Date.now()}`,
+      capacity: 1,
+      dayOfWeek: 2,
+      startTime: '18:00',
+      endTime: '19:00'
+    });
+    const session = await classRepo.createSession(gymClass.id, tomorrow);
+
+    const first = await supabase
+      ?.from('class_bookings')
+      .insert({ session_id: session.id, member_id: memberId as string })
+      .select('id')
+      .single();
+    expect(first?.error).toBeNull();
+
+    const second = await supabase
+      ?.from('class_bookings')
+      .insert({ session_id: session.id, member_id: secondMemberId as string })
+      .select('id')
+      .single();
+    expect(second?.error).toBeTruthy();
+    expect(second?.error?.message).toContain('Session is at full capacity.');
+
+    await classRepo.deleteClass(gymClass.id);
+  });
+
   it('cleans up: deletes the class, cascading session and booking', async () => {
     const classes = await classRepo.listClasses();
     for (const gymClass of classes) {
