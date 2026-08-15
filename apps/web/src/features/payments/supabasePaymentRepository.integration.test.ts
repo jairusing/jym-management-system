@@ -59,6 +59,7 @@ describeLive('SupabasePaymentRepository (live)', () => {
   let invoiceId: string | undefined;
   let invoiceNumber: string | undefined;
   let paymentId: string | undefined;
+  let planId: string | undefined;
 
   it('creates a member and an invoice to pay', async () => {
     const member = await memberRepo.createMember({
@@ -71,11 +72,15 @@ describeLive('SupabasePaymentRepository (live)', () => {
     memberId = member.id;
     memberName = member.fullName;
 
+    const plans = await invoiceRepo.listPlans();
+    planId = plans[0]?.id;
+
     const invoice = await invoiceRepo.createInvoice({
       memberId: member.id,
       memberName: member.fullName,
       total: 2500,
-      dueAt: null
+      dueAt: null,
+      planId
     });
     invoiceId = invoice.id;
     invoiceNumber = invoice.invoiceNumber;
@@ -105,6 +110,36 @@ describeLive('SupabasePaymentRepository (live)', () => {
     const invoice = invoices.find((candidate) => candidate.id === invoiceId);
     expect(invoice?.status).toBe('paid');
     expect(invoice?.paidAt).toBeTruthy();
+  });
+
+  it('creates an active membership for the paid plan', async () => {
+    const members = await memberRepo.listMembers();
+    const member = members.find((candidate) => candidate.id === memberId);
+    expect(member?.membership?.planName).toBeTruthy();
+  });
+
+  it('renews membership, expiring the previous one', async () => {
+    const invoice = await invoiceRepo.createInvoice({
+      memberId: memberId as string,
+      memberName: memberName as string,
+      total: 1500,
+      dueAt: null,
+      planId
+    });
+    await paymentRepo.recordPayment({
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      memberId: memberId as string,
+      memberName: memberName as string,
+      amount: 1500,
+      method: 'cash',
+      reference: null
+    });
+
+    const members = await memberRepo.listMembers();
+    const member = members.find((candidate) => candidate.id === memberId);
+    expect(member?.membership?.planName).toBeTruthy();
+    expect(member?.membership?.endsAt).toBeTruthy();
   });
 
   it('lists payments including the created one', async () => {

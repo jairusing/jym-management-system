@@ -2,8 +2,9 @@ import { FormEvent, useEffect, useState } from 'react';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
+import { formatDate, formatDateTime } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
-import { mockInvoiceRepository, type Invoice } from './invoiceRepository';
+import { mockInvoiceRepository, type Invoice, type Plan } from './invoiceRepository';
 import { SupabaseInvoiceRepository } from './supabaseInvoiceRepository';
 import { mockPaymentRepository, type Payment, type PaymentMethod } from './paymentRepository';
 import { SupabasePaymentRepository } from './supabasePaymentRepository';
@@ -31,21 +32,6 @@ function formatMoney(amount: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
 }
 
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).format(
-    new Date(`${date}T00:00:00`)
-  );
-}
-
-function formatDateTime(date: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  }).format(new Date(date));
-}
-
 function displayStatus(invoice: Invoice) {
   if (invoice.status === 'issued' && invoice.dueAt && invoice.dueAt < today()) {
     return 'overdue';
@@ -57,11 +43,13 @@ export function PaymentsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(hasSupabaseConfig);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [memberId, setMemberId] = useState('');
+  const [planId, setPlanId] = useState('');
   const [total, setTotal] = useState('');
   const [dueAt, setDueAt] = useState('');
   const [saving, setSaving] = useState(false);
@@ -77,6 +65,7 @@ export function PaymentsPage() {
       setInvoices(await mockInvoiceRepository.listInvoices());
       setPayments(await mockPaymentRepository.listPayments());
       setMembers(await mockMemberRepository.listMembers());
+      setPlans(await mockInvoiceRepository.listPlans());
       setLoading(false);
       return;
     }
@@ -84,19 +73,22 @@ export function PaymentsPage() {
     const paymentRepo = new SupabasePaymentRepository();
     const memberRepo = new SupabaseMemberRepository();
     try {
-      const [loadedInvoices, loadedPayments, loadedMembers] = await Promise.all([
+      const [loadedInvoices, loadedPayments, loadedMembers, loadedPlans] = await Promise.all([
         invoiceRepo.listInvoices(),
         paymentRepo.listPayments(),
-        memberRepo.listMembers()
+        memberRepo.listMembers(),
+        invoiceRepo.listPlans()
       ]);
       setInvoices(loadedInvoices);
       setPayments(loadedPayments);
       setMembers(loadedMembers);
+      setPlans(loadedPlans);
     } catch (e) {
       console.warn('Failed to load payment data from Supabase', e);
       setInvoices(await mockInvoiceRepository.listInvoices());
       setPayments(await mockPaymentRepository.listPayments());
       setMembers(await mockMemberRepository.listMembers());
+      setPlans(await mockInvoiceRepository.listPlans());
     } finally {
       setLoading(false);
     }
@@ -124,9 +116,11 @@ export function PaymentsPage() {
         memberId: member.id,
         memberName: member.fullName,
         total: Number(total),
-        dueAt: dueAt || null
+        dueAt: dueAt || null,
+        planId: planId || null
       });
       setMemberId('');
+      setPlanId('');
       setTotal('');
       setDueAt('');
       await load();
@@ -188,9 +182,9 @@ export function PaymentsPage() {
       {error ? <p className="text-sm text-[#FF3D00]">{error}</p> : null}
       {success ? <p className="text-sm text-[#FAFAFA]">{success}</p> : null}
 
-      <SectionCard title="Issue invoice" description="Create a record-only invoice for a member.">
+      <SectionCard title="Issue invoice" description="Create a record-only invoice for a member. Select a plan to renew membership on payment.">
         <form className="flex flex-col gap-4" onSubmit={handleCreateInvoice}>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <label className="flex flex-col gap-2 text-sm">
               <span>Member</span>
               <select
@@ -202,6 +196,21 @@ export function PaymentsPage() {
                 {members.map((member) => (
                   <option key={member.id} value={member.id}>
                     {member.fullName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span>Plan (optional)</span>
+              <select
+                className={inputClass}
+                value={planId}
+                onChange={(event) => setPlanId(event.target.value)}
+              >
+                <option value="">None</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name}
                   </option>
                 ))}
               </select>
@@ -261,7 +270,8 @@ export function PaymentsPage() {
                         </span>
                       </p>
                       <p className="mt-1 text-sm text-[#737373]">
-                        {invoice.memberName} · {formatMoney(invoice.total)} · issued {formatDate(invoice.issuedAt)}
+                        {invoice.memberName} · {invoice.planName ? `${invoice.planName} · ` : ''}
+                        {formatMoney(invoice.total)} · issued {formatDate(invoice.issuedAt)}
                         {invoice.dueAt ? ` · due ${formatDate(invoice.dueAt)}` : ''}
                         {invoice.paidAt ? ` · paid ${formatDate(invoice.paidAt)}` : ''}
                       </p>

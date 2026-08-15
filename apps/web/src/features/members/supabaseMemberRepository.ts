@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import { type Member, type MemberInput } from './memberRepository';
+import { type Member, type MemberInput, type Membership } from './memberRepository';
 
 function ensureSupabase() {
   if (!supabase) {
@@ -7,6 +7,13 @@ function ensureSupabase() {
   }
   return supabase;
 }
+
+type MembershipRow = {
+  status: string;
+  started_at: string;
+  ended_at: string | null;
+  membership_plans: { name: string } | { name: string }[] | null;
+};
 
 type MemberRow = {
   id: string;
@@ -17,10 +24,21 @@ type MemberRow = {
   joined_at: string;
   notes: string | null;
   is_active: boolean;
+  memberships: MembershipRow[] | null;
   created_at: string;
 };
 
+function mapMembership(row: MembershipRow): Membership {
+  return {
+    planName: (Array.isArray(row.membership_plans) ? row.membership_plans[0] : row.membership_plans)?.name ??
+      'Unknown plan',
+    startsAt: row.started_at,
+    endsAt: row.ended_at ?? row.started_at
+  };
+}
+
 function mapMember(row: MemberRow): Member {
+  const active = (row.memberships ?? []).find((membership) => membership.status === 'active');
   return {
     id: row.id,
     userId: row.user_id,
@@ -30,9 +48,13 @@ function mapMember(row: MemberRow): Member {
     joinedAt: row.joined_at,
     notes: row.notes,
     isActive: row.is_active,
+    membership: active ? mapMembership(active) : null,
     createdAt: row.created_at
   };
 }
+
+const memberColumns =
+  'id, user_id, full_name, email, phone, joined_at, notes, is_active, memberships(status, started_at, ended_at, membership_plans(name)), created_at';
 
 export class SupabaseMemberRepository {
   async listMembers(): Promise<Member[]> {
@@ -40,7 +62,7 @@ export class SupabaseMemberRepository {
 
     const { data, error } = await client
       .from('members')
-      .select('id, user_id, full_name, email, phone, joined_at, notes, is_active, created_at')
+      .select(memberColumns)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -66,7 +88,7 @@ export class SupabaseMemberRepository {
         joined_at: input.joinedAt,
         notes: input.notes?.trim() || null
       })
-      .select('id, user_id, full_name, email, phone, joined_at, notes, is_active, created_at')
+      .select(memberColumns)
       .single();
 
     if (error || !data) {
@@ -96,7 +118,7 @@ export class SupabaseMemberRepository {
       .from('members')
       .update(payload)
       .eq('id', id)
-      .select('id, user_id, full_name, email, phone, joined_at, notes, is_active, created_at')
+      .select(memberColumns)
       .single();
 
     if (error || !data) {
@@ -113,7 +135,7 @@ export class SupabaseMemberRepository {
       .from('members')
       .update({ is_active: isActive })
       .eq('id', id)
-      .select('id, user_id, full_name, email, phone, joined_at, notes, is_active, created_at')
+      .select(memberColumns)
       .single();
 
     if (error || !data) {

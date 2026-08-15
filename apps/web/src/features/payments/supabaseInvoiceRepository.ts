@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import { type Invoice, type InvoiceInput, type InvoiceStatus } from './invoiceRepository';
+import { type Invoice, type InvoiceInput, type InvoiceStatus, type Plan } from './invoiceRepository';
 
 function ensureSupabase() {
   if (!supabase) {
@@ -17,12 +17,14 @@ type InvoiceRow = {
   due_at: string | null;
   paid_at: string | null;
   status: InvoiceStatus;
+  plan_id: string | null;
   created_at: string;
   members: { full_name: string } | { full_name: string }[] | null;
+  membership_plans: { name: string } | { name: string }[] | null;
 };
 
 const invoiceColumns =
-  'id, invoice_number, member_id, total, issued_at, due_at, paid_at, status, created_at, members(full_name)';
+  'id, invoice_number, member_id, total, issued_at, due_at, paid_at, status, plan_id, created_at, members(full_name), membership_plans(name)';
 
 function mapInvoice(row: InvoiceRow): Invoice {
   return {
@@ -35,7 +37,29 @@ function mapInvoice(row: InvoiceRow): Invoice {
     dueAt: row.due_at,
     paidAt: row.paid_at,
     status: row.status,
+    planId: row.plan_id,
+    planName: (Array.isArray(row.membership_plans) ? row.membership_plans[0] : row.membership_plans)?.name ?? null,
     createdAt: row.created_at
+  };
+}
+
+type PlanRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  duration_days: number;
+  is_active: boolean;
+};
+
+function mapPlan(row: PlanRow): Plan {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    price: row.price,
+    durationDays: row.duration_days,
+    isActive: row.is_active
   };
 }
 
@@ -55,6 +79,22 @@ export class SupabaseInvoiceRepository {
     return (data ?? []).map((row) => mapInvoice(row as InvoiceRow));
   }
 
+  async listPlans(): Promise<Plan[]> {
+    const client = ensureSupabase();
+
+    const { data, error } = await client
+      .from('membership_plans')
+      .select('id, name, description, price, duration_days, is_active')
+      .eq('is_active', true)
+      .order('price', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to load plans: ${error.message}`);
+    }
+
+    return (data ?? []).map((row) => mapPlan(row as PlanRow));
+  }
+
   async createInvoice(input: InvoiceInput): Promise<Invoice> {
     const client = ensureSupabase();
 
@@ -71,7 +111,8 @@ export class SupabaseInvoiceRepository {
         invoice_number: `INV-${Date.now()}`,
         member_id: input.memberId,
         total: input.total,
-        due_at: input.dueAt
+        due_at: input.dueAt,
+        plan_id: input.planId ?? null
       })
       .select(invoiceColumns)
       .single();

@@ -117,4 +117,71 @@ describe('CheckInsPage', () => {
     const saved = await mockCheckInRepository.listTodayCheckIns();
     expect(saved.length).toBe(0);
   });
+
+  it('lists check-ins in the attendance history section', async () => {
+    await seedMembers();
+    await mockCheckInRepository.recordCheckIn({
+      memberId: 'member-1',
+      memberName: 'Juan Dela Cruz'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 check-in in the selected range/i)).toBeTruthy();
+    });
+
+    const history = await mockCheckInRepository.listCheckIns(
+      `${new Date().toISOString().slice(0, 10)}T00:00:00`,
+      `${new Date().toISOString().slice(0, 10)}T23:59:59.999`
+    );
+    expect(history.length).toBe(1);
+    expect(history[0]?.memberName).toBe('Juan Dela Cruz');
+
+    const exportButton = screen.getByRole('button', { name: /export csv/i });
+    expect((exportButton as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('checks in a member via QR code', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    const members = await mockMemberRepository.listMembers();
+    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+      target: { value: members[0]?.id }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Check in via QR' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/checked in via QR/i)).toBeTruthy();
+    });
+
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+    expect(saved[0]?.method).toBe('qr');
+  });
+
+  it('rejects an unknown QR member ID', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+      target: { value: 'no-such-member' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Check in via QR' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('No member matches that ID.')).toBeTruthy();
+    });
+
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(0);
+  });
 });

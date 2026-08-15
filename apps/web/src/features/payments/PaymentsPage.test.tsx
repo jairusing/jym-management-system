@@ -150,4 +150,37 @@ describe('PaymentsPage', () => {
     });
     expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
   });
+
+  it('renews membership when a plan invoice is paid', async () => {
+    const member = await seedMember();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Member')).toBeTruthy();
+    });
+    fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
+    fireEvent.change(screen.getByLabelText('Plan (optional)'), { target: { value: 'plan-monthly' } });
+    fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '1500' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Issue invoice' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Monthly Pass ·/)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Confirm payment' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm payment' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('paid')).toBeTruthy();
+    });
+
+    const saved = await mockInvoiceRepository.listInvoices();
+    expect(saved[0]?.planName).toBe('Monthly Pass');
+    const savedMembers = await mockMemberRepository.listMembers();
+    expect(savedMembers[0]?.membership?.planName).toBe('Monthly Pass');
+    expect(savedMembers[0]?.membership?.endsAt).toBeTruthy();
+  });
 });

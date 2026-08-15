@@ -63,6 +63,7 @@ describeLive('SupabaseMemberRepository (live)', () => {
     createdId = member.id;
     expect(member.id).toBeTruthy();
     expect(member.isActive).toBe(true);
+    expect(member.membership).toBeNull();
   });
 
   it('lists members including the created one', async () => {

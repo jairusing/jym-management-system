@@ -17,9 +17,14 @@ export interface BookingRepository {
 
 class MockBookingRepository implements BookingRepository {
   private bookings: Booking[] = [];
+  private capacities = new Map<string, number>();
 
   async listBookings() {
     return [...this.bookings].sort((a, b) => a.bookedAt.localeCompare(b.bookedAt));
+  }
+
+  setSessionCapacity(sessionId: string, capacity: number) {
+    this.capacities.set(sessionId, capacity);
   }
 
   async bookSession(sessionId: string, memberId: string, memberName?: string) {
@@ -28,6 +33,13 @@ class MockBookingRepository implements BookingRepository {
     }
     if (this.bookings.some((booking) => booking.sessionId === sessionId && booking.memberId === memberId)) {
       throw new Error('Member is already booked for this session.');
+    }
+    const capacity = this.capacities.get(sessionId) ?? Infinity;
+    const activeCount = this.bookings.filter(
+      (booking) => booking.sessionId === sessionId && booking.status !== 'cancelled'
+    ).length;
+    if (activeCount >= capacity) {
+      throw new Error('Session is at full capacity.');
     }
     const booking: Booking = {
       id: `booking-${Date.now()}-${this.bookings.length}`,

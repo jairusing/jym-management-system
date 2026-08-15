@@ -97,6 +97,43 @@ export class SupabasePaymentRepository {
       throw new Error(`Payment recorded but invoice not marked paid: ${invoiceError.message}`);
     }
 
+    const { data: invoiceData, error: planError } = await client
+      .from('invoices')
+      .select('plan_id, membership_plans(duration_days)')
+      .eq('id', input.invoiceId)
+      .single();
+    if (planError || !invoiceData) {
+      throw new Error(`Payment recorded but plan lookup failed: ${planError?.message ?? 'unknown'}`);
+    }
+    const plan = invoiceData.plan_id
+      ? (Array.isArray(invoiceData.membership_plans) ? invoiceData.membership_plans[0] : invoiceData.membership_plans)
+      : null;
+    if (invoiceData.plan_id && plan) {
+      const startedAt = new Date().toISOString().slice(0, 10);
+      const end = new Date();
+      end.setDate(end.getDate() + plan.duration_days);
+
+      const { error: expireError } = await client
+        .from('memberships')
+        .update({ status: 'expired' })
+        .eq('member_id', input.memberId)
+        .eq('status', 'active');
+      if (expireError) {
+        throw new Error(`Payment recorded but memberships not expired: ${expireError.message}`);
+      }
+
+      const { error: insertError } = await client.from('memberships').insert({
+        member_id: input.memberId,
+        plan_id: invoiceData.plan_id,
+        started_at: startedAt,
+        ended_at: end.toISOString().slice(0, 10),
+        status: 'active'
+      });
+      if (insertError) {
+        throw new Error(`Payment recorded but membership not created: ${insertError.message}`);
+      }
+    }
+
     return mapPayment(data as PaymentRow);
   }
 }

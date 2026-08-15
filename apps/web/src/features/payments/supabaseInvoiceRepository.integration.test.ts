@@ -71,11 +71,15 @@ describeLive('SupabaseInvoiceRepository (live)', () => {
   });
 
   it('creates an invoice for the member', async () => {
+    const plans = await invoiceRepo.listPlans();
+    expect(plans.length).toBeGreaterThan(0);
+
     const invoice = await invoiceRepo.createInvoice({
       memberId: memberId as string,
       memberName: memberName as string,
       total: 1500,
-      dueAt: '2026-09-15'
+      dueAt: '2026-09-15',
+      planId: plans[0]?.id
     });
     invoiceId = invoice.id;
     invoiceNumber = invoice.invoiceNumber;
@@ -84,13 +88,16 @@ describeLive('SupabaseInvoiceRepository (live)', () => {
     expect(invoice.total).toBe(1500);
     expect(invoice.status).toBe('issued');
     expect(invoice.memberName).toBe(memberName);
+    expect(invoice.planId).toBe(plans[0]?.id);
+    expect(invoice.planName).toBe(plans[0]?.name);
   });
 
-  it('lists invoices including the created one with member name', async () => {
+  it('lists invoices including the created one with member name and plan', async () => {
     const invoices = await invoiceRepo.listInvoices();
     const found = invoices.find((invoice) => invoice.id === invoiceId);
     expect(found).toBeTruthy();
     expect(found?.memberName).toBe(memberName);
     expect(found?.invoiceNumber).toBe(invoiceNumber);
+    expect(found?.planName).toBeTruthy();
   });
 });

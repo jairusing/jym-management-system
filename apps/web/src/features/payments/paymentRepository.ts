@@ -1,4 +1,5 @@
 import { mockInvoiceRepository } from './invoiceRepository';
+import { mockMemberRepository } from '../members/memberRepository';
 
 export type PaymentMethod = 'cash' | 'gcash' | 'card' | 'bank';
 
@@ -44,7 +45,19 @@ class MockPaymentRepository implements PaymentRepository {
     if (!input.amount || input.amount <= 0) {
       throw new Error('Payment amount must be greater than zero.');
     }
-    await mockInvoiceRepository.markPaid(input.invoiceId);
+    const paidInvoice = await mockInvoiceRepository.markPaid(input.invoiceId);
+    const plan = paidInvoice.planId
+      ? (await mockInvoiceRepository.listPlans()).find((candidate) => candidate.id === paidInvoice.planId)
+      : undefined;
+    if (plan) {
+      const end = new Date();
+      end.setDate(end.getDate() + plan.durationDays);
+      mockMemberRepository.setMembership(input.memberId, {
+        planName: plan.name,
+        startsAt: new Date().toISOString().slice(0, 10),
+        endsAt: end.toISOString().slice(0, 10)
+      });
+    }
     const payment: Payment = {
       id: `payment-${Date.now()}-${this.payments.length}`,
       invoiceId: input.invoiceId,

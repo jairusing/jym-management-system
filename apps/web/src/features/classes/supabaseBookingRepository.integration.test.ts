@@ -55,6 +55,7 @@ describeLive('SupabaseBookingRepository (live)', () => {
   const memberRepo = new SupabaseMemberRepository();
   let memberId: string | undefined;
   let memberName: string | undefined;
+  let secondMemberId: string | undefined;
   let sessionId: string | undefined;
   let bookingId: string | undefined;
 
@@ -70,6 +71,15 @@ describeLive('SupabaseBookingRepository (live)', () => {
     });
     memberId = member.id;
     memberName = member.fullName;
+
+    const secondMember = await memberRepo.createMember({
+      fullName: `IT Booking Member 2 ${Date.now()}`,
+      email: null,
+      phone: '0917 000 0001',
+      joinedAt: '2026-08-16',
+      notes: 'integration test'
+    });
+    secondMemberId = secondMember.id;
 
     const gymClass = await classRepo.createClass({
       name: `IT Booking Class ${Date.now()}`,
@@ -99,6 +109,22 @@ describeLive('SupabaseBookingRepository (live)', () => {
     expect(bookings.some((booking) => booking.id === bookingId)).toBe(true);
   });
 
+  it('rejects booking beyond session capacity', async () => {
+    const gymClass = await classRepo.createClass({
+      name: `IT Capacity Class ${Date.now()}`,
+      capacity: 1,
+      dayOfWeek: 3,
+      startTime: '19:00',
+      endTime: '20:00'
+    });
+    const session = await classRepo.createSession(gymClass.id, tomorrow);
+    await bookingRepo.bookSession(session.id, memberId as string);
+    await expect(bookingRepo.bookSession(session.id, secondMemberId as string)).rejects.toThrow(
+      'Session is at full capacity.'
+    );
+    await classRepo.deleteClass(gymClass.id);
+  });
+
   it('cancels the booking', async () => {
     const booking = await bookingRepo.cancelBooking(bookingId as string);
     expect(booking.status).toBe('cancelled');
@@ -112,6 +138,7 @@ describeLive('SupabaseBookingRepository (live)', () => {
       }
     }
     await memberRepo.deleteMember(memberId as string);
+    await memberRepo.deleteMember(secondMemberId as string);
     const bookings = await bookingRepo.listBookings();
     expect(bookings.some((booking) => booking.id === bookingId)).toBe(false);
   });

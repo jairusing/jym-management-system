@@ -1,3 +1,9 @@
+export type Membership = {
+  planName: string;
+  startsAt: string;
+  endsAt: string;
+};
+
 export type Member = {
   id: string;
   userId: string | null;
@@ -7,6 +13,7 @@ export type Member = {
   joinedAt: string;
   notes: string | null;
   isActive: boolean;
+  membership: Membership | null;
   createdAt: string;
 };
 
@@ -46,6 +53,7 @@ class MockMemberRepository implements MemberRepository {
       joinedAt: input.joinedAt || new Date().toISOString().slice(0, 10),
       notes: input.notes?.trim() || null,
       isActive: true,
+      membership: null,
       createdAt: new Date().toISOString()
     };
     this.members = [member, ...this.members];
@@ -85,6 +93,12 @@ class MockMemberRepository implements MemberRepository {
     const updated: Member = { ...current, isActive };
     this.members = this.members.map((member) => (member.id === id ? updated : member));
     return updated;
+  }
+
+  setMembership(memberId: string, membership: Membership) {
+    this.members = this.members.map((member) =>
+      member.id === memberId ? { ...member, membership } : member
+    );
   }
 
   async deleteMember(id: string) {

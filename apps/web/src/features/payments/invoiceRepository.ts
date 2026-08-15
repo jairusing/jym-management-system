@@ -1,5 +1,14 @@
 export type InvoiceStatus = 'issued' | 'paid' | 'overdue' | 'void';
 
+export type Plan = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  durationDays: number;
+  isActive: boolean;
+};
+
 export type Invoice = {
   id: string;
   invoiceNumber: string;
@@ -10,6 +19,8 @@ export type Invoice = {
   dueAt: string | null;
   paidAt: string | null;
   status: InvoiceStatus;
+  planId: string | null;
+  planName: string | null;
   createdAt: string;
 };
 
@@ -18,10 +29,12 @@ export type InvoiceInput = {
   memberName: string;
   total: number;
   dueAt: string | null;
+  planId?: string | null;
 };
 
 export interface InvoiceRepository {
   listInvoices(): Promise<Invoice[]>;
+  listPlans(): Promise<Plan[]>;
   createInvoice(input: InvoiceInput): Promise<Invoice>;
   voidInvoice(id: string): Promise<Invoice>;
 }
@@ -29,8 +42,18 @@ export interface InvoiceRepository {
 class MockInvoiceRepository implements InvoiceRepository {
   private invoices: Invoice[] = [];
 
+  private plans: Plan[] = [
+    { id: 'plan-monthly', name: 'Monthly Pass', description: null, price: 1500, durationDays: 30, isActive: true },
+    { id: 'plan-quarterly', name: 'Quarterly Pass', description: null, price: 4000, durationDays: 90, isActive: true },
+    { id: 'plan-annual', name: 'Annual Pass', description: null, price: 12000, durationDays: 365, isActive: true }
+  ];
+
   async listInvoices() {
     return [...this.invoices].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async listPlans() {
+    return [...this.plans];
   }
 
   async createInvoice(input: InvoiceInput) {
@@ -40,6 +63,7 @@ class MockInvoiceRepository implements InvoiceRepository {
     if (!input.total || input.total <= 0) {
       throw new Error('Invoice total must be greater than zero.');
     }
+    const plan = this.plans.find((candidate) => candidate.id === input.planId) ?? null;
     const invoice: Invoice = {
       id: `invoice-${Date.now()}-${this.invoices.length}`,
       invoiceNumber: `INV-${Date.now()}`,
@@ -50,6 +74,8 @@ class MockInvoiceRepository implements InvoiceRepository {
       dueAt: input.dueAt,
       paidAt: null,
       status: 'issued',
+      planId: plan?.id ?? null,
+      planName: plan?.name ?? null,
       createdAt: new Date().toISOString()
     };
     this.invoices = [invoice, ...this.invoices];

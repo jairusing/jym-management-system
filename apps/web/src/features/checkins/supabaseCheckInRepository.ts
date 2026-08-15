@@ -53,6 +53,23 @@ export class SupabaseCheckInRepository {
     return (data ?? []).map((row) => mapCheckIn(row as CheckInRow));
   }
 
+  async listCheckIns(from: string, to: string): Promise<CheckIn[]> {
+    const client = ensureSupabase();
+
+    const { data, error } = await client
+      .from('check_ins')
+      .select(selectColumns)
+      .gte('checked_in_at', from)
+      .lte('checked_in_at', to)
+      .order('checked_in_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to load check-ins: ${error.message}`);
+    }
+
+    return (data ?? []).map((row) => mapCheckIn(row as CheckInRow));
+  }
+
   async recordCheckIn(input: CheckInInput): Promise<CheckIn> {
     const client = ensureSupabase();
 

@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { toDataURL } from 'qrcode';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
+import { formatDate } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { mockMemberRepository, type Member } from './memberRepository';
 import { SupabaseMemberRepository } from './supabaseMemberRepository';
@@ -16,16 +18,12 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).format(
-    new Date(`${date}T00:00:00`)
-  );
-}
-
 export function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(hasSupabaseConfig);
   const [error, setError] = useState<string | null>(null);
+  const [qrFor, setQrFor] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -105,6 +103,19 @@ export function MembersPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete member.');
     }
+  };
+
+  const handleShowQr = async (member: Member) => {
+    if (qrFor === member.id) {
+      setQrFor(null);
+      setQrDataUrl(null);
+      return;
+    }
+    setQrFor(member.id);
+    setQrDataUrl(null);
+    setError(null);
+    const dataUrl = await toDataURL(member.id, { width: 160, margin: 1 });
+    setQrDataUrl(dataUrl);
   };
 
   return (
@@ -204,9 +215,21 @@ export function MembersPage() {
                     {member.phone ? ` · ${member.phone}` : ''}
                     {member.email ? ` · ${member.email}` : ''}
                   </p>
+                  {member.membership ? (
+                    <p className="mt-1 text-sm text-[#737373]">
+                      {member.membership.planName} until {formatDate(member.membership.endsAt)}
+                    </p>
+                  ) : null}
                   {member.notes ? <p className="mt-1 text-sm text-[#737373]">{member.notes}</p> : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    className={buttonClass}
+                    type="button"
+                    onClick={() => void handleShowQr(member)}
+                  >
+                    {qrFor === member.id ? 'Hide QR' : 'Show QR'}
+                  </button>
                   <button
                     className={buttonClass}
                     type="button"
@@ -222,6 +245,18 @@ export function MembersPage() {
                     Delete
                   </button>
                 </div>
+
+                {qrFor === member.id ? (
+                  <div className="flex flex-col items-start gap-2 border border-[#262626] bg-[#1A1A1A] p-4">
+                    {qrDataUrl ? (
+                      <img src={qrDataUrl} alt={`QR code for ${member.fullName}`} className="h-40 w-40" />
+                    ) : (
+                      <p className="text-sm text-[#737373]">Generating…</p>
+                    )}
+                    <p className="text-sm text-[#737373]">Member ID: {member.id}</p>
+                    <p className="text-sm text-[#737373]">Show this QR at the front desk for check-in.</p>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

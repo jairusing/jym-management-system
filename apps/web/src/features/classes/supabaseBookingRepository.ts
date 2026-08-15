@@ -53,6 +53,30 @@ export class SupabaseBookingRepository {
       throw new Error('Select a member to book.');
     }
 
+    const { data: session, error: sessionError } = await client
+      .from('class_sessions')
+      .select('capacity')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      throw new Error(`Failed to load session: ${sessionError?.message ?? 'not found'}`);
+    }
+
+    const { count, error: countError } = await client
+      .from('class_bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('session_id', sessionId)
+      .neq('status', 'cancelled');
+
+    if (countError) {
+      throw new Error(`Failed to count bookings: ${countError.message}`);
+    }
+
+    if ((count ?? 0) >= session.capacity) {
+      throw new Error('Session is at full capacity.');
+    }
+
     const { data, error } = await client
       .from('class_bookings')
       .insert({ session_id: sessionId, member_id: memberId })

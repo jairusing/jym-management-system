@@ -168,4 +168,47 @@ describe('ClassSchedulePage', () => {
     const bookings = await mockBookingRepository.listBookings();
     expect(bookings[0]?.status).toBe('cancelled');
   });
+
+  it('shows full state and rejects a booking at capacity', async () => {
+    await mockClassRepository.createClass({
+      name: 'Yoga Flow',
+      capacity: 1,
+      dayOfWeek: 2,
+      startTime: '09:00',
+      endTime: '10:00'
+    });
+    await mockMemberRepository.createMember({
+      fullName: 'Juan Dela Cruz',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    await mockMemberRepository.createMember({
+      fullName: 'Maria Santos',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    const classes = await mockClassRepository.listClasses();
+    const session = await mockClassRepository.createSession(
+      classes[0]?.id as string,
+      toDateInput(addDays(startOfWeek(new Date()), 1))
+    );
+    mockBookingRepository.setSessionCapacity(session.id, 1);
+    const members = await mockMemberRepository.listMembers();
+    await mockBookingRepository.bookSession(session.id, members[0]?.id as string, 'Juan Dela Cruz');
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/1\/1 booked/i)).toBeTruthy();
+    });
+
+    const fullButton = screen.getByRole('button', { name: 'Full' });
+    expect((fullButton as HTMLButtonElement).disabled).toBe(true);
+
+    const bookings = await mockBookingRepository.listBookings();
+    expect(bookings.length).toBe(1);
+  });
 });

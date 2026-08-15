@@ -52,7 +52,12 @@ function formatWeekLabel(start: Date) {
 }
 
 function formatSessionDate(date: Date) {
-  return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(date);
 }
 
 function formatTime(date: string) {
@@ -357,6 +362,7 @@ export function ClassSchedulePage() {
             {sortedSessions.map((session) => {
               const sessionBookings = bookings.filter((booking) => booking.sessionId === session.id);
               const bookedCount = sessionBookings.filter((booking) => booking.status !== 'cancelled').length;
+              const isFull = bookedCount >= session.capacity;
               return (
                 <li key={session.id} className="border-b border-[#262626] py-5 last:border-b-0">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -368,14 +374,15 @@ export function ClassSchedulePage() {
                       </p>
                     </div>
                     <button
-                      className={buttonClass}
+                      className={`${buttonClass} disabled:opacity-50`}
                       type="button"
+                      disabled={isFull}
                       onClick={() => {
                         setBookingFor(bookingFor === session.id ? null : session.id);
                         setBookMemberId('');
                       }}
                     >
-                      {bookingFor === session.id ? 'Close' : 'Book a member'}
+                      {isFull ? 'Full' : bookingFor === session.id ? 'Close' : 'Book a member'}
                     </button>
                   </div>
 

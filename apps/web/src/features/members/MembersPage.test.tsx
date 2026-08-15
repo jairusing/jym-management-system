@@ -10,6 +10,10 @@ vi.mock('../../lib/supabase', () => ({
   supabase: null
 }));
 
+vi.mock('qrcode', () => ({
+  toDataURL: vi.fn(async () => 'data:image/png;base64,MOCKQR')
+}));
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -116,5 +120,51 @@ describe('MembersPage', () => {
     });
     const saved = await mockMemberRepository.listMembers();
     expect(saved.length).toBe(0);
+  });
+
+  it('shows an active membership plan and expiry', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Juan Dela Cruz',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    mockMemberRepository.setMembership(members[0]?.id as string, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-08-01',
+      endsAt: '2026-08-31'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Monthly Pass until Aug 31, 2026/)).toBeTruthy();
+    });
+  });
+
+  it('shows a QR code for a member', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Juan Dela Cruz',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show QR' }));
+
+    await waitFor(() => {
+      expect(screen.getByAltText(/QR code for Juan Dela Cruz/)).toBeTruthy();
+    });
+    expect(screen.getByText(/Member ID:/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide QR' }));
+    expect(screen.queryByAltText(/QR code for Juan Dela Cruz/)).toBeNull();
   });
 });

@@ -17,6 +17,7 @@ export type CheckInInput = {
 
 export interface CheckInRepository {
   listTodayCheckIns(): Promise<CheckIn[]>;
+  listCheckIns(from: string, to: string): Promise<CheckIn[]>;
   recordCheckIn(input: CheckInInput): Promise<CheckIn>;
 }
 
@@ -25,6 +26,12 @@ class MockCheckInRepository implements CheckInRepository {
 
   async listTodayCheckIns() {
     return [...this.checkIns].sort((a, b) => b.checkedInAt.localeCompare(a.checkedInAt));
+  }
+
+  async listCheckIns(from: string, to: string) {
+    return this.checkIns
+      .filter((checkIn) => checkIn.checkedInAt >= from && checkIn.checkedInAt <= to)
+      .sort((a, b) => b.checkedInAt.localeCompare(a.checkedInAt));
   }
 
   async recordCheckIn(input: CheckInInput) {

@@ -1,8 +1,10 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
+import { formatDateTime } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
+import { toAttendanceCsv } from './attendanceCsv';
 import { mockCheckInRepository, type CheckIn } from './checkInRepository';
 import { SupabaseCheckInRepository } from './supabaseCheckInRepository';
 import { mockMemberRepository, type Member } from '../members/memberRepository';
@@ -14,18 +16,26 @@ const inputClass =
 const buttonClass =
   'inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50';
 
-function formatTime(date: string) {
-  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(date));
+function daysAgo(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
 }
 
 export function CheckInsPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [history, setHistory] = useState<CheckIn[]>([]);
+  const [historyFrom, setHistoryFrom] = useState(daysAgo(7));
+  const [historyTo, setHistoryTo] = useState(daysAgo(0));
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [loading, setLoading] = useState(hasSupabaseConfig);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [qrCode, setQrCode] = useState('');
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [qrCheckingIn, setQrCheckingIn] = useState(false);
 
   const load = async () => {
     if (!hasSupabaseConfig) {
@@ -52,9 +62,41 @@ export function CheckInsPage() {
     }
   };
 
+  const loadHistory = useCallback(async () => {
+    if (!historyFrom || !historyTo || historyFrom > historyTo) {
+      return;
+    }
+    setHistoryLoading(true);
+    try {
+      const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
+      setHistory(await repo.listCheckIns(`${historyFrom}T00:00:00`, `${historyTo}T23:59:59.999`));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load attendance history.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [historyFrom, historyTo]);
+
   useEffect(() => {
     void load();
-  }, []);
+    void loadHistory();
+  }, [loadHistory]);
+
+  const handleExportCsv = () => {
+    if (history.length === 0) {
+      return;
+    }
+    const csv = toAttendanceCsv(history);
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `attendance-${historyFrom}-to-${historyTo}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const handleCheckIn = async (member: Member) => {
     if (!member.isActive) {
@@ -83,6 +125,40 @@ export function CheckInsPage() {
     event.preventDefault();
   };
 
+  const handleQrCheckIn = async () => {
+    const id = qrCode.trim();
+    if (!id) {
+      setError('Enter a member ID.');
+      return;
+    }
+    const member = members.find((candidate) => candidate.id === id);
+    if (!member) {
+      setError('No member matches that ID.');
+      return;
+    }
+    if (!member.isActive) {
+      setError('Cannot check in an inactive member.');
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+
+    const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
+    setQrCheckingIn(true);
+    try {
+      await repo.recordCheckIn({ memberId: member.id, memberName: member.fullName, method: 'qr' });
+      setSuccess(`${member.fullName} checked in via QR.`);
+      setQrCode('');
+      setCheckIns(hasSupabaseConfig
+        ? await new SupabaseCheckInRepository().listTodayCheckIns()
+        : await mockCheckInRepository.listTodayCheckIns());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to check in member.');
+    } finally {
+      setQrCheckingIn(false);
+    }
+  };
+
   const filteredMembers = members.filter((member) =>
     member.fullName.toLowerCase().includes(query.trim().toLowerCase())
   );
@@ -95,7 +171,10 @@ export function CheckInsPage() {
     >
       <BackLink to="/app" label="Back to dashboard" />
 
-      <SectionCard title="Check in a member" description="Find the member by name, then tap check in.">
+      <SectionCard
+        title="Check in a member"
+        description="Find the member by name, or enter the QR member ID."
+      >
         {error ? <p className="mb-4 text-sm text-[#FF3D00]">{error}</p> : null}
         {success ? <p className="mb-4 text-sm text-[#FAFAFA]">{success}</p> : null}
 
@@ -150,6 +229,23 @@ export function CheckInsPage() {
             </ul>
           )}
         </form>
+        <div className="flex flex-col gap-4 border-t border-[#262626] pt-4">
+          <label className="flex flex-col gap-2 text-sm">
+            <span>QR code or member ID</span>
+            <input
+              className={inputClass}
+              type="text"
+              placeholder="Scan or paste the member ID…"
+              value={qrCode}
+              onChange={(event) => setQrCode(event.target.value)}
+            />
+          </label>
+          <div>
+            <button className={buttonClass} type="button" disabled={qrCheckingIn} onClick={() => void handleQrCheckIn()}>
+              {qrCheckingIn ? 'Checking in…' : 'Check in via QR'}
+            </button>
+          </div>
+        </div>
       </SectionCard>
 
       <SectionCard
@@ -169,7 +265,61 @@ export function CheckInsPage() {
               >
                 <p className="text-base font-medium text-[#FAFAFA]">{checkIn.memberName}</p>
                 <p className="text-sm text-[#737373]">
-                  {formatTime(checkIn.checkedInAt)}
+                  {formatDateTime(checkIn.checkedInAt)}
+                  <span className="ml-3 text-[0.7rem] uppercase tracking-[0.2em] text-[#737373]">
+                    {checkIn.method}
+                  </span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+    <SectionCard
+        title="Attendance history"
+        description={`${history.length} check-in${history.length === 1 ? '' : 's'} in the selected range.`}
+      >
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end">
+          <label className="flex flex-col gap-2 text-sm">
+            <span>From</span>
+            <input
+              className={inputClass}
+              type="date"
+              value={historyFrom}
+              onChange={(event) => setHistoryFrom(event.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-sm">
+            <span>To</span>
+            <input
+              className={inputClass}
+              type="date"
+              value={historyTo}
+              onChange={(event) => setHistoryTo(event.target.value)}
+            />
+          </label>
+          <button className={buttonClass} type="button" disabled={historyLoading} onClick={() => void loadHistory()}>
+            {historyLoading ? 'Loading…' : 'Load'}
+          </button>
+          <button className={buttonClass} type="button" disabled={history.length === 0} onClick={handleExportCsv}>
+            Export CSV
+          </button>
+        </div>
+
+        {historyLoading ? (
+          <p className="text-sm text-[#737373]">Loading…</p>
+        ) : history.length === 0 ? (
+          <p className="text-sm text-[#737373]">No check-ins in this range.</p>
+        ) : (
+          <ul className="flex flex-col">
+            {history.map((checkIn) => (
+              <li
+                key={checkIn.id}
+                className="flex flex-col gap-1 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <p className="text-base font-medium text-[#FAFAFA]">{checkIn.memberName}</p>
+                <p className="text-sm text-[#737373]">
+                  {formatDateTime(checkIn.checkedInAt)}
                   <span className="ml-3 text-[0.7rem] uppercase tracking-[0.2em] text-[#737373]">
                     {checkIn.method}
                   </span>

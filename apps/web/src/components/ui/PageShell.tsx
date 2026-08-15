@@ -24,7 +24,10 @@ const navGroups: { label: string; items: { label: string; href: string }[] }[] =
   },
   {
     label: 'Account',
-    items: [{ label: 'Profile', href: '/profile' }]
+    items: [
+      { label: 'My membership', href: '/app/my-membership' },
+      { label: 'Profile', href: '/profile' }
+    ]
   }
 ];
 

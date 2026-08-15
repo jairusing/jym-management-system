@@ -84,6 +84,16 @@ describeLive('SupabaseCheckInRepository (live)', () => {
     expect(checkIns.some((checkIn) => checkIn.memberId === memberId)).toBe(true);
   });
 
+  it('lists check-ins within an explicit date range', async () => {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const to = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    const checkIns = await checkInRepo.listCheckIns(from, to);
+    expect(checkIns.some((checkIn) => checkIn.memberId === memberId)).toBe(true);
+    const outside = await checkInRepo.listCheckIns('2000-01-01T00:00:00.000Z', '2000-01-02T00:00:00.000Z');
+    expect(outside.some((checkIn) => checkIn.memberId === memberId)).toBe(false);
+  });
+
   it('deletes the member, cascading its check-ins', async () => {
     await memberRepo.deleteMember(memberId as string);
     const checkIns = await checkInRepo.listTodayCheckIns();
