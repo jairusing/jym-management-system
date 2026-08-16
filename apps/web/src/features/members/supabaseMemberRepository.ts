@@ -8,10 +8,21 @@ function ensureSupabase() {
   return supabase;
 }
 
+function translateConstraintError(message: string): string {
+  if (message.includes('members_email_key')) {
+    return 'A member with this email already exists.';
+  }
+  if (message.includes('members_phone_key')) {
+    return 'A member with this phone number already exists.';
+  }
+  return message;
+}
+
 type MembershipRow = {
   status: string;
   started_at: string;
   ended_at: string | null;
+  created_at: string | null;
   membership_plans: { name: string } | { name: string }[] | null;
 };
 
@@ -39,7 +50,13 @@ function mapMembership(row: MembershipRow): Membership {
 }
 
 function mapMember(row: MemberRow): Member {
-  const active = (row.memberships ?? []).find((membership) => membership.status === 'active');
+  const latest = [...(row.memberships ?? [])].sort((a, b) => {
+    const byStart = b.started_at.localeCompare(a.started_at);
+    if (byStart !== 0) return byStart;
+    const byEnd = (b.ended_at ?? b.started_at).localeCompare(a.ended_at ?? a.started_at);
+    if (byEnd !== 0) return byEnd;
+    return (b.created_at ?? '').localeCompare(a.created_at ?? '');
+  })[0];
   return {
     id: row.id,
     userId: row.user_id,
@@ -49,13 +66,13 @@ function mapMember(row: MemberRow): Member {
     joinedAt: row.joined_at,
     notes: row.notes,
     isActive: row.is_active,
-    membership: active ? mapMembership(active) : null,
+    membership: latest ? mapMembership(latest) : null,
     createdAt: row.created_at
   };
 }
 
 const memberColumns =
-  'id, user_id, full_name, email, phone, joined_at, notes, is_active, memberships(status, started_at, ended_at, membership_plans(name)), created_at';
+  'id, user_id, full_name, email, phone, joined_at, notes, is_active, memberships(status, started_at, ended_at, created_at, membership_plans(name)), created_at';
 
 export class SupabaseMemberRepository {
   async listMembers(): Promise<Member[]> {
@@ -93,7 +110,7 @@ export class SupabaseMemberRepository {
       .single();
 
     if (error || !data) {
-      throw new Error(`Failed to create member: ${error?.message ?? 'unknown'}`);
+      throw new Error(`Failed to create member: ${translateConstraintError(error?.message ?? 'unknown')}`);
     }
 
     return mapMember(data as MemberRow);
@@ -123,7 +140,7 @@ export class SupabaseMemberRepository {
       .single();
 
     if (error || !data) {
-      throw new Error(`Failed to update member: ${error?.message ?? 'unknown'}`);
+      throw new Error(`Failed to update member: ${translateConstraintError(error?.message ?? 'unknown')}`);
     }
 
     return mapMember(data as MemberRow);
@@ -140,14 +157,106 @@ export class SupabaseMemberRepository {
       .single();
 
     if (error || !data) {
-      throw new Error(`Failed to update member: ${error?.message ?? 'unknown'}`);
+      throw new Error(`Failed to update member: ${translateConstraintError(error?.message ?? 'unknown')}`);
     }
 
     return mapMember(data as MemberRow);
   }
 
+  async setMembershipStatus(id: string, status: 'active' | 'paused' | 'cancelled'): Promise<Member> {
+    const client = ensureSupabase();
+
+    const { data: membershipData } = await client
+      .from('memberships')
+      .select('id')
+      .eq('member_id', id)
+      .in('status', ['active', 'paused'])
+      .maybeSingle();
+
+    if (!membershipData) {
+      throw new Error('No active membership to update.');
+    }
+
+    const { error } = await client
+      .from('memberships')
+      .update({ status })
+      .eq('member_id', id)
+      .in('status', ['active', 'paused']);
+
+    if (error) {
+      throw new Error(`Failed to update membership: ${error.message}`);
+    }
+
+    const { data: memberData, error: loadError } = await client
+      .from('members')
+      .select(memberColumns)
+      .eq('id', id)
+      .single();
+
+    if (loadError || !memberData) {
+      throw new Error(`Membership updated but failed to load member: ${loadError?.message ?? 'unknown'}`);
+    }
+
+    return mapMember(memberData as MemberRow);
+  }
+
+  async setMemberPin(id: string, pin: string | null): Promise<Member> {
+    const client = ensureSupabase();
+
+    const { error } = await client.rpc('rpc_set_member_pin', { p_member_id: id, p_pin: pin });
+    if (error) {
+      throw new Error(`Failed to set PIN: ${error.message}`);
+    }
+
+    const { data: memberData, error: loadError } = await client
+      .from('members')
+      .select(memberColumns)
+      .eq('id', id)
+      .single();
+
+    if (loadError || !memberData) {
+      throw new Error(`PIN set but failed to load member: ${loadError?.message ?? 'unknown'}`);
+    }
+
+    return mapMember(memberData as MemberRow);
+  }
+
+  async verifyMemberPin(id: string, pin: string): Promise<'ok' | 'missing' | 'fail'> {
+    const client = ensureSupabase();
+
+    const { data, error } = await client.rpc('rpc_verify_member_pin', { p_member_id: id, p_pin: pin });
+    if (error) {
+      throw new Error(`Failed to verify PIN: ${error.message}`);
+    }
+    return data === 'ok' || data === 'missing' || data === 'fail' ? data : 'fail';
+  }
+
   async deleteMember(id: string): Promise<void> {
     const client = ensureSupabase();
+
+    const [invoiceCount, paymentCount] = await Promise.all([
+      client.from('invoices').select('id', { count: 'exact', head: true }).eq('member_id', id),
+      client.from('payments').select('id', { count: 'exact', head: true }).eq('member_id', id)
+    ]);
+    const blockers: string[] = [];
+    if (invoiceCount.error) {
+      throw new Error(`Failed to check member history: ${invoiceCount.error.message}`);
+    }
+    if (paymentCount.error) {
+      throw new Error(`Failed to check member history: ${paymentCount.error.message}`);
+    }
+    if ((invoiceCount.count ?? 0) > 0) {
+      blockers.push('invoices');
+    }
+    if ((paymentCount.count ?? 0) > 0) {
+      blockers.push('payments');
+    }
+    if (blockers.length > 0) {
+      throw new Error(
+        `Cannot delete this member because they have ${blockers.join(' and ')} on record. ` +
+          'Deleting would destroy billing history. Consider deactivating them instead.'
+      );
+    }
 
     const { error } = await client.from('members').delete().eq('id', id);
     if (error) {

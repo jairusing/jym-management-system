@@ -65,7 +65,7 @@ describeLive('SupabaseBookingRepository (live)', () => {
     const member = await memberRepo.createMember({
       fullName: `IT Booking Member ${Date.now()}`,
       email: null,
-      phone: '0917 000 0000',
+      phone: `0917 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       joinedAt: '2026-08-16',
       notes: 'integration test'
     });
@@ -75,7 +75,7 @@ describeLive('SupabaseBookingRepository (live)', () => {
     const secondMember = await memberRepo.createMember({
       fullName: `IT Booking Member 2 ${Date.now()}`,
       email: null,
-      phone: '0917 000 0001',
+      phone: `0918 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       joinedAt: '2026-08-16',
       notes: 'integration test'
     });

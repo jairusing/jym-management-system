@@ -2,10 +2,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { phDateInDays, phDateToday } from '../../lib/dates';
 import { PaymentsPage } from './PaymentsPage';
 import { mockInvoiceRepository } from './invoiceRepository';
 import { mockPaymentRepository } from './paymentRepository';
 import { mockMemberRepository } from '../members/memberRepository';
+import { mockStaffRepository } from '../staff/staffRepository';
 
 vi.mock('../../lib/supabase', () => ({
   hasSupabaseConfig: false,
@@ -40,6 +42,7 @@ afterEach(() => {
   mockMemberRepository.reset();
   mockInvoiceRepository.reset();
   mockPaymentRepository.reset();
+  mockStaffRepository.reset();
 });
 
 describe('PaymentsPage', () => {
@@ -80,6 +83,42 @@ describe('PaymentsPage', () => {
     expect(saved[0]?.memberName).toBe('Juan Dela Cruz');
   });
 
+  it('prefills the total and due date when a plan is selected', async () => {
+    const member = await seedMember();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Plan (optional)')).toBeTruthy();
+    });
+    fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
+    fireEvent.change(screen.getByLabelText('Plan (optional)'), { target: { value: 'plan-monthly' } });
+
+    const totalInput = screen.getByLabelText('Total (PHP)') as HTMLInputElement;
+    const dueInput = screen.getByLabelText('Due date') as HTMLInputElement;
+    expect(totalInput.value).toBe('1500');
+    expect(dueInput.value).toBe(phDateInDays(30));
+    expect((dueInput as HTMLInputElement).min).toBe(phDateToday());
+  });
+
+  it('rejects a due date in the past', async () => {
+    const member = await seedMember();
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Member')).toBeTruthy();
+    });
+    fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
+    fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '1500' } });
+    fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2026-08-01' } });
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement);
+
+    await waitFor(() => {
+      expect(screen.getByText('Due date cannot be in the past.')).toBeTruthy();
+    });
+    const saved = await mockInvoiceRepository.listInvoices();
+    expect(saved.length).toBe(0);
+  });
+
   it('records a payment and marks the invoice paid', async () => {
     const member = await seedMember();
     renderPage();
@@ -110,6 +149,9 @@ describe('PaymentsPage', () => {
     goToTab('Payments');
     expect(screen.getByText(/1,500\.00 · gcash/)).toBeTruthy();
     expect(screen.getByText(/G-12345/)).toBeTruthy();
+    expect(screen.getByText(/taken by Front desk/)).toBeTruthy();
+    expect(screen.getByText(/Collected by staff — today vs this month/)).toBeTruthy();
+    expect(screen.getByText(/₱1,500\.00 today · ₱1,500\.00 this month/)).toBeTruthy();
 
     const invoices = await mockInvoiceRepository.listInvoices();
     expect(invoices[0]?.status).toBe('paid');
@@ -119,7 +161,8 @@ describe('PaymentsPage', () => {
     expect(payments[0]?.reference).toBe('G-12345');
   });
 
-  it('voids an issued invoice', async () => {
+  it('voids an issued invoice after confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const member = await seedMember();
     renderPage();
 
@@ -142,6 +185,28 @@ describe('PaymentsPage', () => {
 
     const saved = await mockInvoiceRepository.listInvoices();
     expect(saved[0]?.status).toBe('void');
+  });
+
+  it('keeps the invoice when void is declined', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Maria Santos',
+      total: 800,
+      dueAt: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Void' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Void' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    });
+    const saved = await mockInvoiceRepository.listInvoices();
+    expect(saved[0]?.status).toBe('issued');
   });
 
   it('shows an overdue badge when the due date has passed', async () => {
@@ -375,5 +440,22 @@ describe('PaymentsPage', () => {
     fireEvent.change(amount, { target: { value: '1500' } });
     expect(screen.queryByText(/must equal/i)).toBeNull();
     expect((screen.getByRole('button', { name: 'Confirm payment' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('hides the Void button for staff', async () => {
+    mockStaffRepository.setMyRole('staff');
+    const member = await seedMember();
+    await mockInvoiceRepository.createInvoice({
+      memberId: member?.id ?? 'member-1',
+      memberName: 'Juan Dela Cruz',
+      total: 800,
+      dueAt: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    });
+    expect(screen.queryByRole('button', { name: 'Void' })).toBeNull();
   });
 });

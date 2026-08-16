@@ -58,7 +58,7 @@ describeLive('SupabaseCheckInRepository (live)', () => {
     const member = await memberRepo.createMember({
       fullName: `IT Check-in Member ${Date.now()}`,
       email: null,
-      phone: '0917 000 0000',
+      phone: `0917 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       joinedAt: '2026-08-16',
       notes: 'integration test'
     });
@@ -79,6 +79,15 @@ describeLive('SupabaseCheckInRepository (live)', () => {
     expect(checkIn.processedBy).toBeTruthy();
   });
 
+  it('rejects a duplicate same-day check-in', async () => {
+    await expect(
+      checkInRepo.recordCheckIn({
+        memberId: memberId as string,
+        memberName: memberName as string
+      })
+    ).rejects.toThrow('Already checked in today.');
+  });
+
   it('lists today check-ins including the recorded one', async () => {
     const checkIns = await checkInRepo.listTodayCheckIns();
     expect(checkIns.some((checkIn) => checkIn.memberId === memberId)).toBe(true);
@@ -92,6 +101,17 @@ describeLive('SupabaseCheckInRepository (live)', () => {
     expect(checkIns.some((checkIn) => checkIn.memberId === memberId)).toBe(true);
     const outside = await checkInRepo.listCheckIns('2000-01-01T00:00:00.000Z', '2000-01-02T00:00:00.000Z');
     expect(outside.some((checkIn) => checkIn.memberId === memberId)).toBe(false);
+  });
+
+  it('deletes a check-in (correction path)', async () => {
+    const checkIns = await checkInRepo.listTodayCheckIns();
+    const checkIn = checkIns.find((candidate) => candidate.memberId === memberId);
+    expect(checkIn).toBeTruthy();
+
+    await checkInRepo.deleteCheckIn(checkIn?.id as string);
+
+    const after = await checkInRepo.listTodayCheckIns();
+    expect(after.some((candidate) => candidate.id === checkIn?.id)).toBe(false);
   });
 
   it('deletes the member, cascading its check-ins', async () => {

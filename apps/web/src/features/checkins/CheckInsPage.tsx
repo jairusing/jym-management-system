@@ -4,7 +4,7 @@ import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Tabs } from '../../components/ui/Tabs';
-import { formatDate, formatDateTime, phDateInDays, phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
+import { formatDate, formatDateTime, phDateAfter, phDateInDays, phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { toAttendanceCsv } from './attendanceCsv';
 import { QrScanner } from './QrScanner';
@@ -42,6 +42,12 @@ export function CheckInsPage() {
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [qrCheckingIn, setQrCheckingIn] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [deletingCheckInId, setDeletingCheckInId] = useState<string | null>(null);
+  const [pinFor, setPinFor] = useState<string | null>(null);
+  const [pinSource, setPinSource] = useState<'manual' | 'qr'>('manual');
+  const [pinValue, setPinValue] = useState('');
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pinSaving, setPinSaving] = useState(false);
 
   const load = async () => {
     if (!hasSupabaseConfig) {
@@ -104,11 +110,33 @@ export function CheckInsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const expiredMembershipMessage = (member: Member) => {
-    if (member.membership && member.membership.endsAt < phDateToday()) {
-      return `Membership expired ${formatDate(member.membership.endsAt)}. Renew before checking in.`;
+  const GRACE_DAYS = 3;
+
+const membershipExpiry = (member: Member): { blocked: boolean; message: string } | null => {
+    const membership = member.membership;
+    if (!membership) {
+      return null;
     }
-    return null;
+    if (membership.status === 'paused') {
+      return { blocked: true, message: 'Membership is paused.' };
+    }
+    if (membership.status === 'cancelled') {
+      return { blocked: true, message: 'Membership was cancelled.' };
+    }
+    if (membership.endsAt >= phDateToday()) {
+      return null;
+    }
+    const graceEnd = phDateAfter(membership.endsAt, GRACE_DAYS);
+    if (phDateToday() <= graceEnd) {
+      return {
+        blocked: false,
+        message: `Membership expired ${formatDate(membership.endsAt)} — in ${GRACE_DAYS}-day grace until ${formatDate(graceEnd)}. Renew soon.`
+      };
+    }
+    return {
+      blocked: true,
+      message: `Membership expired ${formatDate(membership.endsAt)}. Renew before checking in.`
+    };
   };
 
   const refreshTodayCheckIns = async () => {
@@ -120,29 +148,7 @@ export function CheckInsPage() {
   };
 
   const handleCheckIn = async (member: Member) => {
-    if (!member.isActive) {
-      setError('Cannot check in an inactive member.');
-      return;
-    }
-    const expired = expiredMembershipMessage(member);
-    if (expired) {
-      setError(expired);
-      return;
-    }
-    setError(null);
-    setSuccess(null);
-
-    const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
-    setCheckingInId(member.id);
-    try {
-      await repo.recordCheckIn({ memberId: member.id, memberName: member.fullName });
-      setSuccess(`${member.fullName} checked in.`);
-      await refreshTodayCheckIns();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to check in member.');
-    } finally {
-      setCheckingInId(null);
-    }
+    await beginCheckIn(member, 'manual');
   };
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
@@ -160,29 +166,104 @@ export function CheckInsPage() {
       setError('No member matches that ID.');
       return;
     }
+    await beginCheckIn(member, 'qr');
+  };
+
+  const beginCheckIn = async (member: Member, method: 'manual' | 'qr') => {
     if (!member.isActive) {
       setError('Cannot check in an inactive member.');
       return;
     }
-    const expired = expiredMembershipMessage(member);
-    if (expired) {
-      setError(expired);
+    const expired = membershipExpiry(member);
+    if (expired?.blocked) {
+      setError(expired.message);
       return;
     }
     setError(null);
     setSuccess(null);
-
-    const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
-    setQrCheckingIn(true);
+    if (method === 'manual') {
+      setCheckingInId(member.id);
+    } else {
+      setQrCheckingIn(true);
+    }
+    const memberRepo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
     try {
-      await repo.recordCheckIn({ memberId: member.id, memberName: member.fullName, method: 'qr' });
-      setSuccess(`${member.fullName} checked in via QR.`);
-      setQrCode('');
-      await refreshTodayCheckIns();
+      const status = await memberRepo.verifyMemberPin(member.id, '');
+      if (status === 'missing') {
+        await completeCheckIn(member, method);
+        return;
+      }
+      setPinFor(member.id);
+      setPinSource(method);
+      setPinValue('');
+      setPinError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to check in member.');
     } finally {
+      setCheckingInId(null);
       setQrCheckingIn(false);
+    }
+  };
+
+  const completeCheckIn = async (member: Member, method: 'manual' | 'qr') => {
+    const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
+    try {
+      await repo.recordCheckIn({ memberId: member.id, memberName: member.fullName, method });
+      setSuccess(method === 'qr' ? `${member.fullName} checked in via QR.` : `${member.fullName} checked in.`);
+      if (method === 'qr') {
+        setQrCode('');
+      }
+      await refreshTodayCheckIns();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to check in member.');
+    }
+  };
+
+  const handleSubmitPin = async () => {
+    if (pinFor === null) {
+      return;
+    }
+    const member = members.find((candidate) => candidate.id === pinFor);
+    if (!member) {
+      setPinError('Member no longer exists.');
+      return;
+    }
+    setPinSaving(true);
+    setPinError(null);
+    const memberRepo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
+    try {
+      const status = await memberRepo.verifyMemberPin(member.id, pinValue);
+      if (status === 'ok' || status === 'missing') {
+        const method = pinSource;
+        setPinFor(null);
+        setPinValue('');
+        await completeCheckIn(member, method);
+      } else {
+        setPinError('Incorrect PIN.');
+      }
+    } catch (e) {
+      setPinError(e instanceof Error ? e.message : 'Failed to verify PIN.');
+    } finally {
+      setPinSaving(false);
+    }
+  };
+
+  const handleDeleteCheckIn = async (checkIn: CheckIn) => {
+    if (!window.confirm(`Delete ${checkIn.memberName}'s check-in from ${formatDateTime(checkIn.checkedInAt)}? This cannot be undone.`)) {
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+    const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
+    setDeletingCheckInId(checkIn.id);
+    try {
+      await repo.deleteCheckIn(checkIn.id);
+      await refreshTodayCheckIns();
+      await loadHistory();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete check-in.');
+    } finally {
+      setDeletingCheckInId(null);
     }
   };
 
@@ -244,6 +325,52 @@ export function CheckInsPage() {
             </div>
           </div>
 
+          {pinFor ? (
+            <div className="mb-4 flex flex-col gap-4 border border-[#FFB300] bg-[#1A1A1A] p-4">
+              <p className="text-sm font-medium text-[#FAFAFA]">
+                Enter the PIN for {members.find((candidate) => candidate.id === pinFor)?.fullName ?? 'this member'}
+              </p>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="flex flex-col gap-2 text-sm">
+                  <span>PIN</span>
+                  <input
+                    className={inputClass}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={6}
+                    value={pinValue}
+                    onChange={(event) => setPinValue(event.target.value.replace(/\D/g, ''))}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void handleSubmitPin();
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+              {pinError ? <p className="text-sm text-[#FF3D00]">{pinError}</p> : null}
+              <div className="flex flex-wrap gap-2">
+                <button className={buttonClass} type="button" disabled={pinSaving} onClick={() => void handleSubmitPin()}>
+                  {pinSaving ? 'Verifying…' : 'Verify PIN'}
+                </button>
+                <button
+                  className={ghostButtonClass}
+                  type="button"
+                  disabled={pinSaving}
+                  onClick={() => {
+                    setPinFor(null);
+                    setPinValue('');
+                    setPinError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <form className="flex flex-col gap-4 border-t border-[#262626] pt-4" onSubmit={handleSearch}>
             <label className="flex flex-col gap-2 text-sm">
               <span>Search members</span>
@@ -264,7 +391,7 @@ export function CheckInsPage() {
               ) : (
                 <ul className="flex flex-col">
                   {filteredMembers.map((member) => {
-                    const expired = expiredMembershipMessage(member);
+                    const expired = membershipExpiry(member);
                     return (
                       <li
                         key={member.id}
@@ -280,18 +407,25 @@ export function CheckInsPage() {
                             )}
                             {expired ? (
                               <StatusBadge tone="bad" className="ml-3">
-                                Expired
+                                {member.membership?.status === 'paused'
+                                  ? 'Paused'
+                                  : member.membership?.status === 'cancelled'
+                                    ? 'Cancelled'
+                                    : 'Expired'}
                               </StatusBadge>
                             ) : null}
                           </p>
                           <p className="mt-1 text-sm text-[#A3A3A3]">
                             {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
                           </p>
+                          {expired && !expired.blocked ? (
+                            <p className="mt-1 text-xs text-[#FF3D00]">{expired.message}</p>
+                          ) : null}
                         </div>
                         <button
-                          className={`${buttonClass} ${member.isActive && !expired ? '' : 'border-[#262626] text-[#A3A3A3]'}`}
+                          className={`${buttonClass} ${member.isActive && !expired?.blocked ? '' : 'border-[#262626] text-[#A3A3A3]'}`}
                           type="button"
-                          disabled={!member.isActive || expired !== null || checkingInId === member.id}
+                          disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
                           onClick={() => void handleCheckIn(member)}
                         >
                           {checkingInId === member.id ? 'Checking in…' : 'Check in'}
@@ -310,7 +444,7 @@ export function CheckInsPage() {
                 </p>
                 <ul className="mt-2 flex flex-col">
                   {recentMembers.map((member) => {
-                    const expired = expiredMembershipMessage(member);
+                    const expired = membershipExpiry(member);
                     return (
                       <li
                         key={member.id}
@@ -326,18 +460,25 @@ export function CheckInsPage() {
                             )}
                             {expired ? (
                               <StatusBadge tone="bad" className="ml-3">
-                                Expired
+                                {member.membership?.status === 'paused'
+                                  ? 'Paused'
+                                  : member.membership?.status === 'cancelled'
+                                    ? 'Cancelled'
+                                    : 'Expired'}
                               </StatusBadge>
                             ) : null}
                           </p>
                           <p className="mt-1 text-sm text-[#A3A3A3]">
                             {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
                           </p>
+                          {expired && !expired.blocked ? (
+                            <p className="mt-1 text-xs text-[#FF3D00]">{expired.message}</p>
+                          ) : null}
                         </div>
                         <button
-                          className={`${buttonClass} ${member.isActive && !expired ? '' : 'border-[#262626] text-[#A3A3A3]'}`}
+                          className={`${buttonClass} ${member.isActive && !expired?.blocked ? '' : 'border-[#262626] text-[#A3A3A3]'}`}
                           type="button"
-                          disabled={!member.isActive || expired !== null || checkingInId === member.id}
+                          disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
                           onClick={() => void handleCheckIn(member)}
                         >
                           {checkingInId === member.id ? 'Checking in…' : 'Check in'}
@@ -367,12 +508,22 @@ export function CheckInsPage() {
                   className="flex flex-col gap-1 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <p className="text-base font-medium text-[#FAFAFA]">{checkIn.memberName}</p>
-                  <p className="text-sm text-[#A3A3A3]">
-                    {formatDateTime(checkIn.checkedInAt)}
-                    <span className="ml-3 text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
-                      {checkIn.method}
-                    </span>
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm text-[#A3A3A3]">
+                      {formatDateTime(checkIn.checkedInAt)}
+                      <span className="ml-3 text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
+                        {checkIn.method}
+                      </span>
+                    </p>
+                    <button
+                      className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
+                      type="button"
+                      disabled={deletingCheckInId === checkIn.id}
+                      onClick={() => void handleDeleteCheckIn(checkIn)}
+                    >
+                      {deletingCheckInId === checkIn.id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -432,12 +583,22 @@ export function CheckInsPage() {
                   className="flex flex-col gap-1 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <p className="text-base font-medium text-[#FAFAFA]">{checkIn.memberName}</p>
-                  <p className="text-sm text-[#A3A3A3]">
-                    {formatDateTime(checkIn.checkedInAt)}
-                    <span className="ml-3 text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
-                      {checkIn.method}
-                    </span>
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm text-[#A3A3A3]">
+                      {formatDateTime(checkIn.checkedInAt)}
+                      <span className="ml-3 text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
+                        {checkIn.method}
+                      </span>
+                    </p>
+                    <button
+                      className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
+                      type="button"
+                      disabled={deletingCheckInId === checkIn.id}
+                      onClick={() => void handleDeleteCheckIn(checkIn)}
+                    >
+                      {deletingCheckInId === checkIn.id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

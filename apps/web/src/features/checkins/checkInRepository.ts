@@ -1,3 +1,5 @@
+import { phDateToday, phDayStartUtc } from '../../lib/dates';
+
 export type CheckInMethod = 'manual' | 'qr';
 
 export type CheckIn = {
@@ -19,6 +21,7 @@ export interface CheckInRepository {
   listTodayCheckIns(): Promise<CheckIn[]>;
   listCheckIns(from: string, to: string): Promise<CheckIn[]>;
   recordCheckIn(input: CheckInInput): Promise<CheckIn>;
+  deleteCheckIn(id: string): Promise<void>;
 }
 
 class MockCheckInRepository implements CheckInRepository {
@@ -38,6 +41,13 @@ class MockCheckInRepository implements CheckInRepository {
     if (!input.memberId || !input.memberName.trim()) {
       throw new Error('Select a member to check in.');
     }
+    const startOfToday = phDayStartUtc(phDateToday());
+    const alreadyCheckedIn = this.checkIns.some(
+      (checkIn) => checkIn.memberId === input.memberId && checkIn.checkedInAt >= startOfToday
+    );
+    if (alreadyCheckedIn) {
+      throw new Error('Already checked in today.');
+    }
     const checkIn: CheckIn = {
       id: `checkin-${Date.now()}-${this.checkIns.length}`,
       memberId: input.memberId,
@@ -48,6 +58,14 @@ class MockCheckInRepository implements CheckInRepository {
     };
     this.checkIns = [checkIn, ...this.checkIns];
     return checkIn;
+  }
+
+  async deleteCheckIn(id: string) {
+    const index = this.checkIns.findIndex((checkIn) => checkIn.id === id);
+    if (index === -1) {
+      throw new Error('Check-in not found.');
+    }
+    this.checkIns = this.checkIns.filter((checkIn) => checkIn.id !== id);
   }
 
   reset() {

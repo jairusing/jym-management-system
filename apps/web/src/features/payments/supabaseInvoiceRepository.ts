@@ -17,6 +17,7 @@ type InvoiceRow = {
   due_at: string | null;
   paid_at: string | null;
   status: InvoiceStatus;
+  is_overdue: boolean;
   plan_id: string | null;
   created_at: string;
   members: { full_name: string } | { full_name: string }[] | null;
@@ -24,7 +25,7 @@ type InvoiceRow = {
 };
 
 const invoiceColumns =
-  'id, invoice_number, member_id, total, issued_at, due_at, paid_at, status, plan_id, created_at, members(full_name), membership_plans(name)';
+  'id, invoice_number, member_id, total, issued_at, due_at, paid_at, status, is_overdue, plan_id, created_at, members(full_name), membership_plans(name)';
 
 function mapInvoice(row: InvoiceRow): Invoice {
   return {
@@ -36,7 +37,7 @@ function mapInvoice(row: InvoiceRow): Invoice {
     issuedAt: row.issued_at,
     dueAt: row.due_at,
     paidAt: row.paid_at,
-    status: row.status,
+    status: row.status === 'issued' && row.is_overdue ? 'overdue' : row.status,
     planId: row.plan_id,
     planName: (Array.isArray(row.membership_plans) ? row.membership_plans[0] : row.membership_plans)?.name ?? null,
     createdAt: row.created_at
@@ -108,7 +109,6 @@ export class SupabaseInvoiceRepository {
     const { data, error } = await client
       .from('invoices')
       .insert({
-        invoice_number: `INV-${Date.now()}`,
         member_id: input.memberId,
         total: input.total,
         due_at: input.dueAt,

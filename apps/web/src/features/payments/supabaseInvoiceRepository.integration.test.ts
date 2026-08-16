@@ -61,7 +61,7 @@ describeLive('SupabaseInvoiceRepository (live)', () => {
     const member = await memberRepo.createMember({
       fullName: `IT Invoice Member ${Date.now()}`,
       email: null,
-      phone: '0917 000 0000',
+      phone: `0917 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       joinedAt: '2026-08-16',
       notes: 'integration test'
     });
@@ -84,7 +84,7 @@ describeLive('SupabaseInvoiceRepository (live)', () => {
     invoiceId = invoice.id;
     invoiceNumber = invoice.invoiceNumber;
     expect(invoice.id).toBeTruthy();
-    expect(invoice.invoiceNumber.startsWith('INV-')).toBe(true);
+    expect(invoice.invoiceNumber).toMatch(/^INV-\d{4}-\d{4}$/);
     expect(invoice.total).toBe(1500);
     expect(invoice.status).toBe('issued');
     expect(invoice.memberName).toBe(memberName);
@@ -99,6 +99,19 @@ describeLive('SupabaseInvoiceRepository (live)', () => {
     expect(found?.memberName).toBe(memberName);
     expect(found?.invoiceNumber).toBe(invoiceNumber);
     expect(found?.planName).toBeTruthy();
+  });
+
+  it('marks an unpaid invoice as overdue when its due date has passed', async () => {
+    const invoice = await invoiceRepo.createInvoice({
+      memberId: memberId as string,
+      memberName: memberName as string,
+      total: 900,
+      dueAt: '2020-01-01'
+    });
+    const found = (await invoiceRepo.listInvoices()).find((candidate) => candidate.id === invoice.id);
+    expect(found?.status).toBe('overdue');
+    expect(invoice.invoiceNumber).toMatch(/^INV-\d{4}-\d{4}$/);
+    expect(invoice.invoiceNumber).not.toBe(invoiceNumber);
   });
 
   it('voids an issued invoice', async () => {

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CheckInsPage } from './CheckInsPage';
 import { mockCheckInRepository } from './checkInRepository';
-import { phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
+import { phDateInDays, phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
 import { mockMemberRepository } from '../members/memberRepository';
 
 const { scannedCode } = vi.hoisted(() => ({ scannedCode: { current: '' } }));
@@ -220,6 +220,111 @@ describe('CheckInsPage', () => {
     });
   });
 
+  it('asks for the PIN when a member has one, and checks them in on a correct PIN', async () => {
+    const member = await mockMemberRepository.createMember({
+      fullName: 'Pin Member',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    await mockMemberRepository.setMemberPin(member.id, '4321');
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Pin Member')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check in' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Enter the PIN for Pin Member/)).toBeTruthy();
+    });
+    expect((await mockCheckInRepository.listTodayCheckIns()).length).toBe(0);
+
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Verify PIN' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Pin Member checked in/)).toBeTruthy();
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+    expect(saved[0]?.method).toBe('manual');
+  });
+
+  it('blocks check-in on a wrong PIN, then succeeds with the correct one', async () => {
+    const member = await mockMemberRepository.createMember({
+      fullName: 'Pin Member',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    await mockMemberRepository.setMemberPin(member.id, '4321');
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Pin Member')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check in' }));
+    await waitFor(() => {
+      expect(screen.getByText(/Enter the PIN for Pin Member/)).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '0000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Verify PIN' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Incorrect PIN.')).toBeTruthy();
+    });
+    expect((await mockCheckInRepository.listTodayCheckIns()).length).toBe(0);
+
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Verify PIN' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Pin Member checked in/)).toBeTruthy();
+    });
+    expect((await mockCheckInRepository.listTodayCheckIns()).length).toBe(1);
+  });
+
+  it('asks for the PIN on the QR path and records the check-in as QR', async () => {
+    const member = await mockMemberRepository.createMember({
+      fullName: 'Pin Member',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    await mockMemberRepository.setMemberPin(member.id, '4321');
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Pin Member')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+      target: { value: member.id }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Check in via QR' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Enter the PIN for Pin Member/)).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Verify PIN' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Pin Member checked in via QR/)).toBeTruthy();
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+    expect(saved[0]?.method).toBe('qr');
+  });
+
   it('checks in a member via QR code', async () => {
     await seedMembers();
     renderPage();
@@ -350,6 +455,121 @@ describe('CheckInsPage', () => {
     expect(saved.length).toBe(0);
   });
 
+  it('allows checking in within the 3-day grace period after expiry', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Grace Member',
+      email: null,
+      phone: null,
+      joinedAt: '2026-07-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    const graceEndsAt = phDateInDays(-2);
+    await mockMemberRepository.setMembership(members[0]?.id as string, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-07-01',
+      endsAt: phDateInDays(-2),
+      status: 'active'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Grace Member')).toBeTruthy();
+    });
+
+    expect(screen.getByText(/3-day grace until/)).toBeTruthy();
+    const button = screen.getByRole('button', { name: 'Check in' });
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    expect(graceEndsAt).toBe(phDateInDays(-2));
+
+    fireEvent.click(button);
+    await waitFor(() => {
+      expect(screen.getByText(/checked in\./i)).toBeTruthy();
+    });
+  });
+
+  it('blocks checking in once the grace period has passed', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'No Grace Member',
+      email: null,
+      phone: null,
+      joinedAt: '2026-07-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    await mockMemberRepository.setMembership(members[0]?.id as string, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-07-01',
+      endsAt: phDateInDays(-4),
+      status: 'active'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('No Grace Member')).toBeTruthy();
+    });
+
+    expect(screen.getByText('Expired')).toBeTruthy();
+    const button = screen.getByRole('button', { name: 'Check in' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('blocks checking in a member with a paused membership', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Paused Member',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    await mockMemberRepository.setMembership(members[0]?.id as string, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-08-01',
+      endsAt: '2026-08-31',
+      status: 'paused'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Paused Member')).toBeTruthy();
+    });
+    expect(screen.getByText('Paused')).toBeTruthy();
+    const checkInButton = screen.getByRole('button', { name: 'Check in' }) as HTMLButtonElement;
+    expect(checkInButton.disabled).toBe(true);
+
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(0);
+  });
+
+  it('blocks checking in a member with a cancelled membership', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Cancelled Member',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    await mockMemberRepository.setMembership(members[0]?.id as string, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-08-01',
+      endsAt: '2026-08-31',
+      status: 'cancelled'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Cancelled Member')).toBeTruthy();
+    });
+    expect(screen.getByText('Cancelled')).toBeTruthy();
+    const checkInButton = screen.getByRole('button', { name: 'Check in' }) as HTMLButtonElement;
+    expect(checkInButton.disabled).toBe(true);
+
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(0);
+  });
+
   it('allows checking in a member with an active membership', async () => {
     await mockMemberRepository.createMember({
       fullName: 'Ben Cruz',
@@ -380,5 +600,97 @@ describe('CheckInsPage', () => {
     const saved = await mockCheckInRepository.listTodayCheckIns();
     expect(saved.length).toBe(1);
     expect(saved[0]?.memberName).toBe('Ben Cruz');
+  });
+
+  it('rejects a second check-in for the same member on the same day', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    const checkInButtons = screen.getAllByRole('button', { name: 'Check in' });
+    fireEvent.click(checkInButtons[0] as HTMLButtonElement);
+    await waitFor(() => {
+      expect(screen.getByText(/checked in\./i)).toBeTruthy();
+    });
+
+    fireEvent.click(checkInButtons[0] as HTMLButtonElement);
+
+    await waitFor(() => {
+      expect(screen.getByText('Already checked in today.')).toBeTruthy();
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+  });
+
+  it('deletes a check-in from the today list after confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await mockCheckInRepository.recordCheckIn({
+      memberId: 'member-1',
+      memberName: 'Juan Dela Cruz'
+    });
+    renderPage();
+
+    goToTab('Today');
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/no check-ins yet today/i)).toBeTruthy();
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(0);
+  });
+
+  it('keeps a check-in when deletion is declined', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await mockCheckInRepository.recordCheckIn({
+      memberId: 'member-1',
+      memberName: 'Juan Dela Cruz'
+    });
+    renderPage();
+
+    goToTab('Today');
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 check-in today/i)).toBeTruthy();
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+  });
+
+  it('deletes a check-in from the attendance history', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await mockCheckInRepository.recordCheckIn({
+      memberId: 'member-1',
+      memberName: 'Juan Dela Cruz'
+    });
+    renderPage();
+
+    goToTab('History');
+    await waitFor(() => {
+      expect(screen.getByText(/1 check-in in the selected range/i)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/0 check-ins in the selected range/i)).toBeTruthy();
+    });
+    const saved = await mockCheckInRepository.listCheckIns(
+      phDayStartUtc(phDateToday()),
+      phDayEndUtc(phDateToday())
+    );
+    expect(saved.length).toBe(0);
   });
 });

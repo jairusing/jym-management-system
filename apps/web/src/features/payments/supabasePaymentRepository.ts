@@ -20,10 +20,11 @@ type PaymentRow = {
   created_at: string;
   members: { full_name: string } | { full_name: string }[] | null;
   invoices: { invoice_number: string } | { invoice_number: string }[] | null;
+  profiles: { name: string } | { name: string }[] | null;
 };
 
 const paymentColumns =
-  'id, invoice_id, member_id, amount, method, reference, paid_at, processed_by, created_at, members(full_name), invoices(invoice_number)';
+  'id, invoice_id, member_id, amount, method, reference, paid_at, processed_by, created_at, members(full_name), invoices(invoice_number), profiles(name)';
 
 function mapPayment(row: PaymentRow): Payment {
   return {
@@ -36,7 +37,7 @@ function mapPayment(row: PaymentRow): Payment {
     method: row.method,
     reference: row.reference,
     paidAt: row.paid_at,
-    processedBy: row.processed_by
+    processedBy: (Array.isArray(row.profiles) ? row.profiles[0] : row.profiles)?.name ?? null
   };
 }
 

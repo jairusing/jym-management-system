@@ -8,6 +8,7 @@ export default defineConfig({
     host: '0.0.0.0'
   },
   test: {
-    retry: 1
+    retry: 1,
+    fileParallelism: false
   }
 });

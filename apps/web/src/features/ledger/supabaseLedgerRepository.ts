@@ -47,7 +47,7 @@ export class SupabaseLedgerRepository {
       client
         .from('invoices')
         .select(
-          'id, invoice_number, member_id, total, issued_at, due_at, paid_at, status, plan_id, created_at, membership_plans(name)'
+          'id, invoice_number, member_id, total, issued_at, due_at, paid_at, status, is_overdue, plan_id, created_at, membership_plans(name)'
         )
         .eq('member_id', memberId)
         .order('created_at', { ascending: false }),
@@ -107,7 +107,7 @@ export class SupabaseLedgerRepository {
       issuedAt: row.issued_at,
       dueAt: row.due_at,
       paidAt: row.paid_at,
-      status: row.status as InvoiceStatus,
+      status: row.status === 'issued' && row.is_overdue ? 'overdue' : (row.status as InvoiceStatus),
       planId: row.plan_id,
       planName:
         (Array.isArray(row.membership_plans) ? row.membership_plans[0] : row.membership_plans)?.name ??

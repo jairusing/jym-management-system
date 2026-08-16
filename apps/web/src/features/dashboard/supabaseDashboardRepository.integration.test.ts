@@ -64,7 +64,7 @@ describeLive('SupabaseDashboardRepository (live)', () => {
     const member = await memberRepo.createMember({
       fullName: `IT Dashboard Member ${Date.now()}`,
       email: null,
-      phone: '0917 000 0000',
+      phone: `0917 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       joinedAt: '2026-08-16',
       notes: 'integration test'
     });
@@ -82,7 +82,7 @@ describeLive('SupabaseDashboardRepository (live)', () => {
     const member = await memberRepo.createMember({
       fullName: `IT Dashboard Pay Member ${Date.now()}`,
       email: null,
-      phone: '0917 000 0000',
+      phone: `0917 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       joinedAt: '2026-08-16',
       notes: 'integration test'
     });

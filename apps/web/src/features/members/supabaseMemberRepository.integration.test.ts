@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { supabase, hasSupabaseConfig } from '../../lib/supabase';
 import { SupabaseMemberRepository } from './supabaseMemberRepository';
+import { SupabaseInvoiceRepository } from '../payments/supabaseInvoiceRepository';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -56,7 +57,7 @@ describeLive('SupabaseMemberRepository (live)', () => {
     const member = await repo.createMember({
       fullName: `IT Walk-in ${Date.now()}`,
       email: null,
-      phone: '0917 000 0000',
+      phone: `0917 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       joinedAt: '2026-08-16',
       notes: 'integration test'
     });
@@ -72,13 +73,127 @@ describeLive('SupabaseMemberRepository (live)', () => {
   });
 
   it('updates member details', async () => {
-    const updated = await repo.updateMember(createdId as string, { phone: '0918 111 2222' });
-    expect(updated.phone).toBe('0918 111 2222');
+    const updated = await repo.updateMember(createdId as string, {
+      phone: `0918 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    });
+    expect(updated.phone).toBeTruthy();
+  });
+
+  it('rejects a duplicate email', async () => {
+    const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const first = await repo.createMember({
+      fullName: `IT Dup Email 1 ${stamp}`,
+      email: `it-dup-${stamp}@demo.jms`,
+      phone: `0917 ${stamp}`,
+      joinedAt: '2026-08-16',
+      notes: 'integration test'
+    });
+    await expect(
+      repo.createMember({
+        fullName: `IT Dup Email 2 ${stamp}`,
+        email: `it-dup-${stamp}@demo.jms`,
+        phone: `0918 ${stamp}`,
+        joinedAt: '2026-08-16',
+        notes: 'integration test'
+      })
+    ).rejects.toThrow('A member with this email already exists.');
+    await repo.deleteMember(first.id);
+  });
+
+  it('rejects a duplicate phone', async () => {
+    const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const first = await repo.createMember({
+      fullName: `IT Dup Phone 1 ${stamp}`,
+      email: null,
+      phone: `0917 ${stamp}`,
+      joinedAt: '2026-08-16',
+      notes: 'integration test'
+    });
+    await expect(
+      repo.createMember({
+        fullName: `IT Dup Phone 2 ${stamp}`,
+        email: null,
+        phone: `0917 ${stamp}`,
+        joinedAt: '2026-08-16',
+        notes: 'integration test'
+      })
+    ).rejects.toThrow('A member with this phone number already exists.');
+    await repo.deleteMember(first.id);
   });
 
   it('deactivates a member', async () => {
     const updated = await repo.setMemberActive(createdId as string, false);
     expect(updated.isActive).toBe(false);
+  });
+
+  it('pauses, resumes, and cancels a membership', async () => {
+    const member = await repo.createMember({
+      fullName: `IT Pause Member ${Date.now()}`,
+      email: null,
+      phone: `0917 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      joinedAt: '2026-08-16',
+      notes: 'integration test'
+    });
+    const plans = await new SupabaseInvoiceRepository().listPlans();
+    const planId = plans[0]?.id as string;
+
+    const { error: insertError } = await supabase!.from('memberships').insert({
+      member_id: member.id,
+      plan_id: planId,
+      started_at: '2026-08-16',
+      ended_at: '2026-09-15',
+      status: 'active'
+    });
+    if (insertError) {
+      throw new Error(`membership insert failed: ${insertError.message}`);
+    }
+
+    const paused = await repo.setMembershipStatus(member.id, 'paused');
+    expect(paused.membership?.status).toBe('paused');
+    expect(paused.membership?.planName).toBeTruthy();
+
+    const resumed = await repo.setMembershipStatus(member.id, 'active');
+    expect(resumed.membership?.status).toBe('active');
+
+    const cancelled = await repo.setMembershipStatus(member.id, 'cancelled');
+    expect(cancelled.membership?.status).toBe('cancelled');
+
+    await expect(repo.setMembershipStatus(member.id, 'paused')).rejects.toThrow(
+      'No active membership to update.'
+    );
+    await repo.deleteMember(member.id);
+  });
+
+  it('sets, verifies, and clears a member PIN (hashed server-side)', async () => {
+    const member = await repo.createMember({
+      fullName: `IT Pin Member ${Date.now()}`,
+      email: null,
+      phone: `0917 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      joinedAt: '2026-08-16',
+      notes: 'integration test'
+    });
+
+    expect(await repo.verifyMemberPin(member.id, '1234')).toBe('missing');
+
+    await repo.setMemberPin(member.id, '1234');
+    expect(await repo.verifyMemberPin(member.id, '1234')).toBe('ok');
+    expect(await repo.verifyMemberPin(member.id, '9999')).toBe('fail');
+
+    const { data: stored, error: storedError } = await supabase!
+      .from('members')
+      .select('pin')
+      .eq('id', member.id)
+      .single();
+    if (storedError) {
+      throw new Error(`pin select failed: ${storedError.message}`);
+    }
+    expect(stored.pin).toMatch(/^\$2[aby]\$\d{2}\$/);
+    expect(stored.pin).not.toBe('1234');
+
+    await repo.setMemberPin(member.id, null);
+    expect(await repo.verifyMemberPin(member.id, '1234')).toBe('missing');
+
+    await repo.deleteMember(member.id);
   });
 
   it('deletes the member', async () => {

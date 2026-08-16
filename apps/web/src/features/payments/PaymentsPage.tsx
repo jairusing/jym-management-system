@@ -4,7 +4,7 @@ import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Tabs } from '../../components/ui/Tabs';
-import { formatDate, formatDateTime, phDateToday, PH_TIME_ZONE } from '../../lib/dates';
+import { formatDate, formatDateTime, phDateInDays, phDateOf, phDateToday, PH_TIME_ZONE } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { mockInvoiceRepository, type Invoice, type Plan } from './invoiceRepository';
 import { SupabaseInvoiceRepository } from './supabaseInvoiceRepository';
@@ -12,6 +12,8 @@ import { mockPaymentRepository, type Payment, type PaymentMethod } from './payme
 import { SupabasePaymentRepository } from './supabasePaymentRepository';
 import { mockMemberRepository, type Member } from '../members/memberRepository';
 import { SupabaseMemberRepository } from '../members/supabaseMemberRepository';
+import { mockStaffRepository, type UserRole } from '../staff/staffRepository';
+import { SupabaseStaffRepository } from '../staff/supabaseStaffRepository';
 
 const inputClass =
   'border border-[#262626] bg-[#1A1A1A] px-4 py-3 text-base text-[#FAFAFA] outline-none transition-colors duration-150 focus:border-[#FF3D00]';
@@ -96,6 +98,16 @@ export function PaymentsPage() {
   const [payReference, setPayReference] = useState('');
   const [paying, setPaying] = useState(false);
 
+  const [myRole, setMyRole] = useState<UserRole | null>(null);
+
+  useEffect(() => {
+    const loadRole = async () => {
+      const roleRepo = hasSupabaseConfig ? new SupabaseStaffRepository() : mockStaffRepository;
+      setMyRole(await roleRepo.getMyRole());
+    };
+    void loadRole();
+  }, []);
+
   const load = async () => {
     if (!hasSupabaseConfig) {
       setInvoices(await mockInvoiceRepository.listInvoices());
@@ -138,6 +150,15 @@ export function PaymentsPage() {
     setInvoicePage(1);
   }, [invoiceFilter]);
 
+  const handlePlanChange = (value: string) => {
+    setPlanId(value);
+    const plan = plans.find((candidate) => candidate.id === value);
+    if (plan) {
+      setTotal(String(plan.price));
+      setDueAt(phDateInDays(plan.durationDays));
+    }
+  };
+
   const handleCreateInvoice = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -146,6 +167,10 @@ export function PaymentsPage() {
     const member = members.find((candidate) => candidate.id === memberId);
     if (!member) {
       setError('Select a member for the invoice.');
+      return;
+    }
+    if (dueAt && dueAt < phDateToday()) {
+      setError('Due date cannot be in the past.');
       return;
     }
 
@@ -200,6 +225,13 @@ export function PaymentsPage() {
   };
 
   const handleVoid = async (invoice: Invoice) => {
+    if (
+      !window.confirm(
+        `Void ${invoice.invoiceNumber} (${formatMoney(invoice.total)})? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
     const repo = hasSupabaseConfig ? new SupabaseInvoiceRepository() : mockInvoiceRepository;
     setError(null);
     setSuccess(null);
@@ -228,6 +260,21 @@ export function PaymentsPage() {
   const collectedThisMonth = payments
     .filter((payment) => manilaMonthKey(payment.paidAt) === currentMonthKey)
     .reduce((sum, payment) => sum + payment.amount, 0);
+
+  const staffTotalsToday = new Map<string, number>();
+  const staffTotalsMonth = new Map<string, number>();
+  for (const payment of payments) {
+    const name = payment.processedBy ?? 'Unattributed';
+    if (phDateOf(new Date(payment.paidAt)) === phDateToday()) {
+      staffTotalsToday.set(name, (staffTotalsToday.get(name) ?? 0) + payment.amount);
+    }
+    if (manilaMonthKey(payment.paidAt) === currentMonthKey) {
+      staffTotalsMonth.set(name, (staffTotalsMonth.get(name) ?? 0) + payment.amount);
+    }
+  }
+  const staffSummary = [...staffTotalsMonth.keys()]
+    .sort()
+    .map((name) => ({ name, today: staffTotalsToday.get(name) ?? 0, month: staffTotalsMonth.get(name) ?? 0 }));
 
   const filteredInvoices =
     invoiceFilter === 'all' ? invoices : invoices.filter((invoice) => displayStatus(invoice) === invoiceFilter);
@@ -310,12 +357,12 @@ export function PaymentsPage() {
                   <select
                     className={inputClass}
                     value={planId}
-                    onChange={(event) => setPlanId(event.target.value)}
+                    onChange={(event) => handlePlanChange(event.target.value)}
                   >
                     <option value="">None</option>
                     {plans.map((plan) => (
                       <option key={plan.id} value={plan.id}>
-                        {plan.name}
+                        {plan.name} — {formatMoney(plan.price)}
                       </option>
                     ))}
                   </select>
@@ -337,6 +384,7 @@ export function PaymentsPage() {
                   <input
                     className={inputClass}
                     type="date"
+                    min={phDateToday()}
                     value={dueAt}
                     onChange={(event) => setDueAt(event.target.value)}
                   />
@@ -426,13 +474,15 @@ export function PaymentsPage() {
                                   >
                                     {paymentFor === invoice.id ? 'Close' : 'Record payment'}
                                   </button>
-                                  <button
-                                    className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
-                                    type="button"
-                                    onClick={() => void handleVoid(invoice)}
-                                  >
-                                    Void
-                                  </button>
+                                  {myRole === 'owner' ? (
+                                    <button
+                                      className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
+                                      type="button"
+                                      onClick={() => void handleVoid(invoice)}
+                                    >
+                                      Void
+                                    </button>
+                                  ) : null}
                                 </>
                               ) : null}
                             </div>
@@ -536,8 +586,28 @@ export function PaymentsPage() {
           ) : payments.length === 0 ? (
             <p className="text-sm text-[#A3A3A3]">No payments recorded yet.</p>
           ) : (
-            <ul className="flex flex-col">
-              {visiblePayments.map((payment) => (
+            <>
+              <div className="mb-6 border border-[#262626] bg-[#1A1A1A] p-4">
+                <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
+                  Collected by staff — today vs this month
+                </p>
+                <ul className="mt-3 flex flex-col gap-2">
+                  {staffSummary.length === 0 ? (
+                    <p className="text-sm text-[#A3A3A3]">No collections yet this month.</p>
+                  ) : (
+                    staffSummary.map((row) => (
+                      <li key={row.name} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <span className="font-medium text-[#FAFAFA]">{row.name}</span>
+                        <span className="text-[#A3A3A3]">
+                          {formatMoney(row.today)} today · {formatMoney(row.month)} this month
+                        </span>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+              <ul className="flex flex-col">
+                {visiblePayments.map((payment) => (
                 <li
                   key={payment.id}
                   className="flex flex-col gap-1 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
@@ -547,10 +617,12 @@ export function PaymentsPage() {
                     {formatMoney(payment.amount)} · {payment.method}
                     {payment.reference ? ` · ${payment.reference}` : ''} · {payment.invoiceNumber} ·{' '}
                     {formatDateTime(payment.paidAt)}
+                    {payment.processedBy ? ` · taken by ${payment.processedBy}` : ''}
                   </p>
                 </li>
               ))}
             </ul>
+            </>
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-6">

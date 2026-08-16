@@ -1,5 +1,7 @@
 export type InvoiceStatus = 'issued' | 'paid' | 'overdue' | 'void';
 
+import { PH_TIME_ZONE } from '../../lib/dates';
+
 export type Plan = {
   id: string;
   name: string;
@@ -41,6 +43,7 @@ export interface InvoiceRepository {
 
 class MockInvoiceRepository implements InvoiceRepository {
   private invoices: Invoice[] = [];
+  private invoiceCounter = 0;
 
   private plans: Plan[] = [
     { id: 'plan-monthly', name: 'Monthly Pass', description: null, price: 1500, durationDays: 30, isActive: true },
@@ -64,9 +67,11 @@ class MockInvoiceRepository implements InvoiceRepository {
       throw new Error('Invoice total must be greater than zero.');
     }
     const plan = this.plans.find((candidate) => candidate.id === input.planId) ?? null;
+    this.invoiceCounter += 1;
+    const year = new Intl.DateTimeFormat('en-CA', { timeZone: PH_TIME_ZONE, year: 'numeric' }).format(new Date());
     const invoice: Invoice = {
       id: `invoice-${Date.now()}-${this.invoices.length}`,
-      invoiceNumber: `INV-${Date.now()}`,
+      invoiceNumber: `INV-${year}-${String(this.invoiceCounter).padStart(4, '0')}`,
       memberId: input.memberId,
       memberName: input.memberName.trim(),
       total: input.total,

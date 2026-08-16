@@ -80,7 +80,7 @@ class MockPaymentRepository implements PaymentRepository {
       method: input.method,
       reference: input.reference?.trim() || null,
       paidAt: new Date().toISOString(),
-      processedBy: null
+      processedBy: 'Front desk'
     };
     this.payments = [payment, ...this.payments];
     return payment;

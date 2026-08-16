@@ -76,6 +76,19 @@ export class SupabaseCheckInRepository {
       throw new Error('Select a member to check in.');
     }
 
+    const { data: duplicate, error: duplicateError } = await client
+      .from('check_ins')
+      .select('id')
+      .eq('member_id', input.memberId)
+      .gte('checked_in_at', startOfToday())
+      .limit(1);
+    if (duplicateError) {
+      throw new Error(`Failed to check for duplicates: ${duplicateError.message}`);
+    }
+    if (duplicate && duplicate.length > 0) {
+      throw new Error('Already checked in today.');
+    }
+
     const { data: sessionData } = await client.auth.getSession();
     const userId = sessionData.session?.user.id;
     if (!userId) {
@@ -97,5 +110,14 @@ export class SupabaseCheckInRepository {
     }
 
     return mapCheckIn(data as CheckInRow);
+  }
+
+  async deleteCheckIn(id: string): Promise<void> {
+    const client = ensureSupabase();
+
+    const { error } = await client.from('check_ins').delete().eq('id', id);
+    if (error) {
+      throw new Error(`Failed to delete check-in: ${error.message}`);
+    }
   }
 }

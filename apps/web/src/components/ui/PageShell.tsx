@@ -20,7 +20,8 @@ const navGroups: { label: string; items: { label: string; href: string }[] }[] =
       { label: 'Check-ins', href: '/app/checkins' },
       { label: 'Classes', href: '/app/classes' },
       { label: 'Payments', href: '/app/payments' },
-      { label: 'Staff', href: '/app/staff' }
+      { label: 'Staff', href: '/app/staff' },
+      { label: 'Activity log', href: '/app/audit' }
     ]
   },
   {

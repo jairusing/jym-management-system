@@ -14,4 +14,5 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.check_ins TO anon, authenti
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.classes TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.class_sessions TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.class_bookings TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.audit_log TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.auth_role() TO anon, authenticated, service_role;
