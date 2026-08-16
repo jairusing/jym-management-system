@@ -18,6 +18,18 @@ export function formatDateTime(date: string) {
   }).format(new Date(date));
 }
 
+export function formatWhen(date: string) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: PH_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(new Date(date));
+  const hour = parts.find((part) => part.type === 'hour')?.value ?? '';
+  const minute = parts.find((part) => part.type === 'minute')?.value ?? '';
+  return hour === '00' && minute === '00' ? formatDate(date) : formatDateTime(date);
+}
+
 export function phDateOf(date: Date) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: PH_TIME_ZONE,

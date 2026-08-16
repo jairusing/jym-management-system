@@ -1,5 +1,4 @@
 import { supabase } from '../../lib/supabase';
-import { phDateToday } from '../../lib/dates';
 import { type Payment, type PaymentInput, type PaymentMethod } from './paymentRepository';
 
 function ensureSupabase() {
@@ -73,7 +72,7 @@ export class SupabasePaymentRepository {
       p_amount: input.amount,
       p_method: input.method,
       p_reference: input.reference?.trim() || null,
-      p_paid_at: phDateToday()
+      p_paid_at: new Date().toISOString()
     });
 
     if (error) {

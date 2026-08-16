@@ -400,9 +400,9 @@ export function PaymentsPage() {
                               </p>
                               <p className="mt-1 text-sm text-[#A3A3A3]">
                                 {invoice.memberName} · {invoice.planName ? `${invoice.planName} · ` : ''}
-                                {formatMoney(invoice.total)} · issued {formatDate(invoice.issuedAt)}
+                                {formatMoney(invoice.total)} · issued {formatDateTime(invoice.issuedAt)}
                                 {invoice.dueAt ? ` · due ${formatDate(invoice.dueAt)}` : ''}
-                                {invoice.paidAt ? ` · paid ${formatDate(invoice.paidAt)}` : ''}
+                                {invoice.paidAt ? ` · paid ${formatDateTime(invoice.paidAt)}` : ''}
                               </p>
                             </div>
                             <div className="flex shrink-0 flex-wrap gap-2 whitespace-nowrap">

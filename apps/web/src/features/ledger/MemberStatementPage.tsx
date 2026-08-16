@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
-import { formatDate, formatDateTime } from '../../lib/dates';
+import { formatDate, formatDateTime, formatWhen } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { type StatusTone, StatusBadge } from '../../components/ui/StatusBadge';
 import { mockLedgerRepository, type MemberStatement } from './ledgerRepository';
@@ -64,7 +64,7 @@ export function MemberStatementPage() {
         <>
           <SectionCard
             title={member.fullName}
-            description={`Joined ${formatDate(member.joinedAt)} · ${
+            description={`Joined ${formatWhen(member.joinedAt)} · ${
               member.phone ? ` ${member.phone}` : ''
             }${member.email ? ` · ${member.email}` : ''}`}
           >
@@ -128,7 +128,7 @@ export function MemberStatementPage() {
                     <div>
                       <p className="text-base font-medium text-[#FAFAFA]">{invoice.invoiceNumber}</p>
                       <p className="mt-1 text-sm text-[#A3A3A3]">
-                        Issued {formatDate(invoice.issuedAt)}
+                        Issued {formatDateTime(invoice.issuedAt)}
                         {invoice.dueAt ? ` · due ${formatDate(invoice.dueAt)}` : ''}
                         {invoice.planName ? ` · ${invoice.planName}` : ''}
                       </p>

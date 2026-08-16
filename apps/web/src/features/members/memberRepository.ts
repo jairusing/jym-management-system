@@ -30,6 +30,11 @@ export type MemberInput = {
   notes: string | null;
 };
 
+export function toJoinedAt(input: string | null | undefined) {
+  const joined = input || phDateToday();
+  return joined === phDateToday() ? new Date().toISOString() : `${joined}T00:00:00+08:00`;
+}
+
 export interface MemberRepository {
   listMembers(): Promise<Member[]>;
   createMember(input: MemberInput): Promise<Member>;
@@ -60,7 +65,7 @@ class MockMemberRepository implements MemberRepository {
       fullName: input.fullName.trim(),
       email: input.email?.trim() || null,
       phone: input.phone?.trim() || null,
-      joinedAt: input.joinedAt || phDateToday(),
+      joinedAt: toJoinedAt(input.joinedAt),
       notes: input.notes?.trim() || null,
       isActive: true,
       membership: null,

@@ -5,6 +5,21 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.003 — Exact times everywhere (2026-08-16)
+
+- Database migration `018_event_timestamps.sql` (applied live): `invoices.issued_at`,
+  `invoices.paid_at`, and `members.joined_at` upgraded from DATE to TIMESTAMPTZ, so
+  events keep their exact time. The `rpc_record_payment` paid-at parameter is now a
+  timestamp too. Existing rows kept their dates (midnight Manila); nothing was lost.
+- Invoice rows on Payments and on member statements now show "issued <date> <time>"
+  and "paid <date> <time>" (due date stays date-only — it is a deadline).
+- Member registrations stamp the actual time on the same day; a backdated "Joined
+  date" keeps just the date. Members list and statement header show the join time.
+- Check-ins and payment records already stored and displayed full timestamps.
+- New shared `formatWhen` helper (date only for midnight/backdated, date + time otherwise).
+- Verified: full suite 146/146 including live integration tests against the migrated
+  database; TypeScript, ESLint, and production build clean.
+
 ## v1.002 — Button layout fix on list rows (2026-08-16)
 
 - Fixed action buttons (Statement / Record payment / Void on invoices, and the

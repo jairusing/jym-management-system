@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import { type Member, type MemberInput, type Membership, type MembershipStatus } from './memberRepository';
+import { type Member, type MemberInput, type Membership, type MembershipStatus, toJoinedAt } from './memberRepository';
 
 function ensureSupabase() {
   if (!supabase) {
@@ -86,7 +86,7 @@ export class SupabaseMemberRepository {
         full_name: input.fullName.trim(),
         email: input.email?.trim() || null,
         phone: input.phone?.trim() || null,
-        joined_at: input.joinedAt,
+        joined_at: toJoinedAt(input.joinedAt),
         notes: input.notes?.trim() || null
       })
       .select(memberColumns)
@@ -112,7 +112,7 @@ export class SupabaseMemberRepository {
     if (input.fullName !== undefined) payload.full_name = input.fullName.trim();
     if (input.email !== undefined) payload.email = input.email?.trim() || null;
     if (input.phone !== undefined) payload.phone = input.phone?.trim() || null;
-    if (input.joinedAt !== undefined) payload.joined_at = input.joinedAt;
+    if (input.joinedAt !== undefined) payload.joined_at = toJoinedAt(input.joinedAt);
     if (input.notes !== undefined) payload.notes = input.notes?.trim() || null;
 
     const { data, error } = await client

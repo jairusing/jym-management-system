@@ -4,7 +4,7 @@ import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { formatDate, phDateToday } from '../../lib/dates';
+import { formatDate, formatWhen, phDateToday } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { mockMemberRepository, type Member, type Membership } from './memberRepository';
 import { SupabaseMemberRepository } from './supabaseMemberRepository';
@@ -330,7 +330,7 @@ export function MembersPage() {
                         </StatusBadge>
                       </p>
                       <p className="mt-1 text-sm text-[#A3A3A3]">
-                        Joined {formatDate(member.joinedAt)}
+                        Joined {formatWhen(member.joinedAt)}
                         {member.phone ? ` · ${member.phone}` : ''}
                         {member.email ? ` · ${member.email}` : ''}
                       </p>
