@@ -15,7 +15,7 @@ function formatMoney(amount: number) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#737373]">{label}</p>
+      <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">{label}</p>
       <p className="text-2xl font-semibold tracking-[-0.04em] text-[#FAFAFA]">{value}</p>
     </div>
   );
@@ -57,7 +57,7 @@ export function DashboardPage() {
     >
       <SectionCard title="Attendance" description="Check-ins today and over the past week.">
         {loading ? (
-          <p className="text-sm text-[#737373]">Loading…</p>
+          <p className="text-sm text-[#A3A3A3]">Loading…</p>
         ) : (
           <div className="flex flex-col gap-8">
             <div className="flex flex-wrap gap-10">
@@ -69,12 +69,12 @@ export function DashboardPage() {
                 const height = Math.round((day.count / maxDay) * 100);
                 return (
                   <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
-                    <p className="text-sm text-[#737373]">{day.count}</p>
+                    <p className="text-sm text-[#A3A3A3]">{day.count}</p>
                     <div
                       className={`w-full border border-[#262626] ${day.count > 0 ? 'bg-[#FF3D00]' : 'bg-[#1A1A1A]'}`}
                       style={{ height: `${Math.max(height, 4)}px` }}
                     />
-                    <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#737373]">{day.label}</p>
+                    <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">{day.label}</p>
                   </div>
                 );
               })}
@@ -85,7 +85,7 @@ export function DashboardPage() {
 
       <SectionCard title="Revenue" description="Recorded payments and outstanding invoices.">
         {loading ? (
-          <p className="text-sm text-[#737373]">Loading…</p>
+          <p className="text-sm text-[#A3A3A3]">Loading…</p>
         ) : (
           <div className="flex flex-wrap gap-10">
             <Stat label="This month" value={formatMoney(stats?.revenueMonth ?? 0)} />
@@ -97,7 +97,7 @@ export function DashboardPage() {
 
       <SectionCard title="Membership" description="Active registered members.">
         {loading ? (
-          <p className="text-sm text-[#737373]">Loading…</p>
+          <p className="text-sm text-[#A3A3A3]">Loading…</p>
         ) : (
           <div className="flex flex-wrap gap-10">
             <Stat label="Active members" value={String(stats?.activeMembers ?? 0)} />

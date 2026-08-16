@@ -20,6 +20,10 @@ function renderPage() {
   );
 }
 
+function goToTab(name: string) {
+  fireEvent.click(screen.getByRole('tab', { name }));
+}
+
 async function seedMember() {
   await mockMemberRepository.createMember({
     fullName: 'Juan Dela Cruz',
@@ -45,8 +49,10 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/no invoices yet/i)).toBeTruthy();
     });
-    expect(screen.getByText(/no payments recorded yet/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Issue invoice' })).toBeTruthy();
+
+    goToTab('Payments');
+    expect(screen.getByText(/no payments recorded yet/i)).toBeTruthy();
   });
 
   it('issues an invoice for a member', async () => {
@@ -65,7 +71,7 @@ describe('PaymentsPage', () => {
       expect(screen.getByText('issued')).toBeTruthy();
     });
     expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
-    expect(screen.getByText(/1,500\.00/)).toBeTruthy();
+    expect(screen.getByText(/· ₱1,500\.00 · issued/)).toBeTruthy();
     expect(screen.getAllByText(/^INV-/).length).toBe(1);
 
     const saved = await mockInvoiceRepository.listInvoices();
@@ -100,6 +106,8 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('paid')).toBeTruthy();
     });
+
+    goToTab('Payments');
     expect(screen.getByText(/1,500\.00 · gcash/)).toBeTruthy();
     expect(screen.getByText(/G-12345/)).toBeTruthy();
 
@@ -149,6 +157,160 @@ describe('PaymentsPage', () => {
       expect(screen.getByText('overdue')).toBeTruthy();
     });
     expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+  });
+
+  it('shows the summary strip with outstanding, collected, and overdue totals', async () => {
+    await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Maria Santos',
+      total: 1000,
+      dueAt: null
+    });
+    await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Maria Santos',
+      total: 500,
+      dueAt: '2020-01-01'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('₱1,500.00')).toBeTruthy();
+    });
+    expect(screen.getByText('₱0.00')).toBeTruthy();
+    expect(screen.getByText('1')).toBeTruthy();
+  });
+
+  it('updates the summary after recording a payment', async () => {
+    const member = await seedMember();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Member')).toBeTruthy();
+    });
+    fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
+    fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '1000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Issue invoice' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('₱1,000.00')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Confirm payment' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm payment' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('₱0.00')).toBeTruthy();
+    });
+    expect(screen.getByText('₱1,000.00')).toBeTruthy();
+  });
+
+  it('filters invoices by status chips with counts', async () => {
+    await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Maria Santos',
+      total: 1000,
+      dueAt: null
+    });
+    await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Maria Santos',
+      total: 500,
+      dueAt: '2020-01-01'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Filter: All' })).toBeTruthy();
+    });
+    expect(screen.getByText('Issued (1)')).toBeTruthy();
+    expect(screen.getByText('Overdue (1)')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter: Overdue' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Showing 1–1 of 1/)).toBeTruthy();
+    });
+    expect(screen.getByText(/₱500\.00/)).toBeTruthy();
+    expect(screen.queryByText(/₱1,000\.00/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter: Paid' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/no invoices match this filter/i)).toBeTruthy();
+    });
+  });
+
+  it('paginates the invoice list', async () => {
+    for (let i = 1; i <= 17; i += 1) {
+      await mockInvoiceRepository.createInvoice({
+        memberId: `member-${i}`,
+        memberName: `Member ${i}`,
+        total: 100,
+        dueAt: null
+      });
+    }
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Showing 1–15 of 17')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => {
+      expect(screen.getByText('Showing 16–17 of 17')).toBeTruthy();
+    });
+    expect((screen.getByRole('button', { name: 'Next' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('paginates the payments list', async () => {
+    const member = await seedMember();
+    for (let i = 1; i <= 17; i += 1) {
+      const invoice = await mockInvoiceRepository.createInvoice({
+        memberId: member?.id ?? 'member-1',
+        memberName: 'Juan Dela Cruz',
+        total: 100,
+        dueAt: null
+      });
+      await mockPaymentRepository.recordPayment({
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        memberId: member?.id ?? 'member-1',
+        memberName: 'Juan Dela Cruz',
+        amount: 100,
+        method: 'cash',
+        reference: null
+      });
+    }
+    renderPage();
+
+    goToTab('Payments');
+    await waitFor(() => {
+      expect(screen.getByText('Showing 1–15 of 17')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => {
+      expect(screen.getByText('Showing 16–17 of 17')).toBeTruthy();
+    });
+  });
+
+  it('links each invoice row to the member statement', async () => {
+    await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Maria Santos',
+      total: 1000,
+      dueAt: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'Statement' })).toBeTruthy();
+    });
+    expect((screen.getByRole('link', { name: 'Statement' }) as HTMLAnchorElement).href).toMatch(/\/app\/members\/member-1$/);
   });
 
   it('renews membership when a plan invoice is paid', async () => {

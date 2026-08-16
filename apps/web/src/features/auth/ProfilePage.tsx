@@ -65,7 +65,7 @@ export function ProfilePage() {
       {user ? (
         <div className="space-y-6">
           <SectionCard title="Account" description={user.email ?? 'Unknown email'}>
-            <div className="mt-2 space-y-1 text-sm text-[#737373]">
+            <div className="mt-2 space-y-1 text-sm text-[#A3A3A3]">
               <p>User ID: {user.id}</p>
               {joined ? <p>Joined: {joined}</p> : null}
             </div>
@@ -99,7 +99,7 @@ export function ProfilePage() {
                 />
               </label>
 
-              {message ? <p className="text-sm text-[#737373]">{message}</p> : null}
+              {message ? <p className="text-sm text-[#A3A3A3]">{message}</p> : null}
               {error ? <p className="text-sm text-[#FF3D00]">{error}</p> : null}
 
               <div>
@@ -112,7 +112,7 @@ export function ProfilePage() {
         </div>
       ) : (
         <SectionCard title="Not signed in">
-          <p className="text-sm text-[#737373]">Sign in to view your profile.</p>
+          <p className="text-sm text-[#A3A3A3]">Sign in to view your profile.</p>
           <div className="mt-6">
             <ActionLink label="Sign in" href="/auth" />
           </div>

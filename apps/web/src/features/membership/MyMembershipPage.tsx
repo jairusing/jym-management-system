@@ -6,6 +6,7 @@ import { formatDate } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { mockMembershipRepository, type MyMembership } from './membershipRepository';
 import { SupabaseMembershipRepository } from './supabaseMembershipRepository';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 
 function formatMoney(amount: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
@@ -38,10 +39,10 @@ export function MyMembershipPage() {
       {error ? <p className="text-sm text-[#FF3D00]">{error}</p> : null}
 
       {membership === undefined ? (
-        <p className="text-sm text-[#737373]">Loading…</p>
+        <p className="text-sm text-[#A3A3A3]">Loading…</p>
       ) : membership === null ? (
         <SectionCard title="No active membership" description="Your account has no active gym plan.">
-          <p className="text-sm text-[#737373]">
+          <p className="text-sm text-[#A3A3A3]">
             Renew at the front desk to keep training. Staff can issue a plan invoice and record the payment.
           </p>
         </SectionCard>
@@ -53,12 +54,12 @@ export function MyMembershipPage() {
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex flex-col gap-2">
               <p className="text-2xl font-semibold tracking-[-0.04em] text-[#FAFAFA]">{membership.planName}</p>
-              <p className="text-sm text-[#737373]">
+              <p className="text-sm text-[#A3A3A3]">
                 {formatMoney(membership.planPrice)} · started {formatDate(membership.startedAt)} · until{' '}
                 {formatDate(membership.endsAt)}
               </p>
             </div>
-            <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#737373]">Active</p>
+            <StatusBadge tone="good">Active</StatusBadge>
           </div>
         </SectionCard>
       )}

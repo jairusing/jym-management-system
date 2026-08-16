@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { formatDateTime, PH_TIME_ZONE } from '../../lib/dates';
 import { dayOfWeekLabels, mockClassRepository, type ClassItem, type ClassSession } from './classRepository';
@@ -301,9 +302,9 @@ export function ClassSchedulePage() {
 
       <SectionCard title="Classes" description={`${classes.length} recurring class${classes.length === 1 ? '' : 'es'}.`}>
         {loading ? (
-          <p className="text-sm text-[#737373]">Loading…</p>
+          <p className="text-sm text-[#A3A3A3]">Loading…</p>
         ) : classes.length === 0 ? (
-          <p className="text-sm text-[#737373]">No classes yet. Add your first class above.</p>
+          <p className="text-sm text-[#A3A3A3]">No classes yet. Add your first class above.</p>
         ) : (
           <ul className="flex flex-col">
             {classes.map((gymClass) => {
@@ -315,7 +316,7 @@ export function ClassSchedulePage() {
                 >
                   <div>
                     <p className="text-base font-medium text-[#FAFAFA]">{gymClass.name}</p>
-                    <p className="mt-1 text-sm text-[#737373]">
+                    <p className="mt-1 text-sm text-[#A3A3A3]">
                       {dayOfWeekLabels[gymClass.dayOfWeek]} · {gymClass.startTime.slice(0, 5)}–
                       {gymClass.endTime.slice(0, 5)} · capacity {gymClass.capacity}
                     </p>
@@ -330,7 +331,7 @@ export function ClassSchedulePage() {
                       {scheduled ? 'Scheduled this week' : 'Schedule this week'}
                     </button>
                     <button
-                      className={`${buttonClass} border-[#262626] text-[#737373] hover:text-[#FF3D00]`}
+                      className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
                       type="button"
                       onClick={() => void handleDeleteClass(gymClass)}
                     >
@@ -358,9 +359,9 @@ export function ClassSchedulePage() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-[#737373]">Loading…</p>
+          <p className="text-sm text-[#A3A3A3]">Loading…</p>
         ) : sortedSessions.length === 0 ? (
-          <p className="text-sm text-[#737373]">
+          <p className="text-sm text-[#A3A3A3]">
             No sessions this week. Use “Schedule this week” on a class above.
           </p>
         ) : (
@@ -374,7 +375,7 @@ export function ClassSchedulePage() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-base font-medium text-[#FAFAFA]">{session.className}</p>
-                      <p className="mt-1 text-sm text-[#737373]">
+                      <p className="mt-1 text-sm text-[#A3A3A3]">
                         {formatSessionDate(new Date(session.scheduledAt))} · {formatTime(session.scheduledAt)}–
                         {session.endTime.slice(0, 5)} · {bookedCount}/{session.capacity} booked
                       </p>
@@ -424,18 +425,14 @@ export function ClassSchedulePage() {
                         >
                           <p className="text-[#FAFAFA]">
                             {booking.memberName}
-                            <span className="ml-3 text-[#737373]">{formatDateTime(booking.bookedAt)}</span>
-                            <span
-                              className={`ml-3 text-[0.7rem] uppercase tracking-[0.2em] ${
-                                booking.status === 'cancelled' ? 'text-[#FF3D00]' : 'text-[#737373]'
-                              }`}
-                            >
+                            <span className="ml-3 text-[#A3A3A3]">{formatDateTime(booking.bookedAt)}</span>
+                            <StatusBadge tone={booking.status === 'cancelled' ? 'bad' : 'good'} className="ml-3">
                               {booking.status}
-                            </span>
+                            </StatusBadge>
                           </p>
                           {booking.status === 'booked' ? (
                             <button
-                              className={`${buttonClass} border-[#262626] px-3 py-2 text-[#737373] hover:text-[#FF3D00]`}
+                              className={`${buttonClass} border-[#262626] px-3 py-2 text-[#A3A3A3] hover:text-[#FF3D00]`}
                               type="button"
                               onClick={() => void handleCancelBooking(booking)}
                             >

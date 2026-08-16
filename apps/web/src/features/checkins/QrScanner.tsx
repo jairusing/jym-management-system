@@ -89,7 +89,7 @@ export function QrScanner({ onCode, onError, onClose }: QrScannerProps) {
           muted
           playsInline
         />
-        <p className="mt-3 text-center text-sm text-[#737373]">
+        <p className="mt-3 text-center text-sm text-[#A3A3A3]">
           Point the camera at the member's QR code.
         </p>
       </div>

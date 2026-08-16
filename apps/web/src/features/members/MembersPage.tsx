@@ -3,6 +3,7 @@ import { toDataURL } from 'qrcode';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatDate, phDateToday } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { mockMemberRepository, type Member, type Membership } from './memberRepository';
@@ -13,6 +14,16 @@ const inputClass =
 
 const buttonClass =
   'inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50';
+
+const ghostButtonClass =
+  'inline-flex items-center border border-[#262626] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#A3A3A3] transition-all duration-150 hover:text-[#FF3D00] disabled:opacity-50';
+
+const chipClass = (selected: boolean) =>
+  `border px-3 py-1 text-xs font-semibold uppercase tracking-[0.1em] transition-colors duration-150 ${
+    selected ? 'border-[#FF3D00] text-[#FF3D00]' : 'border-[#262626] text-[#A3A3A3] hover:text-[#FAFAFA]'
+  }`;
+
+const PAGE_SIZE = 15;
 
 function today() {
   return phDateToday();
@@ -41,6 +52,11 @@ export function MembersPage() {
   const [qrFor, setQrFor] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [membershipFilter, setMembershipFilter] = useState<'any' | 'active' | 'expired' | 'none'>('any');
+  const [page, setPage] = useState(1);
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -68,6 +84,41 @@ export function MembersPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, membershipFilter]);
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredMembers = members.filter((member) => {
+    if (
+      normalizedSearch &&
+      !member.fullName.toLowerCase().includes(normalizedSearch) &&
+      !(member.phone ?? '').toLowerCase().includes(normalizedSearch) &&
+      !(member.email ?? '').toLowerCase().includes(normalizedSearch)
+    ) {
+      return false;
+    }
+    if (statusFilter === 'active' && !member.isActive) {
+      return false;
+    }
+    if (statusFilter === 'inactive' && member.isActive) {
+      return false;
+    }
+    if (membershipFilter === 'active' && (!member.membership || membershipState(member.membership).tone === 'expired')) {
+      return false;
+    }
+    if (membershipFilter === 'expired' && (!member.membership || membershipState(member.membership).tone !== 'expired')) {
+      return false;
+    }
+    if (membershipFilter === 'none' && member.membership) {
+      return false;
+    }
+    return true;
+  });
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const visibleMembers = filteredMembers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -208,86 +259,163 @@ export function MembersPage() {
 
       <SectionCard title="All members" description={`${members.length} registered member${members.length === 1 ? '' : 's'}.`}>
         {loading ? (
-          <p className="text-sm text-[#737373]">Loading…</p>
-        ) : members.length === 0 ? (
-          <p className="text-sm text-[#737373]">No members yet. Add your first member above.</p>
+          <p className="text-sm text-[#A3A3A3]">Loading…</p>
         ) : (
-          <ul className="flex flex-col">
-            {members.map((member) => (
-              <li
-                key={member.id}
-                className="flex flex-col gap-4 border-b border-[#262626] py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="text-base font-medium text-[#FAFAFA]">
-                    {member.fullName}
-                    <span
-                      className={`ml-3 text-[0.7rem] uppercase tracking-[0.2em] ${
-                        member.isActive ? 'text-[#737373]' : 'text-[#FF3D00]'
-                      }`}
-                    >
-                      {member.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-sm text-[#737373]">
-                    Joined {formatDate(member.joinedAt)}
-                    {member.phone ? ` · ${member.phone}` : ''}
-                    {member.email ? ` · ${member.email}` : ''}
-                  </p>
-                  <p
-                    className={`mt-1 text-sm ${
-                      membershipState(member.membership).tone === 'expired'
-                        ? 'font-semibold text-[#FF3D00]'
-                        : membershipState(member.membership).tone === 'expiring'
-                          ? 'text-[#FFB300]'
-                          : 'text-[#737373]'
-                    }`}
-                  >
-                    {membershipState(member.membership).label}
-                  </p>
-                  {member.notes ? <p className="mt-1 text-sm text-[#737373]">{member.notes}</p> : null}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <a className={buttonClass} href={`/app/members/${member.id}`}>
-                    Statement
-                  </a>
-                  <button
-                    className={buttonClass}
-                    type="button"
-                    onClick={() => void handleShowQr(member)}
-                  >
-                    {qrFor === member.id ? 'Hide QR' : 'Show QR'}
-                  </button>
-                  <button
-                    className={buttonClass}
-                    type="button"
-                    onClick={() => void handleToggleActive(member)}
-                  >
-                    {member.isActive ? 'Deactivate' : 'Activate'}
-                  </button>
-                  <button
-                    className={`${buttonClass} border-[#262626] text-[#737373] hover:text-[#FF3D00]`}
-                    type="button"
-                    onClick={() => void handleDelete(member)}
-                  >
-                    Delete
-                  </button>
-                </div>
+          <>
+            <div className="mb-6 flex flex-col gap-3">
+              <input
+                className={inputClass}
+                type="search"
+                placeholder="Search by name, phone, or email…"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  className={chipClass(statusFilter === 'all')}
+                  type="button"
+                  aria-label="Filter: All"
+                  onClick={() => setStatusFilter('all')}
+                >
+                  All
+                </button>
+                <button
+                  className={chipClass(statusFilter === 'active')}
+                  type="button"
+                  aria-label="Filter: Active"
+                  onClick={() => setStatusFilter('active')}
+                >
+                  Active
+                </button>
+                <button
+                  className={chipClass(statusFilter === 'inactive')}
+                  type="button"
+                  aria-label="Filter: Inactive"
+                  onClick={() => setStatusFilter('inactive')}
+                >
+                  Inactive
+                </button>
+                <select
+                  className={inputClass}
+                  aria-label="Filter by membership"
+                  value={membershipFilter}
+                  onChange={(event) => setMembershipFilter(event.target.value as typeof membershipFilter)}
+                >
+                  <option value="any">Any membership</option>
+                  <option value="active">Active membership</option>
+                  <option value="expired">Expired membership</option>
+                  <option value="none">No membership</option>
+                </select>
+              </div>
+            </div>
 
-                {qrFor === member.id ? (
-                  <div className="flex flex-col items-start gap-2 border border-[#262626] bg-[#1A1A1A] p-4">
-                    {qrDataUrl ? (
-                      <img src={qrDataUrl} alt={`QR code for ${member.fullName}`} className="h-40 w-40" />
-                    ) : (
-                      <p className="text-sm text-[#737373]">Generating…</p>
-                    )}
-                    <p className="text-sm text-[#737373]">Member ID: {member.id}</p>
-                    <p className="text-sm text-[#737373]">Show this QR at the front desk for check-in.</p>
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+            {filteredMembers.length === 0 ? (
+              <p className="text-sm text-[#A3A3A3]">
+                {members.length === 0
+                  ? 'No members yet. Add your first member above.'
+                  : 'No members match your filters.'}
+              </p>
+            ) : (
+              <ul className="flex flex-col">
+                {visibleMembers.map((member) => (
+                  <li
+                    key={member.id}
+                    className="flex flex-col gap-4 border-b border-[#262626] py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-base font-medium text-[#FAFAFA]">
+                        {member.fullName}
+                        <StatusBadge tone={member.isActive ? 'good' : 'bad'} className="ml-3">
+                          {member.isActive ? 'Active' : 'Inactive'}
+                        </StatusBadge>
+                      </p>
+                      <p className="mt-1 text-sm text-[#A3A3A3]">
+                        Joined {formatDate(member.joinedAt)}
+                        {member.phone ? ` · ${member.phone}` : ''}
+                        {member.email ? ` · ${member.email}` : ''}
+                      </p>
+                      <p
+                        className={`mt-1 text-sm ${
+                          membershipState(member.membership).tone === 'expired'
+                            ? 'font-semibold text-[#FF3D00]'
+                            : membershipState(member.membership).tone === 'expiring'
+                              ? 'text-[#FFB300]'
+                              : 'text-[#A3A3A3]'
+                        }`}
+                      >
+                        {membershipState(member.membership).label}
+                      </p>
+                      {member.notes ? <p className="mt-1 text-sm text-[#A3A3A3]">{member.notes}</p> : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <a className={buttonClass} href={`/app/members/${member.id}`}>
+                        Statement
+                      </a>
+                      <button
+                        className={buttonClass}
+                        type="button"
+                        onClick={() => void handleShowQr(member)}
+                      >
+                        {qrFor === member.id ? 'Hide QR' : 'Show QR'}
+                      </button>
+                      <button
+                        className={buttonClass}
+                        type="button"
+                        onClick={() => void handleToggleActive(member)}
+                      >
+                        {member.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
+                        type="button"
+                        onClick={() => void handleDelete(member)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+
+                    {qrFor === member.id ? (
+                      <div className="flex flex-col items-start gap-2 border border-[#262626] bg-[#1A1A1A] p-4">
+                        {qrDataUrl ? (
+                          <img src={qrDataUrl} alt={`QR code for ${member.fullName}`} className="h-40 w-40" />
+                        ) : (
+                          <p className="text-sm text-[#A3A3A3]">Generating…</p>
+                        )}
+                        <p className="text-sm text-[#A3A3A3]">Member ID: {member.id}</p>
+                        <p className="text-sm text-[#A3A3A3]">Show this QR at the front desk for check-in.</p>
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-6">
+              <p className="text-sm text-[#A3A3A3]">
+                {filteredMembers.length === 0
+                  ? '0 results'
+                  : `Showing ${(safePage - 1) * PAGE_SIZE + 1}–${Math.min(safePage * PAGE_SIZE, filteredMembers.length)} of ${filteredMembers.length}`}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  className={ghostButtonClass}
+                  type="button"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage(safePage - 1)}
+                >
+                  Prev
+                </button>
+                <button
+                  className={ghostButtonClass}
+                  type="button"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage(safePage + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </SectionCard>
     </PageShell>

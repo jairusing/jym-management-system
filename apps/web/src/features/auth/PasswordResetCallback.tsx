@@ -87,7 +87,7 @@ export function PasswordResetCallback() {
     <PageShell title="Reset password" eyebrow="Account" description="Choose a new password for your account." hideNav>
       <div className="mx-auto flex w-full max-w-xl flex-col gap-6 border border-[#262626] bg-[#0F0F0F] p-6 sm:p-8">
         {status === 'processing' ? (
-          <p className="text-sm text-[#737373]">Validating your reset link…</p>
+          <p className="text-sm text-[#A3A3A3]">Validating your reset link…</p>
         ) : status === 'error' ? (
           <div className="space-y-4">
             <p className="text-sm text-[#FF3D00]">This password reset link is invalid or has expired.</p>

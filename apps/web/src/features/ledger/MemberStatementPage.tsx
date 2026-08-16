@@ -5,6 +5,7 @@ import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { formatDate, formatDateTime } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
+import { type StatusTone, StatusBadge } from '../../components/ui/StatusBadge';
 import { mockLedgerRepository, type MemberStatement } from './ledgerRepository';
 import { SupabaseLedgerRepository } from './supabaseLedgerRepository';
 
@@ -12,15 +13,15 @@ function formatMoney(amount: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
 }
 
-const statusTone: Record<string, string> = {
-  active: 'text-[#22C55E]',
-  expired: 'text-[#FF3D00]',
-  cancelled: 'text-[#737373]',
-  paused: 'text-[#FFB300]',
-  issued: 'text-[#FFB300]',
-  overdue: 'text-[#FF3D00]',
-  paid: 'text-[#22C55E]',
-  void: 'text-[#737373]'
+const statusTone: Record<string, StatusTone> = {
+  active: 'good',
+  expired: 'bad',
+  cancelled: 'neutral',
+  paused: 'warning',
+  issued: 'warning',
+  overdue: 'bad',
+  paid: 'good',
+  void: 'neutral'
 };
 
 export function MemberStatementPage() {
@@ -58,7 +59,7 @@ export function MemberStatementPage() {
       <BackLink to="/app/members" label="Back to members" />
 
       {loading ? (
-        <p className="text-sm text-[#737373]">Loading…</p>
+        <p className="text-sm text-[#A3A3A3]">Loading…</p>
       ) : statement && member ? (
         <>
           <SectionCard
@@ -67,7 +68,7 @@ export function MemberStatementPage() {
               member.phone ? ` ${member.phone}` : ''
             }${member.email ? ` · ${member.email}` : ''}`}
           >
-            <p className="text-sm text-[#737373]">
+            <p className="text-sm text-[#A3A3A3]">
               {member.isActive ? 'Active member' : 'Inactive member'}
               {member.membership
                 ? ` · ${member.membership.planName} until ${formatDate(member.membership.endsAt)}`
@@ -75,13 +76,13 @@ export function MemberStatementPage() {
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="border border-[#262626] bg-[#1A1A1A] p-4">
-                <p className="text-sm text-[#737373]">Outstanding balance</p>
+                <p className="text-sm text-[#A3A3A3]">Outstanding balance</p>
                 <p className="mt-1 text-2xl font-semibold text-[#FF3D00]">
                   {formatMoney(statement.outstanding)}
                 </p>
               </div>
               <div className="border border-[#262626] bg-[#1A1A1A] p-4">
-                <p className="text-sm text-[#737373]">Total paid</p>
+                <p className="text-sm text-[#A3A3A3]">Total paid</p>
                 <p className="mt-1 text-2xl font-semibold text-[#22C55E]">
                   {formatMoney(totalPaid)}
                 </p>
@@ -91,7 +92,7 @@ export function MemberStatementPage() {
 
           <SectionCard title="Membership history">
             {statement.memberships.length === 0 ? (
-              <p className="text-sm text-[#737373]">No memberships recorded.</p>
+              <p className="text-sm text-[#A3A3A3]">No memberships recorded.</p>
             ) : (
               <ul className="flex flex-col">
                 {statement.memberships.map((membership) => (
@@ -101,15 +102,13 @@ export function MemberStatementPage() {
                   >
                     <div>
                       <p className="text-base font-medium text-[#FAFAFA]">{membership.planName}</p>
-                      <p className="mt-1 text-sm text-[#737373]">
+                      <p className="mt-1 text-sm text-[#A3A3A3]">
                         {formatDate(membership.startsAt)} → {formatDate(membership.endsAt)}
                       </p>
                     </div>
-                    <span
-                      className={`text-xs uppercase tracking-[0.2em] ${statusTone[membership.status] ?? 'text-[#737373]'}`}
-                    >
+                    <StatusBadge tone={statusTone[membership.status] ?? 'neutral'}>
                       {membership.status}
-                    </span>
+                    </StatusBadge>
                   </li>
                 ))}
               </ul>
@@ -118,7 +117,7 @@ export function MemberStatementPage() {
 
           <SectionCard title="Invoices">
             {statement.invoices.length === 0 ? (
-              <p className="text-sm text-[#737373]">No invoices.</p>
+              <p className="text-sm text-[#A3A3A3]">No invoices.</p>
             ) : (
               <ul className="flex flex-col">
                 {statement.invoices.map((invoice) => (
@@ -128,18 +127,16 @@ export function MemberStatementPage() {
                   >
                     <div>
                       <p className="text-base font-medium text-[#FAFAFA]">{invoice.invoiceNumber}</p>
-                      <p className="mt-1 text-sm text-[#737373]">
+                      <p className="mt-1 text-sm text-[#A3A3A3]">
                         Issued {formatDate(invoice.issuedAt)}
                         {invoice.dueAt ? ` · due ${formatDate(invoice.dueAt)}` : ''}
                         {invoice.planName ? ` · ${invoice.planName}` : ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span
-                        className={`text-xs uppercase tracking-[0.2em] ${statusTone[invoice.status] ?? 'text-[#737373]'}`}
-                      >
+                      <StatusBadge tone={statusTone[invoice.status] ?? 'neutral'}>
                         {invoice.status}
-                      </span>
+                      </StatusBadge>
                       <p className="text-base font-semibold text-[#FAFAFA]">
                         {formatMoney(invoice.total)}
                       </p>
@@ -152,7 +149,7 @@ export function MemberStatementPage() {
 
           <SectionCard title="Payments">
             {statement.payments.length === 0 ? (
-              <p className="text-sm text-[#737373]">No payments recorded.</p>
+              <p className="text-sm text-[#A3A3A3]">No payments recorded.</p>
             ) : (
               <ul className="flex flex-col">
                 {statement.payments.map((payment) => (
@@ -164,7 +161,7 @@ export function MemberStatementPage() {
                       <p className="text-base font-medium text-[#FAFAFA]">
                         {formatDateTime(payment.paidAt)}
                       </p>
-                      <p className="mt-1 text-sm text-[#737373]">
+                      <p className="mt-1 text-sm text-[#A3A3A3]">
                         {payment.method}
                         {payment.reference ? ` · ${payment.reference}` : ''}
                         {payment.invoiceNumber ? ` · ${payment.invoiceNumber}` : ''}

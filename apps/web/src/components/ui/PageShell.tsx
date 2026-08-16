@@ -52,7 +52,7 @@ function BrandLink() {
 
 function CreditsFooter() {
   return (
-    <p className="border-t border-[#262626] px-6 py-4 text-[0.7rem] uppercase tracking-[0.2em] text-[#737373]">
+    <p className="border-t border-[#262626] px-6 py-4 text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
       © {new Date().getFullYear()}
     </p>
   );
@@ -63,7 +63,7 @@ function NavList({ path, onNavigate }: { path: string; onNavigate?: () => void }
     <nav className="flex flex-col gap-1 px-4 pb-6" aria-label="Primary">
       {navGroups.map((group) => (
         <div key={group.label} className="flex flex-col gap-1">
-          <p className="pb-1 pt-5 text-[0.7rem] uppercase tracking-[0.2em] text-[#737373]">{group.label}</p>
+          <p className="pb-1 pt-5 text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">{group.label}</p>
           {group.items.map((item) => {
             const active = isActive(item.href, path);
             return (
@@ -75,7 +75,7 @@ function NavList({ path, onNavigate }: { path: string; onNavigate?: () => void }
                 className={`whitespace-nowrap border px-4 py-3 text-sm font-medium uppercase tracking-[0.1em] transition-colors lg:border-l-2 lg:border-l-transparent lg:px-4 ${
                   active
                     ? 'border-[#FF3D00] text-[#FF3D00]'
-                    : 'border-transparent text-[#737373] hover:text-[#FAFAFA]'
+                    : 'border-transparent text-[#A3A3A3] hover:text-[#FAFAFA]'
                 }`}
               >
                 {item.label}
@@ -153,7 +153,7 @@ export function PageShell({ title, eyebrow, description, children, hideNav = fal
                 type="button"
                 aria-label="Close menu"
                 onClick={() => setMenuOpen(false)}
-                className="px-4 py-2 text-sm uppercase tracking-[0.1em] text-[#737373] transition-colors hover:text-[#FF3D00]"
+                className="px-4 py-2 text-sm uppercase tracking-[0.1em] text-[#A3A3A3] transition-colors hover:text-[#FF3D00]"
               >
                 Close
               </button>
@@ -180,7 +180,7 @@ export function PageShell({ title, eyebrow, description, children, hideNav = fal
               <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl lg:text-5xl">{title}</h1>
               <span className="border border-[#FF3D00] px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#FF3D00]">Beta</span>
             </div>
-            {description ? <p className="max-w-2xl text-base text-[#737373] sm:text-lg">{description}</p> : null}
+            {description ? <p className="max-w-2xl text-base text-[#A3A3A3] sm:text-lg">{description}</p> : null}
           </header>
           {children}
         </div>

@@ -248,7 +248,7 @@ export function AuthPage() {
 
           {mode === 'sign-in' ? (
             <div className="mt-2">
-              <button className="text-sm uppercase tracking-[0.1em] text-[#737373] hover:text-[#FF3D00]" type="button" onClick={() => { setMode('reset-password'); setResetSent(false); setConfirmationPending(false); setConfirmPassword(''); }}>
+              <button className="text-sm uppercase tracking-[0.1em] text-[#A3A3A3] hover:text-[#FF3D00]" type="button" onClick={() => { setMode('reset-password'); setResetSent(false); setConfirmationPending(false); setConfirmPassword(''); }}>
                 Forgot password?
               </button>
             </div>
