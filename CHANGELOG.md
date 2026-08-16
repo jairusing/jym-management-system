@@ -5,6 +5,14 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.002 — Button layout fix on list rows (2026-08-16)
+
+- Fixed action buttons (Statement / Record payment / Void on invoices, and the
+  member actions on the Members page) wrapping below the row when the description
+  text is long. The action buttons now stay on one horizontal line; the text side
+  shrinks and wraps instead.
+- No behavior changes; cosmetic only.
+
 ## v1.001 — Front-desk usability overhaul (2026-08-16)
 
 First versioned release. Baseline: member accounts, check-in QR, class bookings,

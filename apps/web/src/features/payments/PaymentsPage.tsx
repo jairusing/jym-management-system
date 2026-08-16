@@ -380,7 +380,7 @@ export function PaymentsPage() {
                       return (
                         <li key={invoice.id} className="border-b border-[#262626] py-5 last:border-b-0">
                           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
+                            <div className="min-w-0">
                               <p className="text-base font-medium text-[#FAFAFA]">
                                 {invoice.invoiceNumber}
                                 <StatusBadge
@@ -405,7 +405,7 @@ export function PaymentsPage() {
                                 {invoice.paidAt ? ` · paid ${formatDate(invoice.paidAt)}` : ''}
                               </p>
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex shrink-0 flex-wrap gap-2 whitespace-nowrap">
                               <a className={ghostButtonClass} href={`/app/members/${invoice.memberId}`}>
                                 Statement
                               </a>

@@ -322,7 +322,7 @@ export function MembersPage() {
                     key={member.id}
                     className="flex flex-col gap-4 border-b border-[#262626] py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-base font-medium text-[#FAFAFA]">
                         {member.fullName}
                         <StatusBadge tone={member.isActive ? 'good' : 'bad'} className="ml-3">
@@ -347,7 +347,7 @@ export function MembersPage() {
                       </p>
                       {member.notes ? <p className="mt-1 text-sm text-[#A3A3A3]">{member.notes}</p> : null}
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex shrink-0 flex-wrap gap-2 whitespace-nowrap">
                       <a className={buttonClass} href={`/app/members/${member.id}`}>
                         Statement
                       </a>
