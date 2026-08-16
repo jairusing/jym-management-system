@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { version as appVersion } from '../../../package.json';
 import { ActionLink } from '../../components/ui/ActionLink';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
@@ -118,6 +119,10 @@ export function ProfilePage() {
           </div>
         </SectionCard>
       )}
+
+      <p className="border-t border-[#262626] pt-6 text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
+        Jym Management System · Version {appVersion}
+      </p>
     </PageShell>
   );
 }
