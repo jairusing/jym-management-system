@@ -47,6 +47,10 @@ export function phDateInDays(days: number) {
   return phDateOf(new Date(Date.now() + days * 86400000));
 }
 
+export function phDateAfter(dateStr: string, days: number) {
+  return phDateOf(new Date(new Date(`${dateStr.slice(0, 10)}T00:00:00+08:00`).getTime() + days * 86400000));
+}
+
 export function phDayStartUtc(dateStr: string) {
   return new Date(`${dateStr}T00:00:00+08:00`).toISOString();
 }

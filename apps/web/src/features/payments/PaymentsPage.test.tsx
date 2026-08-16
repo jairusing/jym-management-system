@@ -345,4 +345,35 @@ describe('PaymentsPage', () => {
     expect(savedMembers[0]?.membership?.planName).toBe('Monthly Pass');
     expect(savedMembers[0]?.membership?.endsAt).toBeTruthy();
   });
+
+  it('blocks confirm when the payment amount differs from the invoice total', async () => {
+    const member = await seedMember();
+    await mockInvoiceRepository.createInvoice({
+      memberId: member?.id ?? 'member-1',
+      memberName: 'Juan Dela Cruz',
+      total: 1500,
+      dueAt: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Confirm payment' })).toBeTruthy();
+    });
+
+    const amount = screen.getByLabelText('Amount') as HTMLInputElement;
+    expect(amount.value).toBe('1500');
+    expect((screen.getByRole('button', { name: 'Confirm payment' }) as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.change(amount, { target: { value: '100' } });
+    expect(screen.getByText(/must equal/i)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Confirm payment' }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(amount, { target: { value: '1500' } });
+    expect(screen.queryByText(/must equal/i)).toBeNull();
+    expect((screen.getByRole('button', { name: 'Confirm payment' }) as HTMLButtonElement).disabled).toBe(false);
+  });
 });

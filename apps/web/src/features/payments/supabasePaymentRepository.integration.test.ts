@@ -4,6 +4,7 @@ import { supabase, hasSupabaseConfig } from '../../lib/supabase';
 import { SupabasePaymentRepository } from './supabasePaymentRepository';
 import { SupabaseInvoiceRepository } from './supabaseInvoiceRepository';
 import { SupabaseMemberRepository } from '../members/supabaseMemberRepository';
+import { phDateAfter } from '../../lib/dates';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -140,6 +141,57 @@ describeLive('SupabasePaymentRepository (live)', () => {
     const member = members.find((candidate) => candidate.id === memberId);
     expect(member?.membership?.planName).toBeTruthy();
     expect(member?.membership?.endsAt).toBeTruthy();
+  });
+
+  it('rejects a payment amount that differs from the invoice total', async () => {
+    const invoice = await invoiceRepo.createInvoice({
+      memberId: memberId as string,
+      memberName: memberName as string,
+      total: 900,
+      dueAt: null
+    });
+    await expect(
+      paymentRepo.recordPayment({
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        memberId: memberId as string,
+        memberName: memberName as string,
+        amount: 100,
+        method: 'cash',
+        reference: null
+      })
+    ).rejects.toThrow('Payment amount must equal the invoice total');
+  });
+
+  it('extends the membership end date on an early renewal', async () => {
+    const plans = await invoiceRepo.listPlans();
+    const plan = plans.find((candidate) => candidate.id === planId);
+    expect(plan).toBeTruthy();
+
+    const membersBefore = await memberRepo.listMembers();
+    const before = membersBefore.find((candidate) => candidate.id === memberId)?.membership;
+    expect(before?.endsAt).toBeTruthy();
+
+    const invoice = await invoiceRepo.createInvoice({
+      memberId: memberId as string,
+      memberName: memberName as string,
+      total: 1500,
+      dueAt: null,
+      planId
+    });
+    await paymentRepo.recordPayment({
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      memberId: memberId as string,
+      memberName: memberName as string,
+      amount: 1500,
+      method: 'cash',
+      reference: null
+    });
+
+    const membersAfter = await memberRepo.listMembers();
+    const after = membersAfter.find((candidate) => candidate.id === memberId)?.membership;
+    expect(after?.endsAt).toBe(phDateAfter(before?.endsAt as string, plan?.durationDays ?? 30));
   });
 
   it('rejects paying an already-paid invoice', async () => {

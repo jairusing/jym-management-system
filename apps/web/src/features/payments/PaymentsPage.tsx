@@ -239,6 +239,9 @@ export function PaymentsPage() {
   const paymentSafePage = Math.min(paymentPage, paymentTotalPages);
   const visiblePayments = payments.slice((paymentSafePage - 1) * PAGE_SIZE, paymentSafePage * PAGE_SIZE);
 
+  const payingInvoice = invoices.find((candidate) => candidate.id === paymentFor);
+  const amountMismatch = Boolean(payingInvoice) && payAmount !== '' && Number(payAmount) !== (payingInvoice?.total ?? -1);
+
   return (
     <PageShell
       eyebrow="Management"
@@ -449,6 +452,11 @@ export function PaymentsPage() {
                                     onChange={(event) => setPayAmount(event.target.value)}
                                     required
                                   />
+                                  {amountMismatch ? (
+                                    <span className="text-xs text-[#FF3D00]">
+                                      Must equal {formatMoney(payingInvoice?.total ?? 0)}
+                                    </span>
+                                  ) : null}
                                 </label>
                                 <label className="flex flex-col gap-2 text-sm">
                                   <span>Method</span>
@@ -478,7 +486,7 @@ export function PaymentsPage() {
                                 <button
                                   className={buttonClass}
                                   type="button"
-                                  disabled={paying}
+                                  disabled={paying || amountMismatch}
                                   onClick={() => void handleRecordPayment(invoice)}
                                 >
                                   {paying ? 'Recording…' : 'Confirm payment'}

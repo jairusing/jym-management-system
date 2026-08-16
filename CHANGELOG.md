@@ -5,6 +5,24 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.004 — Payment money rules (2026-08-17)
+
+- Database migration `019_payment_money_rules.sql` (applied live) fixes two audit
+  findings:
+  - **A1 — a payment must equal the invoice total exactly.** Partial payments and
+    overpayments can no longer mark an invoice "paid" (previously ₱50 on a ₱1,500
+    invoice was accepted as full payment). The `rpc_record_payment` RPC rejects any
+    amount that differs from the invoice total.
+  - **A2 — early renewals no longer lose days.** A renewal now extends from the
+    current membership end date instead of today, so a monthly plan ending Sep 15
+    renewed on Aug 10 ends Oct 15 instead of Sep 9. Paid periods overlap on paper
+    (the standard gym convention for early renewals).
+- Record-payment panel prefills the invoice total and shows an inline "Must equal
+  ₱…" warning with the Confirm button disabled while the amount differs.
+- New `phDateAfter` date helper; mock repository mirrors the new RPC rules.
+- Verified: full suite 152/152 including live integration tests exercising both new
+  rules against the migrated database; TypeScript and production build clean.
+
 ## v1.003 — Exact times everywhere (2026-08-16)
 
 - Database migration `018_event_timestamps.sql` (applied live): `invoices.issued_at`,
