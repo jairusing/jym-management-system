@@ -6,14 +6,28 @@ import { MembersPage } from './MembersPage';
 import { mockMemberAccountRepository } from '../memberAccounts/memberAccountRepository';
 import { mockMemberRepository } from './memberRepository';
 import { mockStaffRepository } from '../staff/staffRepository';
+import { SupabaseMemberRepository } from './supabaseMemberRepository';
+import { SupabaseStaffRepository } from '../staff/supabaseStaffRepository';
+
+const supabaseConfig = vi.hoisted(() => ({ hasSupabaseConfig: false }));
 
 vi.mock('../../lib/supabase', () => ({
-  hasSupabaseConfig: false,
+  get hasSupabaseConfig() {
+    return supabaseConfig.hasSupabaseConfig;
+  },
   supabase: null
 }));
 
 vi.mock('qrcode', () => ({
   toDataURL: vi.fn(async () => 'data:image/png;base64,MOCKQR')
+}));
+
+vi.mock('./supabaseMemberRepository', () => ({
+  SupabaseMemberRepository: vi.fn()
+}));
+
+vi.mock('../staff/supabaseStaffRepository', () => ({
+  SupabaseStaffRepository: vi.fn()
 }));
 
 function renderPage() {
@@ -37,6 +51,9 @@ afterEach(() => {
   mockMemberRepository.reset();
   mockMemberAccountRepository.reset();
   mockStaffRepository.reset();
+  supabaseConfig.hasSupabaseConfig = false;
+  vi.mocked(SupabaseMemberRepository).mockReset();
+  vi.mocked(SupabaseStaffRepository).mockReset();
 });
 
 describe('MembersPage', () => {
@@ -174,7 +191,6 @@ describe('MembersPage', () => {
   });
 
   it('pauses, resumes, and cancels a membership', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const member = await mockMemberRepository.createMember({
       fullName: 'Maria Santos',
       email: null,
@@ -196,9 +212,10 @@ describe('MembersPage', () => {
 
     openRowMenu('Maria Santos');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Pause' }));
-    expect(confirmSpy).toHaveBeenCalledWith(
-      "Pause Maria Santos's membership (Monthly Pass until Aug 31, 2026)? Check-ins will be blocked until resumed."
-    );
+    expect(
+      screen.getByText(/Pause Maria Santos's membership\? Monthly Pass until Aug 31, 2026\. Check-ins will be blocked until resumed\./)
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     await waitFor(() => {
       expect(screen.getByText('Paused (Monthly Pass)')).toBeTruthy();
     });
@@ -206,15 +223,20 @@ describe('MembersPage', () => {
     expect(screen.getByRole('menuitem', { name: 'Resume' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('menuitem', { name: 'Resume' }));
+    expect(
+      screen.getByText(/Resume Maria Santos's membership\? Monthly Pass until Aug 31, 2026\./)
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
     await waitFor(() => {
       expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
     });
 
     openRowMenu('Maria Santos');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Cancel membership' }));
-    expect(confirmSpy).toHaveBeenCalledWith(
-      "Cancel Maria Santos's membership (Monthly Pass until Aug 31, 2026)? This cannot be undone; a new payment starts a new membership."
-    );
+    expect(
+      screen.getByText(/Cancel Maria Santos's membership\? Monthly Pass until Aug 31, 2026\. This cannot be undone/)
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel membership' }));
     await waitFor(() => {
       expect(screen.getByText('Cancelled (Monthly Pass)')).toBeTruthy();
     });
@@ -224,7 +246,6 @@ describe('MembersPage', () => {
   });
 
   it('keeps the membership status when the pause confirmation is declined', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const member = await mockMemberRepository.createMember({
       fullName: 'Maria Santos',
       email: null,
@@ -246,6 +267,10 @@ describe('MembersPage', () => {
 
     openRowMenu('Maria Santos');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Pause' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
@@ -254,7 +279,6 @@ describe('MembersPage', () => {
   });
 
   it('deactivates and reactivates a member', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     await mockMemberRepository.createMember({
       fullName: 'Maria Santos',
       email: null,
@@ -270,6 +294,7 @@ describe('MembersPage', () => {
 
     openRowMenu('Maria Santos');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Deactivate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
     await waitFor(() => {
       expect(screen.queryByRole('menuitem', { name: 'Activate' })).toBeNull();
     });
@@ -287,7 +312,6 @@ describe('MembersPage', () => {
   });
 
   it('warns that check-ins will be blocked when deactivating a member with an active membership', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const member = await mockMemberRepository.createMember({
       fullName: 'Maria Santos',
       email: null,
@@ -309,9 +333,11 @@ describe('MembersPage', () => {
 
     openRowMenu('Maria Santos');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Deactivate' }));
-    expect(confirmSpy).toHaveBeenCalledWith(
-      'Deactivate Maria Santos? They have an active Monthly Pass (until Aug 31, 2026) — check-ins will be blocked immediately.'
-    );
+    expect(screen.getByText('Deactivate Maria Santos?')).toBeTruthy();
+    expect(
+      screen.getByText(/They have an active Monthly Pass \(until Aug 31, 2026\) — check-ins will be blocked immediately\./)
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
     await waitFor(() => {
       expect(screen.queryByRole('menuitem', { name: 'Activate' })).toBeNull();
     });
@@ -320,7 +346,6 @@ describe('MembersPage', () => {
   });
 
   it('keeps the member active when deactivation is declined', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     await mockMemberRepository.createMember({
       fullName: 'Maria Santos',
       email: null,
@@ -336,8 +361,9 @@ describe('MembersPage', () => {
 
     openRowMenu('Maria Santos');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Deactivate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     await waitFor(() => {
-      expect(screen.queryByRole('menuitem', { name: 'Deactivate' })).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
     openRowMenu('Maria Santos');
     expect(screen.getByRole('menuitem', { name: 'Deactivate' })).toBeTruthy();
@@ -346,7 +372,6 @@ describe('MembersPage', () => {
   });
 
   it('deletes a member after confirmation', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     await mockMemberRepository.createMember({
       fullName: 'Pedro Reyes',
       email: null,
@@ -362,6 +387,8 @@ describe('MembersPage', () => {
 
     openRowMenu('Pedro Reyes');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    expect(screen.getByText(/Delete Pedro Reyes\?/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     await waitFor(() => {
       expect(screen.getByText(/no members yet/i)).toBeTruthy();
     });
@@ -370,7 +397,6 @@ describe('MembersPage', () => {
   });
 
   it('does not delete when confirmation is declined', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     await mockMemberRepository.createMember({
       fullName: 'Pedro Reyes',
       email: null,
@@ -386,9 +412,11 @@ describe('MembersPage', () => {
 
     openRowMenu('Pedro Reyes');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     await waitFor(() => {
-      expect(screen.getByText('Pedro Reyes')).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
+    expect(screen.getByText('Pedro Reyes')).toBeTruthy();
     const saved = await mockMemberRepository.listMembers();
     expect(saved.length).toBe(1);
   });
@@ -863,5 +891,44 @@ describe('MembersPage', () => {
       expect(screen.getByText('No account with this email was found.')).toBeTruthy();
     });
     expect(mockMemberAccountRepository.linkCalls.length).toBe(0);
+  });
+
+  it('shows an error and lets the user retry when members fail to load', async () => {
+    supabaseConfig.hasSupabaseConfig = true;
+    const listMembers = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Network failure'))
+      .mockResolvedValueOnce([
+        {
+          id: 'member-1',
+          userId: null,
+          fullName: 'Juan Dela Cruz',
+          email: null,
+          phone: null,
+          joinedAt: '2026-08-01',
+          notes: null,
+          isActive: true,
+          membership: null,
+          createdAt: '2026-08-01T00:00:00+08:00'
+        }
+      ]);
+    vi.mocked(SupabaseMemberRepository).mockImplementation(
+      () => ({ listMembers }) as unknown as SupabaseMemberRepository
+    );
+    vi.mocked(SupabaseStaffRepository).mockImplementation(
+      () => ({ getMyRole: vi.fn(async () => 'owner') }) as unknown as SupabaseStaffRepository
+    );
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Network failure/)).toBeTruthy();
+    });
+    expect(screen.queryByText(/no members yet/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+    expect(screen.queryByText(/Network failure/)).toBeNull();
   });
 });

@@ -6,6 +6,7 @@ export type RowMenuItem = {
   icon?: LucideIcon;
   danger?: boolean;
   disabled?: boolean;
+  divider?: boolean;
   onClick: () => void;
 };
 
@@ -55,24 +56,26 @@ export function RowMenu({ items, label = 'More' }: RowMenuProps) {
       {open ? (
         <div role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-52 border border-[#262626] bg-[#0F0F0F]">
           {items.map((item) => (
-            <button
-              key={item.label}
-              role="menuitem"
-              type="button"
-              disabled={item.disabled}
-              onClick={() => {
-                setOpen(false);
-                item.onClick();
-              }}
-              className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.1em] transition-colors duration-150 disabled:opacity-50 ${
-                item.danger
-                  ? 'text-[#FF3D00] hover:bg-[#1A1A1A]'
-                  : 'text-[#A3A3A3] hover:bg-[#1A1A1A] hover:text-[#FAFAFA]'
-              }`}
-            >
-              {item.icon ? <item.icon size={14} strokeWidth={1.5} aria-hidden="true" /> : null}
-              {item.label}
-            </button>
+            <div key={item.label} className="flex flex-col">
+              {item.divider ? <div className="mx-3 my-1 h-px bg-[#262626]" /> : null}
+              <button
+                role="menuitem"
+                type="button"
+                disabled={item.disabled}
+                onClick={() => {
+                  setOpen(false);
+                  item.onClick();
+                }}
+                className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.1em] transition-colors duration-150 disabled:opacity-50 ${
+                  item.danger
+                    ? 'text-[#FF3D00] hover:bg-[#1A1A1A]'
+                    : 'text-[#A3A3A3] hover:bg-[#1A1A1A] hover:text-[#FAFAFA]'
+                }`}
+              >
+                {item.icon ? <item.icon size={14} strokeWidth={1.5} aria-hidden="true" /> : null}
+                {item.label}
+              </button>
+            </div>
           ))}
         </div>
       ) : null}

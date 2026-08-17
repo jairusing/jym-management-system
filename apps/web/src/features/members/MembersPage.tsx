@@ -13,11 +13,17 @@ import {
 } from 'lucide-react';
 import { toDataURL } from 'qrcode';
 import { BackLink } from '../../components/ui/BackLink';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PageShell } from '../../components/ui/PageShell';
 import { RowMenu } from '../../components/ui/RowMenu';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { ghostButtonClass, inputClass, primaryButtonClass, chipClass } from '../../components/ui/buttonClasses';
+import {
+  chipClass,
+  ghostButtonClass,
+  inputClass,
+  primaryButtonClass
+} from '../../components/ui/buttonClasses';
 import { formatDate, formatWhen, phDateToday } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { HttpMemberAccountRepository } from '../memberAccounts/httpMemberAccountRepository';
@@ -55,10 +61,20 @@ function membershipState(membership: Membership | null): { tone: 'active' | 'exp
   return { tone: 'active', label: `${membership.planName} until ${formatDate(membership.endsAt)}` };
 }
 
+type PendingConfirm = {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  danger?: boolean;
+  run: () => Promise<void>;
+};
+
 export function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(hasSupabaseConfig);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [qrFor, setQrFor] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<UserRole | null>(null);
@@ -102,11 +118,13 @@ export function MembersPage() {
       return;
     }
     const repo = new SupabaseMemberRepository();
+    setLoadError(null);
     try {
       setMembers(await repo.listMembers());
     } catch (e) {
       console.warn('Failed to load members from Supabase', e);
-      setMembers(await mockMemberRepository.listMembers());
+      setMembers([]);
+      setLoadError(e instanceof Error ? e.message : 'Failed to load members.');
     } finally {
       setLoading(false);
     }
@@ -192,25 +210,35 @@ export function MembersPage() {
   };
 
   const handleToggleActive = async (member: Member) => {
-    const activeMembership =
-      member.membership && member.membership.status === 'active' ? member.membership : null;
-    if (
-      member.isActive &&
-      !window.confirm(
-        activeMembership
-          ? `Deactivate ${member.fullName}? They have an active ${activeMembership.planName} (until ${formatDate(activeMembership.endsAt)}) — check-ins will be blocked immediately.`
-          : `Deactivate ${member.fullName}? They will no longer be able to check in.`
-      )
-    ) {
+    if (!member.isActive) {
+      const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
+      try {
+        await repo.setMemberActive(member.id, true);
+        await load();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to update member.');
+      }
       return;
     }
-    const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
-    try {
-      await repo.setMemberActive(member.id, !member.isActive);
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update member.');
-    }
+    const activeMembership =
+      member.membership && member.membership.status === 'active' ? member.membership : null;
+    setPendingConfirm({
+      title: `Deactivate ${member.fullName}?`,
+      body: activeMembership
+        ? `They have an active ${activeMembership.planName} (until ${formatDate(activeMembership.endsAt)}) — check-ins will be blocked immediately.`
+        : 'They will no longer be able to check in.',
+      confirmLabel: 'Deactivate',
+      danger: true,
+      run: async () => {
+        const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
+        try {
+          await repo.setMemberActive(member.id, false);
+          await load();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Failed to update member.');
+        }
+      }
+    });
   };
 
   const handleMembershipStatus = async (member: Member, status: 'paused' | 'active' | 'cancelled') => {
@@ -219,33 +247,50 @@ export function MembersPage() {
       return;
     }
     const messages: Record<'paused' | 'active' | 'cancelled', string> = {
-      paused: `Pause ${member.fullName}'s membership (${membership.planName} until ${formatDate(membership.endsAt)})? Check-ins will be blocked until resumed.`,
-      active: `Resume ${member.fullName}'s membership (${membership.planName} until ${formatDate(membership.endsAt)})?`,
-      cancelled: `Cancel ${member.fullName}'s membership (${membership.planName} until ${formatDate(membership.endsAt)})? This cannot be undone; a new payment starts a new membership.`
+      paused: `Pause ${member.fullName}'s membership? ${membership.planName} until ${formatDate(membership.endsAt)}. Check-ins will be blocked until resumed.`,
+      active: `Resume ${member.fullName}'s membership? ${membership.planName} until ${formatDate(membership.endsAt)}.`,
+      cancelled: `Cancel ${member.fullName}'s membership? ${membership.planName} until ${formatDate(membership.endsAt)}. This cannot be undone — a new payment starts a new membership.`
     };
-    if (!window.confirm(messages[status])) {
-      return;
-    }
-    const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
-    try {
-      await repo.setMembershipStatus(member.id, status);
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update membership.');
-    }
+    const labels: Record<'paused' | 'active' | 'cancelled', string> = {
+      paused: 'Pause',
+      active: 'Resume',
+      cancelled: 'Cancel membership'
+    };
+    setPendingConfirm({
+      title: messages[status],
+      body: status === 'cancelled'
+        ? 'The member will be blocked from check-in. A new payment starts a fresh membership.'
+        : '',
+      confirmLabel: labels[status],
+      danger: status === 'cancelled',
+      run: async () => {
+        const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
+        try {
+          await repo.setMembershipStatus(member.id, status);
+          await load();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Failed to update membership.');
+        }
+      }
+    });
   };
 
   const handleDelete = async (member: Member) => {
-    if (!window.confirm(`Delete ${member.fullName}? This cannot be undone.`)) {
-      return;
-    }
-    const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
-    try {
-      await repo.deleteMember(member.id);
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete member.');
-    }
+    setPendingConfirm({
+      title: `Delete ${member.fullName}?`,
+      body: 'This cannot be undone — their record, membership, and check-in history are removed permanently.',
+      confirmLabel: 'Delete',
+      danger: true,
+      run: async () => {
+        const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
+        try {
+          await repo.deleteMember(member.id);
+          await load();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Failed to delete member.');
+        }
+      }
+    });
   };
 
   const handleShowQr = async (member: Member) => {
@@ -257,8 +302,16 @@ export function MembersPage() {
     setQrFor(member.id);
     setQrDataUrl(null);
     setError(null);
-    const dataUrl = await toDataURL(member.id, { width: 160, margin: 1 });
-    setQrDataUrl(dataUrl);
+    setLoginFor(null);
+    setLinkFor(null);
+    setPinFor(null);
+    try {
+      const dataUrl = await toDataURL(member.id, { width: 160, margin: 1 });
+      setQrDataUrl(dataUrl);
+    } catch (e) {
+      console.warn('Failed to generate QR code', e);
+      setQrDataUrl('error');
+    }
   };
 
   const handleToggleLogin = (member: Member) => {
@@ -277,6 +330,9 @@ export function MembersPage() {
     setLoginConfirm('');
     setLoginMessage(null);
     setLoginError(null);
+    setQrFor(null);
+    setLinkFor(null);
+    setPinFor(null);
   };
 
   const handleCreateLogin = async (member: Member) => {
@@ -325,6 +381,9 @@ export function MembersPage() {
     setLinkEmail(member.email ?? '');
     setLinkMessage(null);
     setLinkError(null);
+    setQrFor(null);
+    setLoginFor(null);
+    setPinFor(null);
   };
 
   const handleLinkAccount = async (member: Member) => {
@@ -363,6 +422,9 @@ export function MembersPage() {
     setPinValue('');
     setPinError(null);
     setPinMessage(null);
+    setQrFor(null);
+    setLoginFor(null);
+    setLinkFor(null);
   };
 
   const handleSavePin = async (member: Member) => {
@@ -383,6 +445,15 @@ export function MembersPage() {
       setPinSaving(false);
     }
   };
+
+  const openPanel = qrFor ?? loginFor ?? linkFor ?? pinFor;
+  useEffect(() => {
+    if (openPanel) {
+      document
+        .getElementById(`member-panel-${openPanel}`)
+        ?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [openPanel]);
 
   return (
     <PageShell
@@ -454,7 +525,14 @@ export function MembersPage() {
       </SectionCard>
 
       <SectionCard title="All members" description={`${members.length} registered member${members.length === 1 ? '' : 's'}.`}>
-        {loading ? (
+        {loadError ? (
+          <div className="flex flex-col items-start gap-4">
+            <p className="text-sm text-[#FF3D00]">{loadError}</p>
+            <button className={primaryButtonClass} type="button" onClick={() => void load()}>
+              Retry
+            </button>
+          </div>
+        ) : loading ? (
           <p className="text-sm text-[#A3A3A3]">Loading…</p>
         ) : (
           <>
@@ -564,6 +642,7 @@ export function MembersPage() {
                                 {
                                   label: 'Create login',
                                   icon: UserPlus,
+                                  divider: true,
                                   onClick: () => handleToggleLogin(member)
                                 },
                                 {
@@ -578,6 +657,7 @@ export function MembersPage() {
                                 {
                                   label: 'Pause',
                                   icon: Pause,
+                                  divider: true,
                                   onClick: () => void handleMembershipStatus(member, 'paused')
                                 },
                                 {
@@ -587,27 +667,28 @@ export function MembersPage() {
                                   onClick: () => void handleMembershipStatus(member, 'cancelled')
                                 }
                               ]
-                            : []),
-                          ...(member.membership?.status === 'paused'
-                            ? [
-                                {
-                                  label: 'Resume',
-                                  icon: Play,
-                                  onClick: () => void handleMembershipStatus(member, 'active')
-                                },
-                                {
-                                  label: 'Cancel membership',
-                                  icon: XCircle,
-                                  danger: true,
-                                  onClick: () => void handleMembershipStatus(member, 'cancelled')
-                                }
-                              ]
-                            : []),
+                            : member.membership?.status === 'paused'
+                              ? [
+                                  {
+                                    label: 'Resume',
+                                    icon: Play,
+                                    divider: true,
+                                    onClick: () => void handleMembershipStatus(member, 'active')
+                                  },
+                                  {
+                                    label: 'Cancel membership',
+                                    icon: XCircle,
+                                    danger: true,
+                                    onClick: () => void handleMembershipStatus(member, 'cancelled')
+                                  }
+                                ]
+                              : []),
                           ...(myRole === 'owner' || !member.isActive
                             ? [
                                 {
                                   label: member.isActive ? 'Deactivate' : 'Activate',
                                   icon: member.isActive ? UserX : UserCheck,
+                                  divider: true,
                                   onClick: () => void handleToggleActive(member)
                                 }
                               ]
@@ -616,6 +697,7 @@ export function MembersPage() {
                             label: 'Delete',
                             icon: Trash2,
                             danger: true,
+                            divider: true,
                             onClick: () => void handleDelete(member)
                           }
                         ]}
@@ -623,8 +705,13 @@ export function MembersPage() {
                     </div>
 
                     {qrFor === member.id ? (
-                      <div className="flex flex-col items-start gap-2 border border-[#262626] bg-[#1A1A1A] p-4">
-                        {qrDataUrl ? (
+                      <div
+                        id={`member-panel-${member.id}`}
+                        className="flex scroll-mt-4 flex-col items-start gap-2 border border-[#262626] bg-[#1A1A1A] p-4"
+                      >
+                        {qrDataUrl === 'error' ? (
+                          <p className="text-sm text-[#FF3D00]">Could not generate the QR code.</p>
+                        ) : qrDataUrl ? (
                           <img src={qrDataUrl} alt={`QR code for ${member.fullName}`} className="h-40 w-40" />
                         ) : (
                           <p className="text-sm text-[#A3A3A3]">Generating…</p>
@@ -635,7 +722,7 @@ export function MembersPage() {
                     ) : null}
 
                     {loginFor === member.id ? (
-                      <div className="flex flex-col gap-4 border border-[#262626] bg-[#1A1A1A] p-4">
+                      <div id={`member-panel-${member.id}`} className="flex scroll-mt-4 flex-col gap-4 border border-[#262626] bg-[#1A1A1A] p-4">
                         <p className="text-sm text-[#A3A3A3]">
                           Create a login so this member can sign in, check in, book classes, and see their own
                           statement.
@@ -692,7 +779,7 @@ export function MembersPage() {
                     ) : null}
 
                     {linkFor === member.id ? (
-                      <div className="flex flex-col gap-4 border border-[#262626] bg-[#1A1A1A] p-4">
+                      <div id={`member-panel-${member.id}`} className="flex scroll-mt-4 flex-col gap-4 border border-[#262626] bg-[#1A1A1A] p-4">
                         <p className="text-sm text-[#A3A3A3]">
                           Link an existing account to this member — use this when they already signed up on
                           their own and have an account, but it is not connected to their member record.
@@ -731,7 +818,7 @@ export function MembersPage() {
                     ) : null}
 
                     {pinFor === member.id ? (
-                      <div className="flex flex-col gap-4 border border-[#262626] bg-[#1A1A1A] p-4">
+                      <div id={`member-panel-${member.id}`} className="flex scroll-mt-4 flex-col gap-4 border border-[#262626] bg-[#1A1A1A] p-4">
                         <p className="text-sm text-[#A3A3A3]">
                           Set a 4-6 digit PIN for {member.fullName}. The front desk asks for it at check-in so a
                           screenshot of their QR code cannot be used to check in as them. Save again to change it.
@@ -812,6 +899,21 @@ export function MembersPage() {
           </>
         )}
       </SectionCard>
+
+      {pendingConfirm ? (
+        <ConfirmModal
+          title={pendingConfirm.title}
+          body={pendingConfirm.body}
+          confirmLabel={pendingConfirm.confirmLabel}
+          danger={pendingConfirm.danger}
+          onCancel={() => setPendingConfirm(null)}
+          onConfirm={() => {
+            const run = pendingConfirm.run;
+            setPendingConfirm(null);
+            void run();
+          }}
+        />
+      ) : null}
     </PageShell>
   );
 }

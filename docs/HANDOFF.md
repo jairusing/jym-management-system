@@ -94,13 +94,24 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
   Actions moved into the menu: Member rows — Show/Hide QR, Set PIN, Create
   login, Link existing, Pause/Resume, Cancel membership, Deactivate/Activate,
   Delete (owner-gated where relevant); Invoice rows — Void (owner only).
-  Test note: RowMenu items are `role="menuitem"`, so tests query them with
-  `getByRole('menuitem', …)` after opening the row menu (`openRowMenu` /
-  `openInvoiceMenu` helpers). Menu items only render while open, so closed-menu
-  assertions use `queryByRole(...)toBeNull()`.
+   Test note: RowMenu items are `role="menuitem"`, so tests query them with
+   `getByRole('menuitem', …)` after opening the row menu (`openRowMenu` /
+   `openInvoiceMenu` helpers). Menu items only render while open, so closed-menu
+   assertions use `queryByRole(...)toBeNull()`.
+- **v1.012** — critique fixes (P0/P1) on the Members page: destructive
+   confirms are now an in-app modal (`components/ui/ConfirmModal.tsx`;
+   `window.confirm` removed — no default OK/Enter-delete; destructive dialogs
+   focus Cancel first). Members page no longer falls back to mock data when
+   Supabase fails — it shows the real error + Retry. The More menu groups
+   actions with dividers (account / membership / status / Delete last).
+   Inline panels scroll into view on open (`scroll-mt-4` + scrollIntoView),
+   and sibling panels close when another opens. Test note: modal flows assert
+   dialog text split across title/body elements (`getByText` per element),
+   then click the confirm button by label. The error/Retry test toggles
+   `hasSupabaseConfig` via a `vi.hoisted` getter + mocked Supabase repos.
 - Migrations: `001`–`013`, `016`, `018`, `019`, `024`–`026` all applied to the
   live project. (`014`, `015`, `017` were deleted + marked reverted.)
-- Full suite: **234/234 (34 files)** including live integration tests. Build:
+- Full suite: **235/235 (34 files)** including live integration tests. Build:
   `tsc -b && vite build` clean. Deployed via Vercel auto-deploy on push to
   main → https://jym-management-system.vercel.app/
 
@@ -155,7 +166,7 @@ database-enforced invariants, RLS + live tests, Manila timezone correctness.
 
 ## Verification commands (from `apps/web`)
 
-- `npx vitest run` (with env vars above for full 234/234)
+- `npx vitest run` (with env vars above for full 235/235)
 - `npm run build` (tsc -b + vite build)
 
 ## Key files

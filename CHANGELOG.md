@@ -5,6 +5,22 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.012 — Critique fixes: in-app confirms, no mock fallback, menu groups (2026-08-17)
+
+- Destructive confirmations (Delete, Cancel membership, Deactivate) moved
+  from the browser's `window.confirm` into an in-app modal
+  (`ConfirmModal.tsx`) — no default-focused OK, so Enter can no longer
+  permanently delete; destructive dialogs focus Cancel first.
+- The silent mock-data fallback when Supabase is unreachable is removed:
+  the All-members card shows the real error with a Retry button instead
+  of phantom members that vanish on refresh.
+- The "More" menu groups actions with dividers (account / membership /
+  status / Delete last), separating destructive items from common ones.
+- Inline panels scroll into view when opened so actions never sit below
+  the fold.
+- Verified: full suite 235/235 (34 files, live DB tests included);
+  TypeScript, ESLint (`--max-warnings=0`), and production build clean.
+
 ## v1.011 — UI overhaul: spec restoration, "More" menus (2026-08-17)
 
 - Restores the Bold Typography design system from `docs/UI_DESIGN.md`:
@@ -23,8 +39,6 @@ entry is added at the top of this file.
   PIN input auto-focuses, submits on Enter, and still strips non-digits.
 - Breathing room: page headers and section descriptions get more space and
   wrap wider (PageShell, SectionCard).
-- Verified: full suite 234/234 (34 files, live DB tests included);
-  TypeScript, ESLint (`--max-warnings=0`), and production build clean.
 
 ## v1.010 — Member check-in PINs (C2), A8 scope decision (2026-08-17)
 
