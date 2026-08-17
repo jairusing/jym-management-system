@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Tabs } from '../../components/ui/Tabs';
 import { dangerButtonClass, ghostButtonClass, inputClass, primaryButtonClass } from '../../components/ui/buttonClasses';
@@ -34,7 +35,9 @@ export function CheckInsPage() {
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [qrCheckingIn, setQrCheckingIn] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [deletingCheckInId, setDeletingCheckInId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CheckIn | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [pinFor, setPinFor] = useState<string | null>(null);
   const [pinSource, setPinSource] = useState<'manual' | 'qr'>('manual');
   const [pinValue, setPinValue] = useState('');
@@ -85,6 +88,16 @@ export function CheckInsPage() {
     void load();
     void loadHistory();
   }, [loadHistory]);
+
+  useEffect(() => {
+    if (!pinFor) {
+      return;
+    }
+    const panel = document.getElementById('pin-panel');
+    const reduceMotion =
+      typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    panel?.scrollIntoView?.({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [pinFor]);
 
   const handleExportCsv = () => {
     if (history.length === 0) {
@@ -162,6 +175,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
   };
 
   const beginCheckIn = async (member: Member, method: 'manual' | 'qr') => {
+    if (checkIns.some((checkIn) => checkIn.memberId === member.id)) {
+      setError(`${member.fullName} is already checked in today.`);
+      return;
+    }
     if (!member.isActive) {
       setError('Cannot check in an inactive member.');
       return;
@@ -240,22 +257,29 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
     }
   };
 
-  const handleDeleteCheckIn = async (checkIn: CheckIn) => {
-    if (!window.confirm(`Delete ${checkIn.memberName}'s check-in from ${formatDateTime(checkIn.checkedInAt)}? This cannot be undone.`)) {
+  const handleDeleteCheckIn = (checkIn: CheckIn) => {
+    setPendingDelete(checkIn);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    const checkIn = pendingDelete;
+    if (!checkIn) {
       return;
     }
-    setError(null);
-    setSuccess(null);
+    setDeletePending(true);
+    setDeleteError(null);
     const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
-    setDeletingCheckInId(checkIn.id);
     try {
       await repo.deleteCheckIn(checkIn.id);
+      setPendingDelete(null);
+      setSuccess('Check-in deleted.');
       await refreshTodayCheckIns();
       await loadHistory();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete check-in.');
+      setDeleteError(e instanceof Error ? e.message : 'Failed to delete check-in.');
     } finally {
-      setDeletingCheckInId(null);
+      setDeletePending(false);
     }
   };
 
@@ -278,8 +302,8 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
     >
       <BackLink to="/app" label="Back to dashboard" />
 
-      {error ? <p className="mb-4 text-sm text-[#FF3D00]">{error}</p> : null}
-      {success ? <p className="mb-4 text-sm text-[#FAFAFA]">{success}</p> : null}
+      {error ? <p role="alert" className="mb-4 text-sm text-[#FF3D00]">{error}</p> : null}
+      {success ? <p role="status" className="mb-4 text-sm text-[#FAFAFA]">{success}</p> : null}
 
       <Tabs
         tabs={[
@@ -317,8 +341,142 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
             </div>
           </div>
 
+          <form className="flex flex-col gap-4 border-t border-[#262626] pt-4" onSubmit={handleSearch}>
+            <label className="flex flex-col gap-2 text-sm">
+              <span>Search members</span>
+              <input
+                className={inputClass}
+                type="search"
+                placeholder="Type a name…"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
+
+            {loading ? (
+              <p className="text-sm text-[#A3A3A3]">Loading…</p>
+            ) : normalizedQuery ? (
+              filteredMembers.length === 0 ? (
+                <p className="text-sm text-[#A3A3A3]">No members match that name.</p>
+              ) : (
+                <ul className="flex flex-col">
+                  {filteredMembers.map((member) => {
+                    const expired = membershipExpiry(member);
+                    const checkedInToday = checkIns.some((checkIn) => checkIn.memberId === member.id);
+                    return (
+                      <li
+                        key={member.id}
+                        className="flex flex-col gap-4 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div>
+                          <p className="text-base font-medium text-[#FAFAFA]">
+                            {member.fullName}
+                            {member.isActive ? null : (
+                              <StatusBadge tone="bad" className="ml-3">
+                                Inactive
+                              </StatusBadge>
+                            )}
+                            {expired ? (
+                              <StatusBadge tone="bad" className="ml-3">
+                                {member.membership?.status === 'paused'
+                                  ? 'Paused'
+                                  : member.membership?.status === 'cancelled'
+                                    ? 'Cancelled'
+                                    : 'Expired'}
+                              </StatusBadge>
+                            ) : null}
+                          </p>
+                          <p className="mt-1 text-sm text-[#A3A3A3]">
+                            {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
+                          </p>
+                          {expired && !expired.blocked ? (
+                            <p className="mt-1 text-xs text-[#FF3D00]">{expired.message}</p>
+                          ) : null}
+                        </div>
+                        <button
+                          className={checkedInToday ? ghostButtonClass : primaryButtonClass}
+                          type="button"
+                          disabled={
+                            !member.isActive || expired?.blocked || checkedInToday || checkingInId === member.id
+                          }
+                          onClick={() => void handleCheckIn(member)}
+                        >
+                          {checkedInToday
+                            ? 'Checked in today'
+                            : checkingInId === member.id
+                              ? 'Checking in…'
+                              : 'Check in'}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )
+            ) : members.length === 0 ? (
+              <p className="text-sm text-[#A3A3A3]">No members yet. Add members first.</p>
+            ) : (
+              <div>
+                <p className="text-sm text-[#A3A3A3]">
+                  Showing the {RECENT_COUNT} most recent members — type to search.
+                </p>
+                <ul className="mt-2 flex flex-col">
+                  {recentMembers.map((member) => {
+                    const expired = membershipExpiry(member);
+                    const checkedInToday = checkIns.some((checkIn) => checkIn.memberId === member.id);
+                    return (
+                      <li
+                        key={member.id}
+                        className="flex flex-col gap-4 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div>
+                          <p className="text-base font-medium text-[#FAFAFA]">
+                            {member.fullName}
+                            {member.isActive ? null : (
+                              <StatusBadge tone="bad" className="ml-3">
+                                Inactive
+                              </StatusBadge>
+                            )}
+                            {expired ? (
+                              <StatusBadge tone="bad" className="ml-3">
+                                {member.membership?.status === 'paused'
+                                  ? 'Paused'
+                                  : member.membership?.status === 'cancelled'
+                                    ? 'Cancelled'
+                                    : 'Expired'}
+                              </StatusBadge>
+                            ) : null}
+                          </p>
+                          <p className="mt-1 text-sm text-[#A3A3A3]">
+                            {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
+                          </p>
+                          {expired && !expired.blocked ? (
+                            <p className="mt-1 text-xs text-[#FF3D00]">{expired.message}</p>
+                          ) : null}
+                        </div>
+                        <button
+                          className={checkedInToday ? ghostButtonClass : primaryButtonClass}
+                          type="button"
+                          disabled={
+                            !member.isActive || expired?.blocked || checkedInToday || checkingInId === member.id
+                          }
+                          onClick={() => void handleCheckIn(member)}
+                        >
+                          {checkedInToday
+                            ? 'Checked in today'
+                            : checkingInId === member.id
+                              ? 'Checking in…'
+                              : 'Check in'}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </form>
+
           {pinFor ? (
-            <div className="mb-4 flex flex-col gap-4 border border-[#FFB300] bg-[#1A1A1A] p-4">
+            <div id="pin-panel" className="mt-4 flex flex-col gap-4 border border-[#FFB300] bg-[#1A1A1A] p-4">
               <p className="text-sm font-medium text-[#FAFAFA]">
                 Enter the PIN for {members.find((candidate) => candidate.id === pinFor)?.fullName ?? 'this member'}
               </p>
@@ -327,9 +485,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                   <span>PIN</span>
                   <input
                     className={inputClass}
-                    type="text"
+                    type="password"
                     inputMode="numeric"
                     autoComplete="off"
+                    autoFocus
                     maxLength={6}
                     value={pinValue}
                     onChange={(event) => setPinValue(event.target.value.replace(/\D/g, ''))}
@@ -362,126 +521,6 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
               </div>
             </div>
           ) : null}
-
-          <form className="flex flex-col gap-4 border-t border-[#262626] pt-4" onSubmit={handleSearch}>
-            <label className="flex flex-col gap-2 text-sm">
-              <span>Search members</span>
-              <input
-                className={inputClass}
-                type="search"
-                placeholder="Type a name…"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </label>
-
-            {loading ? (
-              <p className="text-sm text-[#A3A3A3]">Loading…</p>
-            ) : normalizedQuery ? (
-              filteredMembers.length === 0 ? (
-                <p className="text-sm text-[#A3A3A3]">No members match that name.</p>
-              ) : (
-                <ul className="flex flex-col">
-                  {filteredMembers.map((member) => {
-                    const expired = membershipExpiry(member);
-                    return (
-                      <li
-                        key={member.id}
-                        className="flex flex-col gap-4 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div>
-                          <p className="text-base font-medium text-[#FAFAFA]">
-                            {member.fullName}
-                            {member.isActive ? null : (
-                              <StatusBadge tone="bad" className="ml-3">
-                                Inactive
-                              </StatusBadge>
-                            )}
-                            {expired ? (
-                              <StatusBadge tone="bad" className="ml-3">
-                                {member.membership?.status === 'paused'
-                                  ? 'Paused'
-                                  : member.membership?.status === 'cancelled'
-                                    ? 'Cancelled'
-                                    : 'Expired'}
-                              </StatusBadge>
-                            ) : null}
-                          </p>
-                          <p className="mt-1 text-sm text-[#A3A3A3]">
-                            {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
-                          </p>
-                          {expired && !expired.blocked ? (
-                            <p className="mt-1 text-xs text-[#FF3D00]">{expired.message}</p>
-                          ) : null}
-                        </div>
-                        <button
-                          className={primaryButtonClass}
-                          type="button"
-                          disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
-                          onClick={() => void handleCheckIn(member)}
-                        >
-                          {checkingInId === member.id ? 'Checking in…' : 'Check in'}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )
-            ) : members.length === 0 ? (
-              <p className="text-sm text-[#A3A3A3]">No members yet. Add members first.</p>
-            ) : (
-              <div>
-                <p className="text-sm text-[#A3A3A3]">
-                  Showing the {RECENT_COUNT} most recent members — type to search.
-                </p>
-                <ul className="mt-2 flex flex-col">
-                  {recentMembers.map((member) => {
-                    const expired = membershipExpiry(member);
-                    return (
-                      <li
-                        key={member.id}
-                        className="flex flex-col gap-4 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div>
-                          <p className="text-base font-medium text-[#FAFAFA]">
-                            {member.fullName}
-                            {member.isActive ? null : (
-                              <StatusBadge tone="bad" className="ml-3">
-                                Inactive
-                              </StatusBadge>
-                            )}
-                            {expired ? (
-                              <StatusBadge tone="bad" className="ml-3">
-                                {member.membership?.status === 'paused'
-                                  ? 'Paused'
-                                  : member.membership?.status === 'cancelled'
-                                    ? 'Cancelled'
-                                    : 'Expired'}
-                              </StatusBadge>
-                            ) : null}
-                          </p>
-                          <p className="mt-1 text-sm text-[#A3A3A3]">
-                            {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
-                          </p>
-                          {expired && !expired.blocked ? (
-                            <p className="mt-1 text-xs text-[#FF3D00]">{expired.message}</p>
-                          ) : null}
-                        </div>
-                        <button
-                          className={primaryButtonClass}
-                          type="button"
-                          disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
-                          onClick={() => void handleCheckIn(member)}
-                        >
-                          {checkingInId === member.id ? 'Checking in…' : 'Check in'}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-          </form>
         </SectionCard>
       ) : tab === 'today' ? (
         <SectionCard
@@ -507,13 +546,8 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                         {checkIn.method}
                       </span>
                     </p>
-                    <button
-                      className={dangerButtonClass}
-                      type="button"
-                      disabled={deletingCheckInId === checkIn.id}
-                      onClick={() => void handleDeleteCheckIn(checkIn)}
-                    >
-                      {deletingCheckInId === checkIn.id ? 'Deleting…' : 'Delete'}
+                    <button className={dangerButtonClass} type="button" onClick={() => handleDeleteCheckIn(checkIn)}>
+                      Delete
                     </button>
                   </div>
                 </li>
@@ -582,13 +616,8 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                         {checkIn.method}
                       </span>
                     </p>
-                    <button
-                      className={dangerButtonClass}
-                      type="button"
-                      disabled={deletingCheckInId === checkIn.id}
-                      onClick={() => void handleDeleteCheckIn(checkIn)}
-                    >
-                      {deletingCheckInId === checkIn.id ? 'Deleting…' : 'Delete'}
+                    <button className={dangerButtonClass} type="button" onClick={() => handleDeleteCheckIn(checkIn)}>
+                      Delete
                     </button>
                   </div>
                 </li>
@@ -602,6 +631,24 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
           ) : null}
         </SectionCard>
       )}
+
+      {pendingDelete ? (
+        <ConfirmModal
+          title="Delete check-in"
+          body={`Delete ${pendingDelete.memberName}'s check-in from ${formatDateTime(pendingDelete.checkedInAt)}? This cannot be undone.`}
+          confirmLabel="Delete"
+          pendingLabel="Deleting…"
+          danger
+          pending={deletePending}
+          error={deleteError}
+          onConfirm={() => void handleConfirmDelete()}
+          onCancel={() => {
+            if (!deletePending) {
+              setPendingDelete(null);
+            }
+          }}
+        />
+      ) : null}
 
       {scanning ? (
         <QrScanner

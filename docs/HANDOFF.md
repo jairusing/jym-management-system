@@ -130,9 +130,21 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `mockImplementationOnce` and asserts "Pausing…" before releasing;
    multi-open test asserts exactly one `aria-expanded="true"` More button;
    Enter tests use `fireEvent.submit` on the panel form.
+- **v1.014** — critique round 6 (Check-ins P0s + P1s + PIN input): success/
+   error banners are live regions (`role="status"` / `role="alert"`), and a
+   member's row disables to "Checked in today" after a check-in — the outcome
+   is visible at the action. A pre-check in `beginCheckIn` blocks duplicate
+   check-ins before any repo call (covers the QR path too). The PIN panel
+   moved below the search form (next to the member list the user is in),
+   autofocuses the PIN input (now `type="password"`), and scrolls into view.
+   Delete uses the shared ConfirmModal with in-dialog error/pending states
+   and a "Check-in deleted." success message. Test notes: modal delete tests
+   scope queries with `within(dialog)` (the row's Delete button stays
+   mounted); the double-check-in test asserts the disabled "Checked in
+   today" button instead of the old repo-error path.
 - Migrations: `001`–`013`, `016`, `018`, `019`, `024`–`026` all applied to the
   live project. (`014`, `015`, `017` were deleted + marked reverted.)
-- Full suite: **244/244 (34 files)** including live integration tests. Build:
+- Full suite: **246/246 (34 files)** including live integration tests. Build:
   `tsc -b && vite build` clean. Deployed via Vercel auto-deploy on push to
   main → https://jym-management-system.vercel.app/
 
@@ -187,7 +199,7 @@ database-enforced invariants, RLS + live tests, Manila timezone correctness.
 
 ## Verification commands (from `apps/web`)
 
-- `npx vitest run` (with env vars above for full 244/244)
+- `npx vitest run` (with env vars above for full 246/246)
 - `npm run build` (tsc -b + vite build)
 
 ## Key files

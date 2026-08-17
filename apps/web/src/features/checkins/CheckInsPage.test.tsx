@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CheckInsPage } from './CheckInsPage';
@@ -314,11 +314,12 @@ describe('CheckInsPage', () => {
       expect(screen.getByText(/Enter the PIN for Pin Member/)).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
+fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
+    expect(screen.getByLabelText('PIN')).toHaveProperty('type', 'password');
     fireEvent.click(screen.getByRole('button', { name: 'Verify PIN' }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Pin Member checked in via QR/)).toBeTruthy();
+      expect(screen.getByText(/Pin Member checked in/)).toBeTruthy();
     });
     const saved = await mockCheckInRepository.listTodayCheckIns();
     expect(saved.length).toBe(1);
@@ -602,7 +603,7 @@ describe('CheckInsPage', () => {
     expect(saved[0]?.memberName).toBe('Ben Cruz');
   });
 
-  it('rejects a second check-in for the same member on the same day', async () => {
+  it('disables the check-in button once a member has checked in today', async () => {
     await seedMembers();
     renderPage();
 
@@ -616,17 +617,57 @@ describe('CheckInsPage', () => {
       expect(screen.getByText(/checked in\./i)).toBeTruthy();
     });
 
-    fireEvent.click(checkInButtons[0] as HTMLButtonElement);
-
     await waitFor(() => {
-      expect(screen.getByText('Already checked in today.')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Checked in today' })).toBeTruthy();
     });
     const saved = await mockCheckInRepository.listTodayCheckIns();
     expect(saved.length).toBe(1);
   });
 
-  it('deletes a check-in from the today list after confirmation', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('blocks a second QR check-in for a member already checked in today', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    const checkInButtons = screen.getAllByRole('button', { name: 'Check in' });
+    fireEvent.click(checkInButtons[0] as HTMLButtonElement);
+    await waitFor(() => {
+      expect(screen.getByText(/checked in\./i)).toBeTruthy();
+    });
+
+    const members = await mockMemberRepository.listMembers();
+    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+      target: { value: members[0]?.id }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Check in via QR' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('already checked in today');
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+  });
+
+  it('announces feedback with live regions', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    const checkInButtons = screen.getAllByRole('button', { name: 'Check in' });
+    fireEvent.click(checkInButtons[0] as HTMLButtonElement);
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toMatch(/checked in\./i);
+    });
+  });
+
+  it('deletes a check-in from the today list after confirming in the modal', async () => {
     await mockCheckInRepository.recordCheckIn({
       memberId: 'member-1',
       memberName: 'Juan Dela Cruz'
@@ -639,16 +680,18 @@ describe('CheckInsPage', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => {
+      expect(screen.getByText('Check-in deleted.')).toBeTruthy();
       expect(screen.getByText(/no check-ins yet today/i)).toBeTruthy();
     });
     const saved = await mockCheckInRepository.listTodayCheckIns();
     expect(saved.length).toBe(0);
   });
 
-  it('keeps a check-in when deletion is declined', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('keeps a check-in when deletion is cancelled', async () => {
     await mockCheckInRepository.recordCheckIn({
       memberId: 'member-1',
       memberName: 'Juan Dela Cruz'
@@ -661,6 +704,8 @@ describe('CheckInsPage', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() => {
       expect(screen.getByText(/1 check-in today/i)).toBeTruthy();
@@ -669,8 +714,7 @@ describe('CheckInsPage', () => {
     expect(saved.length).toBe(1);
   });
 
-  it('deletes a check-in from the attendance history', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('deletes a check-in from the attendance history after confirming in the modal', async () => {
     await mockCheckInRepository.recordCheckIn({
       memberId: 'member-1',
       memberName: 'Juan Dela Cruz'
@@ -683,6 +727,8 @@ describe('CheckInsPage', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => {
       expect(screen.getByText(/0 check-ins in the selected range/i)).toBeTruthy();

@@ -5,6 +5,24 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.014 — Critique round 6: check-in feedback, PIN panel, confirmable delete (2026-08-17)
+
+- Success and error feedback are announced: the success banner is a
+  `role="status"` live region and errors are `role="alert"` — screen readers
+  hear check-in results instead of silent top-of-page text.
+- After a member checks in, their row in the member list immediately
+  disables and relabels to "Checked in today", so the outcome is visible at
+  the action instead of only in a banner; a re-check attempt is blocked
+  before any repo call, including the QR path ("already checked in today").
+- The PIN panel now appears at the bottom of the check-in card — next to the
+  member list the user is working in — instead of above the search form;
+  the PIN input autofocuses and the panel scrolls into view, and the input
+  is `type="password"` (shared front-desk machines).
+- Check-in deletion uses the ConfirmModal (danger variant, "Deleting…"
+  pending label, in-dialog errors, success message "Check-in deleted.")
+  instead of `window.confirm`.
+- Verified: full suite 246/246 (34 files, live DB tests included);
+
 ## v1.013 — Critique rounds 2-5: modal lifecycle, honest statuses, menu & keyboard fixes (2026-08-17)
 
 - ConfirmModal stays open while the operation runs: buttons disable with a
