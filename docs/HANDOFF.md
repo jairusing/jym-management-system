@@ -109,24 +109,30 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    dialog text split across title/body elements (`getByText` per element),
    then click the confirm button by label. The error/Retry test toggles
    `hasSupabaseConfig` via a `vi.hoisted` getter + mocked Supabase repos.
-- **v1.013** — critique round 2 (P0s + P1s + P2s): ConfirmModal lifecycle —
+- **v1.013** — critique rounds 2-5 (P0s + P1s + P2s): ConfirmModal lifecycle —
    it stays open while the op runs ("Deleting…" disabled state), closes only
    on success, renders failures inside the dialog with Retry enabled, and
-   locks Escape while pending. Row-action errors no longer anchor in the
-   Add-member card. Paused members get an amber "Paused" badge (previously
-   green "Active"). RowMenu gained controlled `open`/`onOpenChange` props —
-   menu-open state lives on the page (Members + Payments) so only one menu
-   is open at a time (backward compatible: no props = internal state).
-   ConfirmModal traps Tab, dismisses on backdrop click, and restores focus
-   to the trigger when it is still connected. Login/link panels are now
-   `<form>`s (Enter submits). The Add-member card moved below the list;
-   empty-state copy and scroll honor `prefers-reduced-motion`. Test note:
-   the failure test spies `mockMemberRepository.deleteMember` to reject once
-   then retry; multi-open test asserts exactly one `aria-expanded="true"`
-   More button; Enter tests use `fireEvent.submit` on the panel form.
+   locks Escape while pending. All row actions (incl. Activate) route through
+   the modal — no errors anchor in the Add-member card (`addError` is scoped
+   to the Add form). Status honesty: paused = amber, cancelled = neutral gray
+   (was green "Active" while check-in-blocked), no-membership = neutral gray.
+   RowMenu: controlled `open`/`onOpenChange` (one menu open at a time,
+   Members + Payments), optional `id` on the trigger, Arrow Up/Down/Home/End
+   navigation, focus-in on open, Escape/outside-click restores focus to the
+   trigger, 70vh cap with scroll. ConfirmModal traps Tab, dismisses on
+   backdrop click, and restores focus to the row's More trigger via a stable
+   DOM id (the old activeElement capture was a dead code path — the menuitem
+   unmounted before restore). Login/link panels are `<form>`s (Enter
+   submits). Add-member card sits above the list; empty-state copy and scroll
+   honor `prefers-reduced-motion`. QR data is keyed per member (no stale
+   overwrite race). Test notes: failure tests spy a repo method to reject
+   once then retry; the pending-label test controls a promise via
+   `mockImplementationOnce` and asserts "Pausing…" before releasing;
+   multi-open test asserts exactly one `aria-expanded="true"` More button;
+   Enter tests use `fireEvent.submit` on the panel form.
 - Migrations: `001`–`013`, `016`, `018`, `019`, `024`–`026` all applied to the
   live project. (`014`, `015`, `017` were deleted + marked reverted.)
-- Full suite: **240/240 (34 files)** including live integration tests. Build:
+- Full suite: **244/244 (34 files)** including live integration tests. Build:
   `tsc -b && vite build` clean. Deployed via Vercel auto-deploy on push to
   main → https://jym-management-system.vercel.app/
 
@@ -181,7 +187,7 @@ database-enforced invariants, RLS + live tests, Manila timezone correctness.
 
 ## Verification commands (from `apps/web`)
 
-- `npx vitest run` (with env vars above for full 240/240)
+- `npx vitest run` (with env vars above for full 244/244)
 - `npm run build` (tsc -b + vite build)
 
 ## Key files

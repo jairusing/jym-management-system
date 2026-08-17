@@ -5,28 +5,39 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.013 — Critique round 2: modal lifecycle, local errors, paused badge (2026-08-17)
+## v1.013 — Critique rounds 2-5: modal lifecycle, honest statuses, menu & keyboard fixes (2026-08-17)
 
 - ConfirmModal stays open while the operation runs: buttons disable with a
   "Deleting…"/"Pausing…" pending label, it closes only on success, and
   failures render inside the dialog (`role="alert"`) with the buttons
   re-enabled so the user can retry or cancel. Escape is locked while pending.
 - Row-action failures no longer route through the Add-member card's shared
-  error state — destructive operations (deactivate, pause/resume/cancel,
+  error state — all row operations (activate/deactivate, pause/resume/cancel,
   delete) surface their errors in the modal where the user is looking.
-- Paused members now show an amber "Paused" status badge instead of a green
-  "Active" badge.
+- Paused members show an amber "Paused" badge; cancelled members show a
+  neutral "Cancelled" badge (previously green "Active" even when
+  check-in-blocked); members with no membership show neutral gray instead of
+  vermillion "expired".
 - Only one "More" row menu can be open at a time — menu-open state is lifted
   to the page (Members and Payments), so opening a second row's menu closes
   the first.
 - ConfirmModal keyboard behavior: Tab focus is trapped inside the dialog,
   the backdrop dismisses on click, `aria-describedby` wires the body copy,
-  and focus returns to the trigger after close when it is still in the page.
+  and focus returns to the row's More trigger after close (stable trigger
+  id — previously the captured menuitem unmounted, silently dropping focus
+  to `<body>`).
+- RowMenu is now a real menu: Arrow Up/Down/Home/End navigate items, focus
+  moves into the first item on open, Escape/outside-click return focus to
+  the trigger, and the panel caps at 70vh with scroll instead of running off
+  the bottom of short screens.
 - Login and Link-existing panels are real forms now — Enter submits them.
-- The Add-member card moved below the All-members list so the daily task
-  (lookup + row actions) is not pushed below the fold; empty-state copy and
-  panel scroll honor `prefers-reduced-motion`.
-- Verified: full suite 240/240 (34 files, live DB tests included);
+- The Add-member card sits above the All-members list (above the fold for
+  the front-desk's dominant task); empty-state copy and panel scroll honor
+  `prefers-reduced-motion`.
+- QR codes are keyed per member — a slow generation can no longer overwrite
+  a newer panel's image.
+- Fixed the "Pauseing…"/"Resumeing…" pending-label typo.
+- Verified: full suite 244/244 (34 files, live DB tests included);
   TypeScript, ESLint (`--max-warnings=0`), and production build clean.
 
 ## v1.012 — Critique fixes: in-app confirms, no mock fallback, menu groups (2026-08-17)

@@ -41,7 +41,7 @@ function today() {
 
 function membershipState(membership: Membership | null): { tone: 'active' | 'expiring' | 'expired' | 'neutral'; label: string } {
   if (!membership) {
-    return { tone: 'expired', label: 'No membership' };
+    return { tone: 'neutral', label: 'No membership' };
   }
   if (membership.status === 'paused') {
     return { tone: 'neutral', label: `Paused (${membership.planName})` };
@@ -74,14 +74,14 @@ export function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(hasSupabaseConfig);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [confirmPending, setConfirmPending] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
-  const confirmTriggerRef = useRef<HTMLElement | null>(null);
+  const confirmTriggerRef = useRef<string | null>(null);
   const [qrFor, setQrFor] = useState<string | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrDataUrls, setQrDataUrls] = useState<Record<string, string | 'error'>>({});
   const [myRole, setMyRole] = useState<UserRole | null>(null);
 
   const [search, setSearch] = useState('');
@@ -184,10 +184,10 @@ export function MembersPage() {
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null);
+    setAddError(null);
 
     if (!fullName.trim()) {
-      setError('Member name is required.');
+      setAddError('Member name is required.');
       return;
     }
 
@@ -208,26 +208,30 @@ export function MembersPage() {
       setNotes('');
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to add member.');
+      setAddError(e instanceof Error ? e.message : 'Failed to add member.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleToggleActive = async (member: Member) => {
+    confirmTriggerRef.current = `member-menu-${member.id}`;
     if (!member.isActive) {
-      const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
-      try {
-        await repo.setMemberActive(member.id, true);
-        await load();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to update member.');
-      }
+      setPendingConfirm({
+        title: `Activate ${member.fullName}?`,
+        body: 'They will be able to check in again.',
+        confirmLabel: 'Activate',
+        pendingLabel: 'Activating…',
+        run: async () => {
+          const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
+          await repo.setMemberActive(member.id, true);
+          await load();
+        }
+      });
       return;
     }
     const activeMembership =
       member.membership && member.membership.status === 'active' ? member.membership : null;
-    confirmTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setPendingConfirm({
       title: `Deactivate ${member.fullName}?`,
       body: activeMembership
@@ -259,14 +263,19 @@ export function MembersPage() {
       active: 'Resume',
       cancelled: 'Cancel membership'
     };
-    confirmTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const pendingLabels: Record<'paused' | 'active' | 'cancelled', string> = {
+      paused: 'Pausing…',
+      active: 'Resuming…',
+      cancelled: 'Cancelling…'
+    };
+    confirmTriggerRef.current = `member-menu-${member.id}`;
     setPendingConfirm({
       title: messages[status],
       body: status === 'cancelled'
         ? 'The member will be blocked from check-in. A new payment starts a fresh membership.'
         : '',
       confirmLabel: labels[status],
-      pendingLabel: labels[status] === 'Cancel membership' ? 'Cancelling…' : `${labels[status]}ing…`,
+      pendingLabel: pendingLabels[status],
       danger: status === 'cancelled',
       run: async () => {
         const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
@@ -277,7 +286,7 @@ export function MembersPage() {
   };
 
   const handleDelete = async (member: Member) => {
-    confirmTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    confirmTriggerRef.current = `member-menu-${member.id}`;
     setPendingConfirm({
       title: `Delete ${member.fullName}?`,
       body: 'This cannot be undone — their record, membership, and check-in history are removed permanently.',
@@ -295,21 +304,23 @@ export function MembersPage() {
   const handleShowQr = async (member: Member) => {
     if (qrFor === member.id) {
       setQrFor(null);
-      setQrDataUrl(null);
+      setQrDataUrls((prev) => {
+        const next = { ...prev };
+        delete next[member.id];
+        return next;
+      });
       return;
     }
     setQrFor(member.id);
-    setQrDataUrl(null);
-    setError(null);
     setLoginFor(null);
     setLinkFor(null);
     setPinFor(null);
     try {
       const dataUrl = await toDataURL(member.id, { width: 160, margin: 1 });
-      setQrDataUrl(dataUrl);
+      setQrDataUrls((prev) => ({ ...prev, [member.id]: dataUrl }));
     } catch (e) {
       console.warn('Failed to generate QR code', e);
-      setQrDataUrl('error');
+      setQrDataUrls((prev) => ({ ...prev, [member.id]: 'error' }));
     }
   };
 
@@ -330,7 +341,6 @@ export function MembersPage() {
     setLoginMessage(null);
     setLoginError(null);
     setQrFor(null);
-    setQrDataUrl(null);
     setLinkFor(null);
     setPinFor(null);
   };
@@ -382,7 +392,6 @@ export function MembersPage() {
     setLinkMessage(null);
     setLinkError(null);
     setQrFor(null);
-    setQrDataUrl(null);
     setLoginFor(null);
     setPinFor(null);
   };
@@ -424,7 +433,6 @@ export function MembersPage() {
     setPinError(null);
     setPinMessage(null);
     setQrFor(null);
-    setQrDataUrl(null);
     setLoginFor(null);
     setLinkFor(null);
   };
@@ -461,9 +469,9 @@ export function MembersPage() {
   }, [openPanel]);
 
   const restoreConfirmFocus = () => {
-    const trigger = confirmTriggerRef.current;
-    if (trigger && trigger.isConnected) {
-      trigger.focus?.();
+    const triggerId = confirmTriggerRef.current;
+    if (triggerId) {
+      document.getElementById(triggerId)?.focus?.();
     }
     confirmTriggerRef.current = null;
   };
@@ -501,6 +509,67 @@ export function MembersPage() {
       description="Register and manage your gym members."
     >
       <BackLink to="/app" label="Back to dashboard" />
+
+      <SectionCard title="Add member" description="Register a new member (walk-ins can be added without an account).">
+        <form className="flex flex-col gap-4" onSubmit={handleCreate}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-2 text-sm">
+              <span>Full name</span>
+              <input
+                className={inputClass}
+                type="text"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span>Email</span>
+              <input
+                className={inputClass}
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span>Phone</span>
+              <input
+                className={inputClass}
+                type="tel"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span>Joined date</span>
+              <input
+                className={inputClass}
+                type="date"
+                value={joinedAt}
+                onChange={(event) => setJoinedAt(event.target.value)}
+                required
+              />
+            </label>
+          </div>
+          <label className="flex flex-col gap-2 text-sm">
+            <span>Notes</span>
+            <input
+              className={inputClass}
+              type="text"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </label>
+
+          {addError ? <p className="text-sm text-[#FF3D00]">{addError}</p> : null}
+
+          <div>
+            <button className={primaryButtonClass} type="submit" disabled={saving}>
+              {saving ? 'Adding…' : 'Add member'}
+            </button>
+          </div>
+        </form>
+      </SectionCard>
 
       <SectionCard title="All members" description={`${members.length} registered member${members.length === 1 ? '' : 's'}.`}>
         {loadError ? (
@@ -564,7 +633,7 @@ export function MembersPage() {
             {filteredMembers.length === 0 ? (
               <p className="text-sm text-[#A3A3A3]">
                 {members.length === 0
-                  ? 'No members yet. Add your first member below.'
+                  ? 'No members yet. Add your first member here.'
                   : 'No members match your filters.'}
               </p>
             ) : (
@@ -580,6 +649,10 @@ export function MembersPage() {
                         {member.membership?.status === 'paused' ? (
                           <StatusBadge tone="warning" className="ml-3">
                             Paused
+                          </StatusBadge>
+                        ) : member.membership?.status === 'cancelled' ? (
+                          <StatusBadge tone="neutral" className="ml-3">
+                            Cancelled
                           </StatusBadge>
                         ) : (
                           <StatusBadge tone={member.isActive ? 'good' : 'bad'} className="ml-3">
@@ -610,6 +683,7 @@ export function MembersPage() {
                         Statement
                       </a>
                       <RowMenu
+                        id={`member-menu-${member.id}`}
                         open={openMenuFor === member.id}
                         onOpenChange={(next) => setOpenMenuFor(next ? member.id : null)}
                         items={[
@@ -695,10 +769,10 @@ export function MembersPage() {
                         id={`member-panel-${member.id}`}
                         className="flex scroll-mt-4 flex-col items-start gap-2 border border-[#262626] bg-[#1A1A1A] p-4"
                       >
-                        {qrDataUrl === 'error' ? (
+                        {qrDataUrls[member.id] === 'error' ? (
                           <p className="text-sm text-[#FF3D00]">Could not generate the QR code.</p>
-                        ) : qrDataUrl ? (
-                          <img src={qrDataUrl} alt={`QR code for ${member.fullName}`} className="h-40 w-40" />
+                        ) : qrDataUrls[member.id] ? (
+                          <img src={qrDataUrls[member.id]} alt={`QR code for ${member.fullName}`} className="h-40 w-40" />
                         ) : (
                           <p className="text-sm text-[#A3A3A3]">Generating…</p>
                         )}
@@ -898,67 +972,6 @@ export function MembersPage() {
             </div>
           </>
         )}
-      </SectionCard>
-
-      <SectionCard title="Add member" description="Register a new member (walk-ins can be added without an account).">
-        <form className="flex flex-col gap-4" onSubmit={handleCreate}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              <span>Full name</span>
-              <input
-                className={inputClass}
-                type="text"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span>Email</span>
-              <input
-                className={inputClass}
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span>Phone</span>
-              <input
-                className={inputClass}
-                type="tel"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span>Joined date</span>
-              <input
-                className={inputClass}
-                type="date"
-                value={joinedAt}
-                onChange={(event) => setJoinedAt(event.target.value)}
-                required
-              />
-            </label>
-          </div>
-          <label className="flex flex-col gap-2 text-sm">
-            <span>Notes</span>
-            <input
-              className={inputClass}
-              type="text"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-            />
-          </label>
-
-          {error ? <p className="text-sm text-[#FF3D00]">{error}</p> : null}
-
-          <div>
-            <button className={primaryButtonClass} type="submit" disabled={saving}>
-              {saving ? 'Adding…' : 'Add member'}
-            </button>
-          </div>
-        </form>
       </SectionCard>
 
       {pendingConfirm ? (

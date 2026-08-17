@@ -1,5 +1,5 @@
 import { MoreHorizontal, type LucideIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 export type RowMenuItem = {
   label: string;
@@ -13,11 +13,12 @@ export type RowMenuItem = {
 type RowMenuProps = {
   items: RowMenuItem[];
   label?: string;
+  id?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
 
-export function RowMenu({ items, label = 'More', open: openProp, onOpenChange }: RowMenuProps) {
+export function RowMenu({ items, label = 'More', id, open: openProp, onOpenChange }: RowMenuProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = openProp !== undefined;
   const open = isControlled ? openProp : internalOpen;
@@ -29,6 +30,7 @@ export function RowMenu({ items, label = 'More', open: openProp, onOpenChange }:
     }
   };
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(() => setInternalOpen(false));
   closeRef.current = () => {
     if (isControlled) {
@@ -36,6 +38,44 @@ export function RowMenu({ items, label = 'More', open: openProp, onOpenChange }:
     } else {
       setInternalOpen(false);
     }
+  };
+  const restoreTriggerFocusRef = useRef(() => {});
+  restoreTriggerFocusRef.current = () => {
+    if (id) {
+      document.getElementById(id)?.focus?.();
+    }
+  };
+
+  useEffect(() => {
+    if (open) {
+      menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    }
+  }, [open]);
+
+  const onMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const buttons = menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
+    if (!buttons || buttons.length === 0) {
+      return;
+    }
+    let next = Array.from(buttons).indexOf(document.activeElement as HTMLButtonElement);
+    switch (event.key) {
+      case 'ArrowDown':
+        next = next < 0 ? 0 : Math.min(next + 1, buttons.length - 1);
+        break;
+      case 'ArrowUp':
+        next = next < 0 ? 0 : Math.max(next - 1, 0);
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = buttons.length - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    buttons[next]?.focus();
   };
 
   useEffect(() => {
@@ -45,11 +85,13 @@ export function RowMenu({ items, label = 'More', open: openProp, onOpenChange }:
     const onPointerDown = (event: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
         closeRef.current();
+        restoreTriggerFocusRef.current();
       }
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         closeRef.current();
+        restoreTriggerFocusRef.current();
       }
     };
     document.addEventListener('mousedown', onPointerDown);
@@ -63,6 +105,7 @@ export function RowMenu({ items, label = 'More', open: openProp, onOpenChange }:
   return (
     <div className="relative" ref={rootRef}>
       <button
+        id={id}
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -73,7 +116,13 @@ export function RowMenu({ items, label = 'More', open: openProp, onOpenChange }:
         {label}
       </button>
       {open ? (
-        <div role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-52 border border-[#262626] bg-[#0F0F0F]">
+        <div
+          role="menu"
+          aria-label={label}
+          ref={menuRef}
+          onKeyDown={onMenuKeyDown}
+          className="absolute right-0 top-full z-30 mt-1 max-h-[min(70vh,24rem)] min-w-52 overflow-y-auto border border-[#262626] bg-[#0F0F0F]"
+        >
           {items.map((item) => (
             <div key={item.label} className="flex flex-col">
               {item.divider ? <div className="mx-3 my-1 h-px bg-[#262626]" /> : null}

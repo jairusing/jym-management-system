@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { toDataURL } from 'qrcode';
 import { MembersPage } from './MembersPage';
 import { mockMemberAccountRepository } from '../memberAccounts/memberAccountRepository';
 import { mockMemberRepository } from './memberRepository';
@@ -241,9 +242,46 @@ describe('MembersPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Cancelled (Monthly Pass)')).toBeTruthy();
     });
+    expect(screen.getByText('Cancelled')).toBeTruthy();
 
     const saved = await mockMemberRepository.listMembers();
     expect(saved[0]?.membership?.status).toBe('cancelled');
+  });
+
+  it('shows Pausing… while the pause request is in flight', async () => {
+    const member = await mockMemberRepository.createMember({
+      fullName: 'Maria Santos',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    mockMemberRepository.setMembership(member.id, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-08-01',
+      endsAt: '2026-08-31',
+      status: 'active'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
+    });
+
+    let release: () => void = () => {};
+    const original = mockMemberRepository.setMembershipStatus.bind(mockMemberRepository);
+    vi.spyOn(mockMemberRepository, 'setMembershipStatus').mockImplementationOnce((memberId, status) => {
+      const promise = new Promise<void>((resolve) => { release = resolve; });
+      return promise.then(() => original(memberId, status));
+    });
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Pause' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(screen.getByRole('button', { name: 'Pausing…' })).toBeTruthy();
+    release();
+    await waitFor(() => {
+      expect(screen.getByText('Paused (Monthly Pass)')).toBeTruthy();
+    });
   });
 
   it('keeps the membership status when the pause confirmation is declined', async () => {
@@ -287,6 +325,7 @@ describe('MembersPage', () => {
       joinedAt: '2026-08-01',
       notes: null
     });
+    const members = await mockMemberRepository.listMembers();
     renderPage();
 
     await waitFor(() => {
@@ -301,12 +340,15 @@ describe('MembersPage', () => {
     });
     const afterDeactivate = await mockMemberRepository.listMembers();
     expect(afterDeactivate[0]?.isActive).toBe(false);
+    expect(document.activeElement).toBe(document.getElementById(`member-menu-${members[0]?.id}`));
 
     openRowMenu('Maria Santos');
     expect(screen.getByRole('menuitem', { name: 'Activate' })).toBeTruthy();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Activate' }));
+    expect(screen.getByText('Activate Maria Santos?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Activate' }));
     await waitFor(() => {
-      expect(screen.queryByRole('menuitem', { name: 'Deactivate' })).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
     const afterReactivate = await mockMemberRepository.listMembers();
     expect(afterReactivate[0]?.isActive).toBe(true);
@@ -354,6 +396,7 @@ describe('MembersPage', () => {
       joinedAt: '2026-08-01',
       notes: null
     });
+    const members = await mockMemberRepository.listMembers();
     renderPage();
 
     await waitFor(() => {
@@ -366,6 +409,7 @@ describe('MembersPage', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
+    expect(document.activeElement).toBe(document.getElementById(`member-menu-${members[0]?.id}`));
     openRowMenu('Maria Santos');
     expect(screen.getByRole('menuitem', { name: 'Deactivate' })).toBeTruthy();
     const saved = await mockMemberRepository.listMembers();
@@ -538,6 +582,40 @@ describe('MembersPage', () => {
     expect(mockMemberAccountRepository.linkCalls).toEqual([
       { memberId: expect.stringMatching(/^member-/), email: 'juan@example.com' }
     ]);
+  });
+
+  it('keeps the modal open with the error when reactivation fails, then retries', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Maria Santos',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    await mockMemberRepository.setMemberActive(members[0]?.id as string, false);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Maria Santos')).toBeTruthy();
+    });
+
+    vi.spyOn(mockMemberRepository, 'setMemberActive').mockRejectedValueOnce(new Error('Network failure'));
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Activate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Activate' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Network failure')).toBeTruthy();
+    });
+    expect(screen.queryByRole('dialog')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Activate' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    const saved = await mockMemberRepository.listMembers();
+    expect(saved[0]?.isActive).toBe(true);
   });
 
   it('keeps the modal open with the error when an action fails, then retries', async () => {
@@ -824,6 +902,87 @@ describe('MembersPage', () => {
     openRowMenu('Juan Dela Cruz');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Hide QR' }));
     expect(screen.queryByAltText(/QR code for Juan Dela Cruz/)).toBeNull();
+  });
+
+  it('does not let a stale QR resolution overwrite a newer panel', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Juan Dela Cruz',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    await mockMemberRepository.createMember({
+      fullName: 'Maria Santos',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-02',
+      notes: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    let resolveJuan: (value: string) => void = () => {};
+    vi.mocked(toDataURL).mockImplementationOnce(
+      () => new Promise<string>((resolve) => { resolveJuan = resolve; })
+    );
+    openRowMenu('Juan Dela Cruz');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Show QR' }));
+
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Show QR' }));
+
+    await waitFor(() => {
+      expect(screen.getByAltText(/QR code for Maria Santos/)).toBeTruthy();
+    });
+    expect(screen.getByAltText(/QR code for Maria Santos/).getAttribute('src')).toBe(
+      'data:image/png;base64,MOCKQR'
+    );
+
+    resolveJuan('data:image/png;base64,JUANQR');
+    await waitFor(() => {
+      expect(screen.getByAltText(/QR code for Maria Santos/).getAttribute('src')).toBe(
+        'data:image/png;base64,MOCKQR'
+      );
+    });
+    expect(screen.queryByAltText(/QR code for Juan Dela Cruz/)).toBeNull();
+  });
+
+  it('navigates the row menu with arrow keys', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Maria Santos',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Maria Santos')).toBeTruthy();
+    });
+
+    openRowMenu('Maria Santos');
+    const first = screen.getByRole('menuitem', { name: 'Show QR' });
+    expect(document.activeElement).toBe(first);
+
+    fireEvent.keyDown(first, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Set PIN' }));
+
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Set PIN' }), { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Create login' }));
+
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Create login' }), { key: 'End' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Delete' }));
+
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Delete' }), { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Deactivate' }));
+
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Deactivate' }), { key: 'Home' });
+    expect(document.activeElement).toBe(first);
   });
 
   it('shows a Create login button only for members without an account', async () => {
