@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { phDateInDays, phDateToday } from '../../lib/dates';
@@ -35,6 +35,17 @@ async function seedMember() {
     notes: null
   });
   return (await mockMemberRepository.listMembers())[0];
+}
+
+function openInvoiceMenu(memberName: string) {
+  const row = screen
+    .getAllByText((content) => content.startsWith(memberName))
+    .map((element) => element.closest('li'))
+    .find((element) => element !== null);
+  if (!row) {
+    throw new Error(`invoice row for ${memberName} not found`);
+  }
+  fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'More' }));
 }
 
 afterEach(() => {
@@ -174,9 +185,10 @@ describe('PaymentsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Issue invoice' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Void' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Void' }));
+    openInvoiceMenu('Juan Dela Cruz');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Void' }));
 
     await waitFor(() => {
       expect(screen.getByText('void')).toBeTruthy();
@@ -198,9 +210,10 @@ describe('PaymentsPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Void' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Void' }));
+    openInvoiceMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Void' }));
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
@@ -456,6 +469,6 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
     });
-    expect(screen.queryByRole('button', { name: 'Void' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Void' })).toBeNull();
   });
 });

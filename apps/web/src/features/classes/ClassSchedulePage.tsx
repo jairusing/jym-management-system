@@ -3,6 +3,7 @@ import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { dangerButtonClass, inputClass, primaryButtonClass } from '../../components/ui/buttonClasses';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { formatDateTime, PH_TIME_ZONE } from '../../lib/dates';
 import { dayOfWeekLabels, mockClassRepository, type ClassItem, type ClassSession } from './classRepository';
@@ -11,12 +12,6 @@ import { mockBookingRepository, type Booking } from './bookingRepository';
 import { SupabaseBookingRepository } from './supabaseBookingRepository';
 import { mockMemberRepository, type Member } from '../members/memberRepository';
 import { SupabaseMemberRepository } from '../members/supabaseMemberRepository';
-
-const inputClass =
-  'border border-[#262626] bg-[#1A1A1A] px-4 py-3 text-base text-[#FAFAFA] outline-none transition-colors duration-150 focus:border-[#FF3D00]';
-
-const buttonClass =
-  'inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50';
 
 function pad(value: number) {
   return String(value).padStart(2, '0');
@@ -293,7 +288,7 @@ export function ClassSchedulePage() {
           </div>
 
           <div>
-            <button className={buttonClass} type="submit" disabled={saving}>
+            <button className={primaryButtonClass} type="submit" disabled={saving}>
               {saving ? 'Adding…' : 'Add class'}
             </button>
           </div>
@@ -323,7 +318,7 @@ export function ClassSchedulePage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
-                      className={buttonClass}
+                      className={primaryButtonClass}
                       type="button"
                       disabled={scheduled}
                       onClick={() => void handleGenerateWeek(gymClass)}
@@ -331,7 +326,7 @@ export function ClassSchedulePage() {
                       {scheduled ? 'Scheduled this week' : 'Schedule this week'}
                     </button>
                     <button
-                      className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
+                      className={dangerButtonClass}
                       type="button"
                       onClick={() => void handleDeleteClass(gymClass)}
                     >
@@ -350,10 +345,10 @@ export function ClassSchedulePage() {
         description={`${formatWeekLabel(weekStart)} — click a session to book members.`}
       >
         <div className="mb-6 flex items-center justify-between">
-          <button className={buttonClass} type="button" onClick={() => changeWeek(-1)}>
+          <button className={primaryButtonClass} type="button" onClick={() => changeWeek(-1)}>
             Previous week
           </button>
-          <button className={buttonClass} type="button" onClick={() => changeWeek(1)}>
+          <button className={primaryButtonClass} type="button" onClick={() => changeWeek(1)}>
             Next week
           </button>
         </div>
@@ -381,7 +376,7 @@ export function ClassSchedulePage() {
                       </p>
                     </div>
                     <button
-                      className={`${buttonClass} disabled:opacity-50`}
+                      className={primaryButtonClass}
                       type="button"
                       disabled={isFull}
                       onClick={() => {
@@ -410,7 +405,7 @@ export function ClassSchedulePage() {
                           ))}
                         </select>
                       </label>
-                      <button className={buttonClass} type="button" onClick={() => void handleBook(session.id)}>
+                      <button className={primaryButtonClass} type="button" onClick={() => void handleBook(session.id)}>
                         Book
                       </button>
                     </div>
@@ -432,7 +427,7 @@ export function ClassSchedulePage() {
                           </p>
                           {booking.status === 'booked' ? (
                             <button
-                              className={`${buttonClass} border-[#262626] px-3 py-2 text-[#A3A3A3] hover:text-[#FF3D00]`}
+                              className={dangerButtonClass}
                               type="button"
                               onClick={() => void handleCancelBooking(booking)}
                             >

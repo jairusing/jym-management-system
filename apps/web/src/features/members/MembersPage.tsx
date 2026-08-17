@@ -1,9 +1,23 @@
 import { FormEvent, useEffect, useState } from 'react';
+import {
+  KeyRound,
+  Link2,
+  Pause,
+  Play,
+  QrCode,
+  Trash2,
+  UserCheck,
+  UserPlus,
+  UserX,
+  XCircle
+} from 'lucide-react';
 import { toDataURL } from 'qrcode';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
+import { RowMenu } from '../../components/ui/RowMenu';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ghostButtonClass, inputClass, primaryButtonClass, chipClass } from '../../components/ui/buttonClasses';
 import { formatDate, formatWhen, phDateToday } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { HttpMemberAccountRepository } from '../memberAccounts/httpMemberAccountRepository';
@@ -12,20 +26,6 @@ import { mockMemberRepository, type Member, type Membership } from './memberRepo
 import { SupabaseMemberRepository } from './supabaseMemberRepository';
 import { mockStaffRepository, type UserRole } from '../staff/staffRepository';
 import { SupabaseStaffRepository } from '../staff/supabaseStaffRepository';
-
-const inputClass =
-  'border border-[#262626] bg-[#1A1A1A] px-4 py-3 text-base text-[#FAFAFA] outline-none transition-colors duration-150 focus:border-[#FF3D00]';
-
-const buttonClass =
-  'inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50';
-
-const ghostButtonClass =
-  'inline-flex items-center border border-[#262626] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#A3A3A3] transition-all duration-150 hover:text-[#FF3D00] disabled:opacity-50';
-
-const chipClass = (selected: boolean) =>
-  `border px-3 py-1 text-xs font-semibold uppercase tracking-[0.1em] transition-colors duration-150 ${
-    selected ? 'border-[#FF3D00] text-[#FF3D00]' : 'border-[#262626] text-[#A3A3A3] hover:text-[#FAFAFA]'
-  }`;
 
 const PAGE_SIZE = 15;
 
@@ -446,7 +446,7 @@ export function MembersPage() {
           {error ? <p className="text-sm text-[#FF3D00]">{error}</p> : null}
 
           <div>
-            <button className={buttonClass} type="submit" disabled={saving}>
+            <button className={primaryButtonClass} type="submit" disabled={saving}>
               {saving ? 'Adding…' : 'Add member'}
             </button>
           </div>
@@ -543,94 +543,83 @@ export function MembersPage() {
                       </p>
                       {member.notes ? <p className="mt-1 text-sm text-[#A3A3A3]">{member.notes}</p> : null}
                     </div>
-                    <div className="flex shrink-0 flex-wrap gap-2 whitespace-nowrap">
-                      <a className={buttonClass} href={`/app/members/${member.id}`}>
+<div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+                      <a className={ghostButtonClass} href={`/app/members/${member.id}`}>
                         Statement
                       </a>
-                      {member.userId === null ? (
-                        <>
-                          <button
-                            className={buttonClass}
-                            type="button"
-                            onClick={() => handleToggleLogin(member)}
-                          >
-                            {loginFor === member.id ? 'Cancel' : 'Create login'}
-                          </button>
-                          <button
-                            className={ghostButtonClass}
-                            type="button"
-                            onClick={() => handleToggleLink(member)}
-                          >
-                            {linkFor === member.id ? 'Cancel' : 'Link existing'}
-                          </button>
-                        </>
-                      ) : null}
-                      <button
-                        className={buttonClass}
-                        type="button"
-                        onClick={() => void handleShowQr(member)}
-                      >
-                        {qrFor === member.id ? 'Hide QR' : 'Show QR'}
-                      </button>
-                      <button
-                        className={ghostButtonClass}
-                        type="button"
-                        onClick={() => handleTogglePin(member)}
-                      >
-                        {pinFor === member.id ? 'Cancel' : 'Set PIN'}
-                      </button>
-                      {myRole === 'owner' || !member.isActive ? (
-                        <button
-                          className={buttonClass}
-                          type="button"
-                          onClick={() => void handleToggleActive(member)}
-                        >
-                          {member.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                      ) : null}
-                      {member.membership?.status === 'active' ? (
-                        <>
-                          <button
-                            className={ghostButtonClass}
-                            type="button"
-                            onClick={() => void handleMembershipStatus(member, 'paused')}
-                          >
-                            Pause
-                          </button>
-                          <button
-                            className={ghostButtonClass}
-                            type="button"
-                            onClick={() => void handleMembershipStatus(member, 'cancelled')}
-                          >
-                            Cancel membership
-                          </button>
-                        </>
-                      ) : null}
-                      {member.membership?.status === 'paused' ? (
-                        <>
-                          <button
-                            className={buttonClass}
-                            type="button"
-                            onClick={() => void handleMembershipStatus(member, 'active')}
-                          >
-                            Resume
-                          </button>
-                          <button
-                            className={ghostButtonClass}
-                            type="button"
-                            onClick={() => void handleMembershipStatus(member, 'cancelled')}
-                          >
-                            Cancel membership
-                          </button>
-                        </>
-                      ) : null}
-                      <button
-                        className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
-                        type="button"
-                        onClick={() => void handleDelete(member)}
-                      >
-                        Delete
-                      </button>
+                      <RowMenu
+                        items={[
+                          {
+                            label: qrFor === member.id ? 'Hide QR' : 'Show QR',
+                            icon: QrCode,
+                            onClick: () => void handleShowQr(member)
+                          },
+                          {
+                            label: 'Set PIN',
+                            icon: KeyRound,
+                            onClick: () => handleTogglePin(member)
+                          },
+                          ...(member.userId === null
+                            ? [
+                                {
+                                  label: 'Create login',
+                                  icon: UserPlus,
+                                  onClick: () => handleToggleLogin(member)
+                                },
+                                {
+                                  label: 'Link existing',
+                                  icon: Link2,
+                                  onClick: () => handleToggleLink(member)
+                                }
+                              ]
+                            : []),
+                          ...(member.membership?.status === 'active'
+                            ? [
+                                {
+                                  label: 'Pause',
+                                  icon: Pause,
+                                  onClick: () => void handleMembershipStatus(member, 'paused')
+                                },
+                                {
+                                  label: 'Cancel membership',
+                                  icon: XCircle,
+                                  danger: true,
+                                  onClick: () => void handleMembershipStatus(member, 'cancelled')
+                                }
+                              ]
+                            : []),
+                          ...(member.membership?.status === 'paused'
+                            ? [
+                                {
+                                  label: 'Resume',
+                                  icon: Play,
+                                  onClick: () => void handleMembershipStatus(member, 'active')
+                                },
+                                {
+                                  label: 'Cancel membership',
+                                  icon: XCircle,
+                                  danger: true,
+                                  onClick: () => void handleMembershipStatus(member, 'cancelled')
+                                }
+                              ]
+                            : []),
+                          ...(myRole === 'owner' || !member.isActive
+                            ? [
+                                {
+                                  label: member.isActive ? 'Deactivate' : 'Activate',
+                                  icon: member.isActive ? UserX : UserCheck,
+                                  onClick: () => void handleToggleActive(member)
+                                }
+                              ]
+                            : []),
+                          {
+                            label: 'Delete',
+                            icon: Trash2,
+                            danger: true,
+                            onClick: () => void handleDelete(member)
+                          }
+                        ]}
+                      />
                     </div>
 
                     {qrFor === member.id ? (
@@ -684,12 +673,19 @@ export function MembersPage() {
                         {loginMessage ? <p className="text-sm text-[#22C55E]">{loginMessage}</p> : null}
                         <div>
                           <button
-                            className={buttonClass}
+                            className={primaryButtonClass}
                             type="button"
                             disabled={loginSaving}
                             onClick={() => void handleCreateLogin(member)}
                           >
                             {loginSaving ? 'Creating…' : 'Create login'}
+                          </button>
+                          <button
+                            className={ghostButtonClass}
+                            type="button"
+                            onClick={() => handleToggleLogin(member)}
+                          >
+                            Cancel
                           </button>
                         </div>
                       </div>
@@ -716,12 +712,19 @@ export function MembersPage() {
                         {linkMessage ? <p className="text-sm text-[#22C55E]">{linkMessage}</p> : null}
                         <div>
                           <button
-                            className={buttonClass}
+                            className={primaryButtonClass}
                             type="button"
                             disabled={linkSaving}
                             onClick={() => void handleLinkAccount(member)}
                           >
                             {linkSaving ? 'Linking…' : 'Link account'}
+                          </button>
+                          <button
+                            className={ghostButtonClass}
+                            type="button"
+                            onClick={() => handleToggleLink(member)}
+                          >
+                            Cancel
                           </button>
                         </div>
                       </div>
@@ -741,9 +744,16 @@ export function MembersPage() {
                               type="text"
                               inputMode="numeric"
                               autoComplete="off"
+                              autoFocus
                               maxLength={6}
                               value={pinValue}
                               onChange={(event) => setPinValue(event.target.value.replace(/\D/g, ''))}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  void handleSavePin(member);
+                                }
+                              }}
                             />
                           </label>
                         </div>
@@ -751,12 +761,20 @@ export function MembersPage() {
                         {pinMessage ? <p className="text-sm text-[#22C55E]">{pinMessage}</p> : null}
                         <div>
                           <button
-                            className={buttonClass}
+                            className={primaryButtonClass}
                             type="button"
                             disabled={pinSaving}
                             onClick={() => void handleSavePin(member)}
                           >
                             {pinSaving ? 'Saving…' : 'Save PIN'}
+                          </button>
+                          <button
+                            className={ghostButtonClass}
+                            type="button"
+                            disabled={pinSaving}
+                            onClick={() => handleTogglePin(member)}
+                          >
+                            Cancel
                           </button>
                         </div>
                       </div>

@@ -86,6 +86,18 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
   snapshot the price paid. NOTE: PowerShell `Set-Content -Encoding UTF8`
   adds a BOM that crashes Vite's PostCSS config load — write package.json
   with .NET `[System.IO.File]::WriteAllText` instead.
+- **v1.011** — UI overhaul (full spec restoration per `UI_DESIGN.md`):
+  Members + Payments rows collapsed their action walls into a "More" menu
+  (`apps/web/src/components/ui/RowMenu.tsx`, lucide-react icons), CTAs are
+  text-only with animated underline accents (`components/ui/buttonClasses.ts`),
+  and page/section descriptions got more breathing room (PageShell, SectionCard).
+  Actions moved into the menu: Member rows — Show/Hide QR, Set PIN, Create
+  login, Link existing, Pause/Resume, Cancel membership, Deactivate/Activate,
+  Delete (owner-gated where relevant); Invoice rows — Void (owner only).
+  Test note: RowMenu items are `role="menuitem"`, so tests query them with
+  `getByRole('menuitem', …)` after opening the row menu (`openRowMenu` /
+  `openInvoiceMenu` helpers). Menu items only render while open, so closed-menu
+  assertions use `queryByRole(...)toBeNull()`.
 - Migrations: `001`–`013`, `016`, `018`, `019`, `024`–`026` all applied to the
   live project. (`014`, `015`, `017` were deleted + marked reverted.)
 - Full suite: **234/234 (34 files)** including live integration tests. Build:

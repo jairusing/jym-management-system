@@ -4,6 +4,7 @@ import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Tabs } from '../../components/ui/Tabs';
+import { dangerButtonClass, ghostButtonClass, inputClass, primaryButtonClass } from '../../components/ui/buttonClasses';
 import { formatDate, formatDateTime, phDateAfter, phDateInDays, phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { toAttendanceCsv } from './attendanceCsv';
@@ -12,15 +13,6 @@ import { mockCheckInRepository, type CheckIn } from './checkInRepository';
 import { SupabaseCheckInRepository } from './supabaseCheckInRepository';
 import { mockMemberRepository, type Member } from '../members/memberRepository';
 import { SupabaseMemberRepository } from '../members/supabaseMemberRepository';
-
-const inputClass =
-  'border border-[#262626] bg-[#1A1A1A] px-4 py-3 text-base text-[#FAFAFA] outline-none transition-colors duration-150 focus:border-[#FF3D00]';
-
-const buttonClass =
-  'inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50';
-
-const ghostButtonClass =
-  'inline-flex items-center border border-[#262626] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#A3A3A3] transition-all duration-150 hover:text-[#FF3D00] disabled:opacity-50';
 
 const RECENT_COUNT = 5;
 const TODAY_LIST_CAP = 10;
@@ -316,10 +308,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
               />
             </label>
             <div className="flex flex-col gap-4 sm:flex-row">
-              <button className={buttonClass} type="button" onClick={() => setScanning(true)}>
+              <button className={primaryButtonClass} type="button" onClick={() => setScanning(true)}>
                 Scan QR
               </button>
-              <button className={buttonClass} type="button" disabled={qrCheckingIn} onClick={() => void handleQrCheckIn(qrCode)}>
+              <button className={primaryButtonClass} type="button" disabled={qrCheckingIn} onClick={() => void handleQrCheckIn(qrCode)}>
                 {qrCheckingIn ? 'Checking in…' : 'Check in via QR'}
               </button>
             </div>
@@ -352,7 +344,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
               </div>
               {pinError ? <p className="text-sm text-[#FF3D00]">{pinError}</p> : null}
               <div className="flex flex-wrap gap-2">
-                <button className={buttonClass} type="button" disabled={pinSaving} onClick={() => void handleSubmitPin()}>
+                <button className={primaryButtonClass} type="button" disabled={pinSaving} onClick={() => void handleSubmitPin()}>
                   {pinSaving ? 'Verifying…' : 'Verify PIN'}
                 </button>
                 <button
@@ -423,7 +415,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                           ) : null}
                         </div>
                         <button
-                          className={`${buttonClass} ${member.isActive && !expired?.blocked ? '' : 'border-[#262626] text-[#A3A3A3]'}`}
+                          className={primaryButtonClass}
                           type="button"
                           disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
                           onClick={() => void handleCheckIn(member)}
@@ -476,7 +468,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                           ) : null}
                         </div>
                         <button
-                          className={`${buttonClass} ${member.isActive && !expired?.blocked ? '' : 'border-[#262626] text-[#A3A3A3]'}`}
+                          className={primaryButtonClass}
                           type="button"
                           disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
                           onClick={() => void handleCheckIn(member)}
@@ -516,7 +508,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                       </span>
                     </p>
                     <button
-                      className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
+                      className={dangerButtonClass}
                       type="button"
                       disabled={deletingCheckInId === checkIn.id}
                       onClick={() => void handleDeleteCheckIn(checkIn)}
@@ -563,10 +555,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                 onChange={(event) => setHistoryTo(event.target.value)}
               />
             </label>
-            <button className={buttonClass} type="button" disabled={historyLoading} onClick={() => void loadHistory()}>
+            <button className={primaryButtonClass} type="button" disabled={historyLoading} onClick={() => void loadHistory()}>
               {historyLoading ? 'Loading…' : 'Load'}
             </button>
-            <button className={buttonClass} type="button" disabled={history.length === 0} onClick={handleExportCsv}>
+            <button className={primaryButtonClass} type="button" disabled={history.length === 0} onClick={handleExportCsv}>
               Export CSV
             </button>
           </div>
@@ -591,7 +583,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                       </span>
                     </p>
                     <button
-                      className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
+                      className={dangerButtonClass}
                       type="button"
                       disabled={deletingCheckInId === checkIn.id}
                       onClick={() => void handleDeleteCheckIn(checkIn)}

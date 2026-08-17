@@ -1,9 +1,12 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { Ban } from 'lucide-react';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
+import { RowMenu } from '../../components/ui/RowMenu';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Tabs } from '../../components/ui/Tabs';
+import { chipClass, ghostButtonClass, inputClass, primaryButtonClass } from '../../components/ui/buttonClasses';
 import { formatDate, formatDateTime, phDateInDays, phDateOf, phDateToday, PH_TIME_ZONE } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { mockInvoiceRepository, type Invoice, type Plan } from './invoiceRepository';
@@ -14,20 +17,6 @@ import { mockMemberRepository, type Member } from '../members/memberRepository';
 import { SupabaseMemberRepository } from '../members/supabaseMemberRepository';
 import { mockStaffRepository, type UserRole } from '../staff/staffRepository';
 import { SupabaseStaffRepository } from '../staff/supabaseStaffRepository';
-
-const inputClass =
-  'border border-[#262626] bg-[#1A1A1A] px-4 py-3 text-base text-[#FAFAFA] outline-none transition-colors duration-150 focus:border-[#FF3D00]';
-
-const buttonClass =
-  'inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50';
-
-const ghostButtonClass =
-  'inline-flex items-center border border-[#262626] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#A3A3A3] transition-all duration-150 hover:text-[#FF3D00] disabled:opacity-50';
-
-const chipClass = (selected: boolean) =>
-  `border px-3 py-1 text-xs font-semibold uppercase tracking-[0.1em] transition-colors duration-150 ${
-    selected ? 'border-[#FF3D00] text-[#FF3D00]' : 'border-[#262626] text-[#A3A3A3] hover:text-[#FAFAFA]'
-  }`;
 
 const PAGE_SIZE = 15;
 
@@ -392,7 +381,7 @@ export function PaymentsPage() {
               </div>
 
               <div>
-                <button className={buttonClass} type="submit" disabled={saving}>
+                <button className={primaryButtonClass} type="submit" disabled={saving}>
                   {saving ? 'Issuing…' : 'Issue invoice'}
                 </button>
               </div>
@@ -463,7 +452,7 @@ export function PaymentsPage() {
                               {status === 'issued' || status === 'overdue' ? (
                                 <>
                                   <button
-                                    className={buttonClass}
+                                    className={primaryButtonClass}
                                     type="button"
                                     onClick={() => {
                                       setPaymentFor(paymentFor === invoice.id ? null : invoice.id);
@@ -475,13 +464,16 @@ export function PaymentsPage() {
                                     {paymentFor === invoice.id ? 'Close' : 'Record payment'}
                                   </button>
                                   {myRole === 'owner' ? (
-                                    <button
-                                      className={`${buttonClass} border-[#262626] text-[#A3A3A3] hover:text-[#FF3D00]`}
-                                      type="button"
-                                      onClick={() => void handleVoid(invoice)}
-                                    >
-                                      Void
-                                    </button>
+                                    <RowMenu
+                                      items={[
+                                        {
+                                          label: 'Void',
+                                          icon: Ban,
+                                          danger: true,
+                                          onClick: () => void handleVoid(invoice)
+                                        }
+                                      ]}
+                                    />
                                   ) : null}
                                 </>
                               ) : null}
@@ -534,7 +526,7 @@ export function PaymentsPage() {
                               </div>
                               <div>
                                 <button
-                                  className={buttonClass}
+                                  className={primaryButtonClass}
                                   type="button"
                                   disabled={paying || amountMismatch}
                                   onClick={() => void handleRecordPayment(invoice)}

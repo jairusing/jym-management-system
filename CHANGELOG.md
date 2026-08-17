@@ -5,6 +5,27 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.011 — UI overhaul: spec restoration, "More" menus (2026-08-17)
+
+- Restores the Bold Typography design system from `docs/UI_DESIGN.md`:
+  primary CTAs are text-only with a restrained animated-underline accent
+  (new shared `buttonClasses.ts`), replacing the bordered button boxes that
+  had drifted from spec and left Members rows with a wall of identical
+  buttons.
+- Rare row actions collapsed into a **"More" overflow menu**
+  (`RowMenu.tsx`, lucide-react icons, keyboard/Escape + outside-click close,
+  `role="menu"/"menuitem"`):
+  - Members rows: Show/Hide QR, Set PIN, Create login, Link existing,
+    Pause/Resume, Cancel membership, Deactivate/Activate, Delete —
+    owner-gated where required.
+  - Invoice rows (Payments, owner only): Void.
+- Panels gained Cancel buttons (Create login, Link existing, Set PIN) and the
+  PIN input auto-focuses, submits on Enter, and still strips non-digits.
+- Breathing room: page headers and section descriptions get more space and
+  wrap wider (PageShell, SectionCard).
+- Verified: full suite 234/234 (34 files, live DB tests included);
+  TypeScript, ESLint (`--max-warnings=0`), and production build clean.
+
 ## v1.010 — Member check-in PINs (C2), A8 scope decision (2026-08-17)
 
 - Audit fix **C2** — check-ins can no longer be faked with a QR screenshot:

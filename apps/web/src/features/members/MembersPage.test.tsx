@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MembersPage } from './MembersPage';
@@ -22,6 +22,14 @@ function renderPage() {
       <MembersPage />
     </MemoryRouter>
   );
+}
+
+function openRowMenu(memberName: string) {
+  const row = screen.getByText(memberName).closest('li');
+  if (!row) {
+    throw new Error(`row for ${memberName} not found`);
+  }
+  fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'More' }));
 }
 
 afterEach(() => {
@@ -56,7 +64,8 @@ describe('MembersPage', () => {
     });
     expect(screen.getByText(/0917 123 4567/)).toBeTruthy();
     expect(screen.getByText(/Prefers morning sessions/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Deactivate' })).toBeTruthy();
+    openRowMenu('Juan Dela Cruz');
+    expect(screen.getByRole('menuitem', { name: 'Deactivate' })).toBeTruthy();
 
     const saved = await mockMemberRepository.listMembers();
     expect(saved.length).toBe(1);
@@ -119,7 +128,8 @@ describe('MembersPage', () => {
       expect(screen.getByText('Maria Santos')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set PIN' }));
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Set PIN' }));
     await waitFor(() => {
       expect(screen.getByLabelText('PIN')).toBeTruthy();
     });
@@ -148,7 +158,8 @@ describe('MembersPage', () => {
       expect(screen.getByText('Maria Santos')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set PIN' }));
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Set PIN' }));
     await waitFor(() => {
       expect(screen.getByLabelText('PIN')).toBeTruthy();
     });
@@ -183,21 +194,24 @@ describe('MembersPage', () => {
       expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Pause' }));
     expect(confirmSpy).toHaveBeenCalledWith(
       "Pause Maria Santos's membership (Monthly Pass until Aug 31, 2026)? Check-ins will be blocked until resumed."
     );
     await waitFor(() => {
       expect(screen.getByText('Paused (Monthly Pass)')).toBeTruthy();
     });
-    expect(screen.getByRole('button', { name: 'Resume' })).toBeTruthy();
+    openRowMenu('Maria Santos');
+    expect(screen.getByRole('menuitem', { name: 'Resume' })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Resume' }));
     await waitFor(() => {
       expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel membership' }));
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cancel membership' }));
     expect(confirmSpy).toHaveBeenCalledWith(
       "Cancel Maria Santos's membership (Monthly Pass until Aug 31, 2026)? This cannot be undone; a new payment starts a new membership."
     );
@@ -230,12 +244,13 @@ describe('MembersPage', () => {
       expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Pause' }));
 
     await waitFor(() => {
       expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
     });
-    expect(screen.queryByRole('button', { name: 'Resume' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Resume' })).toBeNull();
   });
 
   it('deactivates and reactivates a member', async () => {
@@ -253,16 +268,19 @@ describe('MembersPage', () => {
       expect(screen.getByText('Maria Santos')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Deactivate' }));
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Activate' })).toBeTruthy();
+      expect(screen.queryByRole('menuitem', { name: 'Activate' })).toBeNull();
     });
     const afterDeactivate = await mockMemberRepository.listMembers();
     expect(afterDeactivate[0]?.isActive).toBe(false);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Activate' }));
+    openRowMenu('Maria Santos');
+    expect(screen.getByRole('menuitem', { name: 'Activate' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Activate' }));
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Deactivate' })).toBeTruthy();
+      expect(screen.queryByRole('menuitem', { name: 'Deactivate' })).toBeNull();
     });
     const afterReactivate = await mockMemberRepository.listMembers();
     expect(afterReactivate[0]?.isActive).toBe(true);
@@ -289,13 +307,16 @@ describe('MembersPage', () => {
       expect(screen.getByText('Maria Santos')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Deactivate' }));
     expect(confirmSpy).toHaveBeenCalledWith(
       'Deactivate Maria Santos? They have an active Monthly Pass (until Aug 31, 2026) — check-ins will be blocked immediately.'
     );
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Activate' })).toBeTruthy();
+      expect(screen.queryByRole('menuitem', { name: 'Activate' })).toBeNull();
     });
+    openRowMenu('Maria Santos');
+    expect(screen.getByRole('menuitem', { name: 'Activate' })).toBeTruthy();
   });
 
   it('keeps the member active when deactivation is declined', async () => {
@@ -313,10 +334,13 @@ describe('MembersPage', () => {
       expect(screen.getByText('Maria Santos')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+    openRowMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Deactivate' }));
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Deactivate' })).toBeTruthy();
+      expect(screen.queryByRole('menuitem', { name: 'Deactivate' })).toBeNull();
     });
+    openRowMenu('Maria Santos');
+    expect(screen.getByRole('menuitem', { name: 'Deactivate' })).toBeTruthy();
     const saved = await mockMemberRepository.listMembers();
     expect(saved[0]?.isActive).toBe(true);
   });
@@ -336,7 +360,8 @@ describe('MembersPage', () => {
       expect(screen.getByText('Pedro Reyes')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    openRowMenu('Pedro Reyes');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
     await waitFor(() => {
       expect(screen.getByText(/no members yet/i)).toBeTruthy();
     });
@@ -359,7 +384,8 @@ describe('MembersPage', () => {
       expect(screen.getByText('Pedro Reyes')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    openRowMenu('Pedro Reyes');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
     await waitFor(() => {
       expect(screen.getByText('Pedro Reyes')).toBeTruthy();
     });
@@ -606,14 +632,16 @@ describe('MembersPage', () => {
       expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show QR' }));
+    openRowMenu('Juan Dela Cruz');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Show QR' }));
 
     await waitFor(() => {
       expect(screen.getByAltText(/QR code for Juan Dela Cruz/)).toBeTruthy();
     });
     expect(screen.getByText(/Member ID:/)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hide QR' }));
+    openRowMenu('Juan Dela Cruz');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hide QR' }));
     expect(screen.queryByAltText(/QR code for Juan Dela Cruz/)).toBeNull();
   });
 
@@ -632,7 +660,7 @@ describe('MembersPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Walk In Juan')).toBeTruthy();
     });
-    expect(screen.queryByRole('button', { name: 'Create login' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Create login' })).toBeNull();
   });
 
   it('creates a login for a walk-in member', async () => {
@@ -649,7 +677,8 @@ describe('MembersPage', () => {
       expect(screen.getByText('Walk In Juan')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create login' }));
+    openRowMenu('Walk In Juan');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Create login' }));
     expect((screen.getByLabelText('Login email') as HTMLInputElement).value).toBe('juan@example.com');
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
 
@@ -679,7 +708,8 @@ describe('MembersPage', () => {
       expect(screen.getByText('Walk In Juan')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create login' }));
+    openRowMenu('Walk In Juan');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Create login' }));
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'abc' } });
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'abc' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create login' }));
@@ -704,7 +734,8 @@ describe('MembersPage', () => {
       expect(screen.getByText('Walk In Juan')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create login' }));
+    openRowMenu('Walk In Juan');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Create login' }));
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret123' } });
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'different' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create login' }));
@@ -732,7 +763,8 @@ describe('MembersPage', () => {
       expect(screen.getByText('Walk In Juan')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create login' }));
+    openRowMenu('Walk In Juan');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Create login' }));
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret123' } });
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'secret123' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create login' }));
@@ -756,7 +788,7 @@ describe('MembersPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Maria Santos')).toBeTruthy();
     });
-    expect(screen.queryByRole('button', { name: 'Deactivate' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Deactivate' })).toBeNull();
   });
 
   it('lets staff reactivate an inactive member', async () => {
@@ -773,8 +805,10 @@ describe('MembersPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Activate' })).toBeTruthy();
+      expect(screen.getByText('Maria Santos')).toBeTruthy();
     });
+    openRowMenu('Maria Santos');
+    expect(screen.getByRole('menuitem', { name: 'Activate' })).toBeTruthy();
   });
 
   it('links an existing account to a walk-in member', async () => {
@@ -791,7 +825,8 @@ describe('MembersPage', () => {
       expect(screen.getByText('Walk In Juan')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Link existing' }));
+    openRowMenu('Walk In Juan');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Link existing' }));
     expect((screen.getByLabelText('Account email') as HTMLInputElement).value).toBe('juan@example.com');
     fireEvent.click(screen.getByRole('button', { name: 'Link account' }));
 
@@ -820,7 +855,8 @@ describe('MembersPage', () => {
       expect(screen.getByText('Walk In Juan')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Link existing' }));
+    openRowMenu('Walk In Juan');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Link existing' }));
     fireEvent.click(screen.getByRole('button', { name: 'Link account' }));
 
     await waitFor(() => {

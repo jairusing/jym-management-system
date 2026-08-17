@@ -174,14 +174,16 @@ export function PageShell({ title, eyebrow, description, children, hideNav = fal
       )}
 
       <main id="main" className="flex-1 px-6 py-16 sm:px-8 lg:px-12">
-        <div className="mx-auto flex max-w-5xl flex-col gap-8">
-          <header className="space-y-3 border-b border-[#262626] pb-8">
+        <div className="mx-auto flex max-w-5xl flex-col gap-10">
+          <header className="space-y-4 border-b border-[#262626] pb-10">
             {eyebrow ? <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#FF3D00]">{eyebrow}</p> : null}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-4">
               <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl lg:text-5xl">{title}</h1>
               <span className="border border-[#FF3D00] px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#FF3D00]">Beta</span>
             </div>
-            {description ? <p className="max-w-2xl text-base text-[#A3A3A3] sm:text-lg">{description}</p> : null}
+            {description ? (
+              <p className="max-w-3xl text-base leading-relaxed text-[#A3A3A3] sm:text-lg">{description}</p>
+            ) : null}
           </header>
           {children}
         </div>

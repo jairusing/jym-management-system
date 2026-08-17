@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
+import { primaryButtonClass } from '../../components/ui/buttonClasses';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { mockDashboardRepository, type DashboardView } from './dashboardRepository';
 import { SupabaseDashboardRepository } from './supabaseDashboardRepository';
-
-const buttonClass =
-  'inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50';
 
 function formatMoney(amount: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
@@ -106,7 +104,7 @@ export function DashboardPage() {
       </SectionCard>
 
       <div>
-        <a href="/app/checkins" className={buttonClass}>
+        <a href="/app/checkins" className={primaryButtonClass}>
           Record a check-in
         </a>
       </div>
