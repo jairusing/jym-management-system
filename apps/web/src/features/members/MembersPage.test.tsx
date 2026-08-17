@@ -219,6 +219,7 @@ describe('MembersPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Paused (Monthly Pass)')).toBeTruthy();
     });
+    expect(screen.getByText('Paused')).toBeTruthy();
     openRowMenu('Maria Santos');
     expect(screen.getByRole('menuitem', { name: 'Resume' })).toBeTruthy();
 
@@ -419,6 +420,158 @@ describe('MembersPage', () => {
     expect(screen.getByText('Pedro Reyes')).toBeTruthy();
     const saved = await mockMemberRepository.listMembers();
     expect(saved.length).toBe(1);
+  });
+
+  it('dismisses the confirmation modal when the backdrop is clicked', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Pedro Reyes',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Pedro Reyes')).toBeTruthy();
+    });
+
+    openRowMenu('Pedro Reyes');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('dialog'));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(screen.getByText('Pedro Reyes')).toBeTruthy();
+    const saved = await mockMemberRepository.listMembers();
+    expect(saved.length).toBe(1);
+  });
+
+  it('keeps only one row menu open at a time', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Maria Santos',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    await mockMemberRepository.createMember({
+      fullName: 'Pedro Reyes',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Maria Santos')).toBeTruthy();
+    });
+
+    openRowMenu('Maria Santos');
+    openRowMenu('Pedro Reyes');
+    const expanded = screen
+      .getAllByRole('button', { name: 'More' })
+      .filter((button) => button.getAttribute('aria-expanded') === 'true');
+    expect(expanded.length).toBe(1);
+    expect(screen.getAllByRole('menuitem', { name: 'Show QR' }).length).toBe(1);
+  });
+
+  it('submits the create-login panel with Enter', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Walk In Juan',
+      email: 'juan@example.com',
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Walk In Juan')).toBeTruthy();
+    });
+
+    openRowMenu('Walk In Juan');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Create login' }));
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret123' } });
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'secret123' } });
+    const form = screen.getByLabelText('Login email').closest('form');
+    if (!form) {
+      throw new Error('login form not found');
+    }
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Login created for juan@example.com/)).toBeTruthy();
+    });
+    expect(mockMemberAccountRepository.calls).toEqual([
+      { memberId: expect.stringMatching(/^member-/), email: 'juan@example.com', password: 'secret123' }
+    ]);
+  });
+
+  it('submits the link-account panel with Enter', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Walk In Juan',
+      email: 'juan@example.com',
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Walk In Juan')).toBeTruthy();
+    });
+
+    openRowMenu('Walk In Juan');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Link existing' }));
+    const form = screen.getByLabelText('Account email').closest('form');
+    if (!form) {
+      throw new Error('link form not found');
+    }
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Linked to juan@example.com/)).toBeTruthy();
+    });
+    expect(mockMemberAccountRepository.linkCalls).toEqual([
+      { memberId: expect.stringMatching(/^member-/), email: 'juan@example.com' }
+    ]);
+  });
+
+  it('keeps the modal open with the error when an action fails, then retries', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Pedro Reyes',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Pedro Reyes')).toBeTruthy();
+    });
+
+    vi.spyOn(mockMemberRepository, 'deleteMember').mockRejectedValueOnce(new Error('Network failure'));
+    openRowMenu('Pedro Reyes');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Network failure')).toBeTruthy();
+    });
+    expect(screen.queryByRole('dialog')).toBeTruthy();
+    expect(screen.queryByText(/no members yet/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(screen.getByText(/no members yet/i)).toBeTruthy();
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const saved = await mockMemberRepository.listMembers();
+    expect(saved.length).toBe(0);
   });
 
   it('shows an active membership plan and expiry', async () => {

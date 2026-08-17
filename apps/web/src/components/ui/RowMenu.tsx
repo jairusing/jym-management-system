@@ -13,11 +13,30 @@ export type RowMenuItem = {
 type RowMenuProps = {
   items: RowMenuItem[];
   label?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
-export function RowMenu({ items, label = 'More' }: RowMenuProps) {
-  const [open, setOpen] = useState(false);
+export function RowMenu({ items, label = 'More', open: openProp, onOpenChange }: RowMenuProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : internalOpen;
+  const setOpen = (next: boolean | ((current: boolean) => boolean)) => {
+    if (isControlled) {
+      onOpenChange?.(typeof next === 'function' ? next(open) : next);
+    } else {
+      setInternalOpen(next);
+    }
+  };
   const rootRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(() => setInternalOpen(false));
+  closeRef.current = () => {
+    if (isControlled) {
+      onOpenChange?.(false);
+    } else {
+      setInternalOpen(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) {
@@ -25,12 +44,12 @@ export function RowMenu({ items, label = 'More' }: RowMenuProps) {
     }
     const onPointerDown = (event: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
+        closeRef.current();
       }
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setOpen(false);
+        closeRef.current();
       }
     };
     document.addEventListener('mousedown', onPointerDown);

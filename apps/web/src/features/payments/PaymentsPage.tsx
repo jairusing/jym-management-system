@@ -88,6 +88,7 @@ export function PaymentsPage() {
   const [paying, setPaying] = useState(false);
 
   const [myRole, setMyRole] = useState<UserRole | null>(null);
+  const [openInvoiceMenu, setOpenInvoiceMenu] = useState<string | null>(null);
 
   useEffect(() => {
     const loadRole = async () => {
@@ -465,6 +466,8 @@ export function PaymentsPage() {
                                   </button>
                                   {myRole === 'owner' ? (
                                     <RowMenu
+                                      open={openInvoiceMenu === invoice.id}
+                                      onOpenChange={(next) => setOpenInvoiceMenu(next ? invoice.id : null)}
                                       items={[
                                         {
                                           label: 'Void',

@@ -5,6 +5,30 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.013 — Critique round 2: modal lifecycle, local errors, paused badge (2026-08-17)
+
+- ConfirmModal stays open while the operation runs: buttons disable with a
+  "Deleting…"/"Pausing…" pending label, it closes only on success, and
+  failures render inside the dialog (`role="alert"`) with the buttons
+  re-enabled so the user can retry or cancel. Escape is locked while pending.
+- Row-action failures no longer route through the Add-member card's shared
+  error state — destructive operations (deactivate, pause/resume/cancel,
+  delete) surface their errors in the modal where the user is looking.
+- Paused members now show an amber "Paused" status badge instead of a green
+  "Active" badge.
+- Only one "More" row menu can be open at a time — menu-open state is lifted
+  to the page (Members and Payments), so opening a second row's menu closes
+  the first.
+- ConfirmModal keyboard behavior: Tab focus is trapped inside the dialog,
+  the backdrop dismisses on click, `aria-describedby` wires the body copy,
+  and focus returns to the trigger after close when it is still in the page.
+- Login and Link-existing panels are real forms now — Enter submits them.
+- The Add-member card moved below the All-members list so the daily task
+  (lookup + row actions) is not pushed below the fold; empty-state copy and
+  panel scroll honor `prefers-reduced-motion`.
+- Verified: full suite 240/240 (34 files, live DB tests included);
+  TypeScript, ESLint (`--max-warnings=0`), and production build clean.
+
 ## v1.012 — Critique fixes: in-app confirms, no mock fallback, menu groups (2026-08-17)
 
 - Destructive confirmations (Delete, Cancel membership, Deactivate) moved

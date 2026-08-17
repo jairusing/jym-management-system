@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
   KeyRound,
   Link2,
@@ -65,6 +65,7 @@ type PendingConfirm = {
   title: string;
   body: string;
   confirmLabel: string;
+  pendingLabel: string;
   danger?: boolean;
   run: () => Promise<void>;
 };
@@ -75,6 +76,10 @@ export function MembersPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+  const [confirmPending, setConfirmPending] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
+  const confirmTriggerRef = useRef<HTMLElement | null>(null);
   const [qrFor, setQrFor] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<UserRole | null>(null);
@@ -222,21 +227,19 @@ export function MembersPage() {
     }
     const activeMembership =
       member.membership && member.membership.status === 'active' ? member.membership : null;
+    confirmTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setPendingConfirm({
       title: `Deactivate ${member.fullName}?`,
       body: activeMembership
         ? `They have an active ${activeMembership.planName} (until ${formatDate(activeMembership.endsAt)}) — check-ins will be blocked immediately.`
         : 'They will no longer be able to check in.',
       confirmLabel: 'Deactivate',
+      pendingLabel: 'Deactivating…',
       danger: true,
       run: async () => {
         const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
-        try {
-          await repo.setMemberActive(member.id, false);
-          await load();
-        } catch (e) {
-          setError(e instanceof Error ? e.message : 'Failed to update member.');
-        }
+        await repo.setMemberActive(member.id, false);
+        await load();
       }
     });
   };
@@ -256,39 +259,35 @@ export function MembersPage() {
       active: 'Resume',
       cancelled: 'Cancel membership'
     };
+    confirmTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setPendingConfirm({
       title: messages[status],
       body: status === 'cancelled'
         ? 'The member will be blocked from check-in. A new payment starts a fresh membership.'
         : '',
       confirmLabel: labels[status],
+      pendingLabel: labels[status] === 'Cancel membership' ? 'Cancelling…' : `${labels[status]}ing…`,
       danger: status === 'cancelled',
       run: async () => {
         const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
-        try {
-          await repo.setMembershipStatus(member.id, status);
-          await load();
-        } catch (e) {
-          setError(e instanceof Error ? e.message : 'Failed to update membership.');
-        }
+        await repo.setMembershipStatus(member.id, status);
+        await load();
       }
     });
   };
 
   const handleDelete = async (member: Member) => {
+    confirmTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setPendingConfirm({
       title: `Delete ${member.fullName}?`,
       body: 'This cannot be undone — their record, membership, and check-in history are removed permanently.',
       confirmLabel: 'Delete',
+      pendingLabel: 'Deleting…',
       danger: true,
       run: async () => {
         const repo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
-        try {
-          await repo.deleteMember(member.id);
-          await load();
-        } catch (e) {
-          setError(e instanceof Error ? e.message : 'Failed to delete member.');
-        }
+        await repo.deleteMember(member.id);
+        await load();
       }
     });
   };
@@ -331,6 +330,7 @@ export function MembersPage() {
     setLoginMessage(null);
     setLoginError(null);
     setQrFor(null);
+    setQrDataUrl(null);
     setLinkFor(null);
     setPinFor(null);
   };
@@ -382,6 +382,7 @@ export function MembersPage() {
     setLinkMessage(null);
     setLinkError(null);
     setQrFor(null);
+    setQrDataUrl(null);
     setLoginFor(null);
     setPinFor(null);
   };
@@ -423,6 +424,7 @@ export function MembersPage() {
     setPinError(null);
     setPinMessage(null);
     setQrFor(null);
+    setQrDataUrl(null);
     setLoginFor(null);
     setLinkFor(null);
   };
@@ -449,11 +451,48 @@ export function MembersPage() {
   const openPanel = qrFor ?? loginFor ?? linkFor ?? pinFor;
   useEffect(() => {
     if (openPanel) {
+      const reduceMotion =
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       document
         .getElementById(`member-panel-${openPanel}`)
-        ?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+        ?.scrollIntoView?.({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
     }
   }, [openPanel]);
+
+  const restoreConfirmFocus = () => {
+    const trigger = confirmTriggerRef.current;
+    if (trigger && trigger.isConnected) {
+      trigger.focus?.();
+    }
+    confirmTriggerRef.current = null;
+  };
+
+  const handleCancelConfirm = () => {
+    if (!confirmPending) {
+      setConfirmError(null);
+      setPendingConfirm(null);
+      restoreConfirmFocus();
+    }
+  };
+
+  const handleConfirm = async () => {
+    const current = pendingConfirm;
+    if (!current) {
+      return;
+    }
+    setConfirmPending(true);
+    setConfirmError(null);
+    try {
+      await current.run();
+      setPendingConfirm(null);
+      restoreConfirmFocus();
+    } catch (e) {
+      setConfirmError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+    } finally {
+      setConfirmPending(false);
+    }
+  };
 
   return (
     <PageShell
@@ -462,67 +501,6 @@ export function MembersPage() {
       description="Register and manage your gym members."
     >
       <BackLink to="/app" label="Back to dashboard" />
-
-      <SectionCard title="Add member" description="Register a new member (walk-ins can be added without an account).">
-        <form className="flex flex-col gap-4" onSubmit={handleCreate}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              <span>Full name</span>
-              <input
-                className={inputClass}
-                type="text"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span>Email</span>
-              <input
-                className={inputClass}
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span>Phone</span>
-              <input
-                className={inputClass}
-                type="tel"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span>Joined date</span>
-              <input
-                className={inputClass}
-                type="date"
-                value={joinedAt}
-                onChange={(event) => setJoinedAt(event.target.value)}
-                required
-              />
-            </label>
-          </div>
-          <label className="flex flex-col gap-2 text-sm">
-            <span>Notes</span>
-            <input
-              className={inputClass}
-              type="text"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-            />
-          </label>
-
-          {error ? <p className="text-sm text-[#FF3D00]">{error}</p> : null}
-
-          <div>
-            <button className={primaryButtonClass} type="submit" disabled={saving}>
-              {saving ? 'Adding…' : 'Add member'}
-            </button>
-          </div>
-        </form>
-      </SectionCard>
 
       <SectionCard title="All members" description={`${members.length} registered member${members.length === 1 ? '' : 's'}.`}>
         {loadError ? (
@@ -586,7 +564,7 @@ export function MembersPage() {
             {filteredMembers.length === 0 ? (
               <p className="text-sm text-[#A3A3A3]">
                 {members.length === 0
-                  ? 'No members yet. Add your first member above.'
+                  ? 'No members yet. Add your first member below.'
                   : 'No members match your filters.'}
               </p>
             ) : (
@@ -599,9 +577,15 @@ export function MembersPage() {
                     <div className="min-w-0">
                       <p className="text-base font-medium text-[#FAFAFA]">
                         {member.fullName}
-                        <StatusBadge tone={member.isActive ? 'good' : 'bad'} className="ml-3">
-                          {member.isActive ? 'Active' : 'Inactive'}
-                        </StatusBadge>
+                        {member.membership?.status === 'paused' ? (
+                          <StatusBadge tone="warning" className="ml-3">
+                            Paused
+                          </StatusBadge>
+                        ) : (
+                          <StatusBadge tone={member.isActive ? 'good' : 'bad'} className="ml-3">
+                            {member.isActive ? 'Active' : 'Inactive'}
+                          </StatusBadge>
+                        )}
                       </p>
                       <p className="mt-1 text-sm text-[#A3A3A3]">
                         Joined {formatWhen(member.joinedAt)}
@@ -626,6 +610,8 @@ export function MembersPage() {
                         Statement
                       </a>
                       <RowMenu
+                        open={openMenuFor === member.id}
+                        onOpenChange={(next) => setOpenMenuFor(next ? member.id : null)}
                         items={[
                           {
                             label: qrFor === member.id ? 'Hide QR' : 'Show QR',
@@ -727,54 +713,61 @@ export function MembersPage() {
                           Create a login so this member can sign in, check in, book classes, and see their own
                           statement.
                         </p>
-                        <div className="grid gap-4 sm:grid-cols-3">
-                          <label className="flex flex-col gap-2 text-sm">
-                            <span>Login email</span>
-                            <input
-                              className={inputClass}
-                              type="email"
-                              value={loginEmail}
-                              onChange={(event) => setLoginEmail(event.target.value)}
-                            />
-                          </label>
-                          <label className="flex flex-col gap-2 text-sm">
-                            <span>Password</span>
-                            <input
-                              className={inputClass}
-                              type="password"
-                              value={loginPassword}
-                              onChange={(event) => setLoginPassword(event.target.value)}
-                            />
-                          </label>
-                          <label className="flex flex-col gap-2 text-sm">
-                            <span>Confirm password</span>
-                            <input
-                              className={inputClass}
-                              type="password"
-                              value={loginConfirm}
-                              onChange={(event) => setLoginConfirm(event.target.value)}
-                            />
-                          </label>
-                        </div>
-                        {loginError ? <p className="text-sm text-[#FF3D00]">{loginError}</p> : null}
-                        {loginMessage ? <p className="text-sm text-[#22C55E]">{loginMessage}</p> : null}
-                        <div>
-                          <button
-                            className={primaryButtonClass}
-                            type="button"
-                            disabled={loginSaving}
-                            onClick={() => void handleCreateLogin(member)}
-                          >
-                            {loginSaving ? 'Creating…' : 'Create login'}
-                          </button>
-                          <button
-                            className={ghostButtonClass}
-                            type="button"
-                            onClick={() => handleToggleLogin(member)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                        <form
+                          className="flex flex-col gap-4"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void handleCreateLogin(member);
+                          }}
+                        >
+                          <div className="grid gap-4 sm:grid-cols-3">
+                            <label className="flex flex-col gap-2 text-sm">
+                              <span>Login email</span>
+                              <input
+                                className={inputClass}
+                                type="email"
+                                value={loginEmail}
+                                onChange={(event) => setLoginEmail(event.target.value)}
+                              />
+                            </label>
+                            <label className="flex flex-col gap-2 text-sm">
+                              <span>Password</span>
+                              <input
+                                className={inputClass}
+                                type="password"
+                                value={loginPassword}
+                                onChange={(event) => setLoginPassword(event.target.value)}
+                              />
+                            </label>
+                            <label className="flex flex-col gap-2 text-sm">
+                              <span>Confirm password</span>
+                              <input
+                                className={inputClass}
+                                type="password"
+                                value={loginConfirm}
+                                onChange={(event) => setLoginConfirm(event.target.value)}
+                              />
+                            </label>
+                          </div>
+                          {loginError ? <p className="text-sm text-[#FF3D00]">{loginError}</p> : null}
+                          {loginMessage ? <p className="text-sm text-[#22C55E]">{loginMessage}</p> : null}
+                          <div>
+                            <button
+                              className={primaryButtonClass}
+                              type="submit"
+                              disabled={loginSaving}
+                            >
+                              {loginSaving ? 'Creating…' : 'Create login'}
+                            </button>
+                            <button
+                              className={ghostButtonClass}
+                              type="button"
+                              onClick={() => handleToggleLogin(member)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
                       </div>
                     ) : null}
 
@@ -784,36 +777,43 @@ export function MembersPage() {
                           Link an existing account to this member — use this when they already signed up on
                           their own and have an account, but it is not connected to their member record.
                         </p>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <label className="flex flex-col gap-2 text-sm">
-                            <span>Account email</span>
-                            <input
-                              className={inputClass}
-                              type="email"
-                              value={linkEmail}
-                              onChange={(event) => setLinkEmail(event.target.value)}
-                            />
-                          </label>
-                        </div>
-                        {linkError ? <p className="text-sm text-[#FF3D00]">{linkError}</p> : null}
-                        {linkMessage ? <p className="text-sm text-[#22C55E]">{linkMessage}</p> : null}
-                        <div>
-                          <button
-                            className={primaryButtonClass}
-                            type="button"
-                            disabled={linkSaving}
-                            onClick={() => void handleLinkAccount(member)}
-                          >
-                            {linkSaving ? 'Linking…' : 'Link account'}
-                          </button>
-                          <button
-                            className={ghostButtonClass}
-                            type="button"
-                            onClick={() => handleToggleLink(member)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                        <form
+                          className="flex flex-col gap-4"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void handleLinkAccount(member);
+                          }}
+                        >
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <label className="flex flex-col gap-2 text-sm">
+                              <span>Account email</span>
+                              <input
+                                className={inputClass}
+                                type="email"
+                                value={linkEmail}
+                                onChange={(event) => setLinkEmail(event.target.value)}
+                              />
+                            </label>
+                          </div>
+                          {linkError ? <p className="text-sm text-[#FF3D00]">{linkError}</p> : null}
+                          {linkMessage ? <p className="text-sm text-[#22C55E]">{linkMessage}</p> : null}
+                          <div>
+                            <button
+                              className={primaryButtonClass}
+                              type="submit"
+                              disabled={linkSaving}
+                            >
+                              {linkSaving ? 'Linking…' : 'Link account'}
+                            </button>
+                            <button
+                              className={ghostButtonClass}
+                              type="button"
+                              onClick={() => handleToggleLink(member)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
                       </div>
                     ) : null}
 
@@ -900,18 +900,78 @@ export function MembersPage() {
         )}
       </SectionCard>
 
+      <SectionCard title="Add member" description="Register a new member (walk-ins can be added without an account).">
+        <form className="flex flex-col gap-4" onSubmit={handleCreate}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-2 text-sm">
+              <span>Full name</span>
+              <input
+                className={inputClass}
+                type="text"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span>Email</span>
+              <input
+                className={inputClass}
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span>Phone</span>
+              <input
+                className={inputClass}
+                type="tel"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span>Joined date</span>
+              <input
+                className={inputClass}
+                type="date"
+                value={joinedAt}
+                onChange={(event) => setJoinedAt(event.target.value)}
+                required
+              />
+            </label>
+          </div>
+          <label className="flex flex-col gap-2 text-sm">
+            <span>Notes</span>
+            <input
+              className={inputClass}
+              type="text"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </label>
+
+          {error ? <p className="text-sm text-[#FF3D00]">{error}</p> : null}
+
+          <div>
+            <button className={primaryButtonClass} type="submit" disabled={saving}>
+              {saving ? 'Adding…' : 'Add member'}
+            </button>
+          </div>
+        </form>
+      </SectionCard>
+
       {pendingConfirm ? (
         <ConfirmModal
           title={pendingConfirm.title}
           body={pendingConfirm.body}
           confirmLabel={pendingConfirm.confirmLabel}
+          pendingLabel={pendingConfirm.pendingLabel}
           danger={pendingConfirm.danger}
-          onCancel={() => setPendingConfirm(null)}
-          onConfirm={() => {
-            const run = pendingConfirm.run;
-            setPendingConfirm(null);
-            void run();
-          }}
+          pending={confirmPending}
+          error={confirmError}
+          onCancel={handleCancelConfirm}
+          onConfirm={() => void handleConfirm()}
         />
       ) : null}
     </PageShell>
