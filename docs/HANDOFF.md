@@ -159,11 +159,27 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    initial load and asserts `queryByRole('status')` is null while
    `getByRole('alert')` shows the failure; both forms carry `aria-label` for
    `getByRole('form', { name })` queries.
+- **v1.016** — critique round 8 (Payments re-critique P0+P1s + approved
+   P2s): void is now the shared ConfirmModal (danger, "Voiding…" pending,
+   in-dialog error, focus restore) — `window.confirm` is gone; the two
+   tests that spied on it now drive the real dialog (confirm + cancel).
+   Success feedback is actually wired — `setSuccess` was never assigned, so
+   success was structurally impossible; now issue/record/void announce in
+   `role="status"` lines inside the working cards (issue card + list card).
+   Supabase load failure no longer falls back to fabricated mock money:
+   real error + Retry (Members pattern), and the Payments tab shows the
+   same honest state instead of "No payments yet". Row "Record payment"
+   demoted to ghost (One Voice Rule); void RowMenu passes its `id` so focus
+   restores to the trigger; member select recalls the member after issuing
+   and sorts options by name. Test notes: `vi.hoisted` mutable
+   `supabaseConfig` + mocked Supabase repo classes (Members pattern) for
+   the load-error/Retry test; feedback assertions use `getAllByText` since
+   the banner renders in two cards at once.
 - Migrations: `001`–`013`, `016`, `018`, `019`, `024`–`026` all applied to the
-  live project. (`014`, `015`, `017` were deleted + marked reverted.)
-- Full suite: **249/249 (34 files)** including live integration tests. Build:
-  `tsc -b && vite build` clean. Deployed via Vercel auto-deploy on push to
-  main → https://jym-management-system.vercel.app/
+   live project. (`014`, `015`, `017` were deleted + marked reverted.)
+- Full suite: **250/250 (34 files)** including live integration tests. Build:
+   `tsc -b && vite build` clean. Deployed via Vercel auto-deploy on push to
+   main → https://jym-management-system.vercel.app/
 
 ## Rules and conventions (the ones that cost us time)
 
@@ -216,7 +232,7 @@ database-enforced invariants, RLS + live tests, Manila timezone correctness.
 
 ## Verification commands (from `apps/web`)
 
-- `npx vitest run` (with env vars above for full 249/249)
+- `npx vitest run` (with env vars above for full 250/250)
 - `npm run build` (tsc -b + vite build)
 
 ## Key files

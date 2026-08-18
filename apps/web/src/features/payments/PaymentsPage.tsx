@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Ban } from 'lucide-react';
 import { BackLink } from '../../components/ui/BackLink';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PageShell } from '../../components/ui/PageShell';
 import { RowMenu } from '../../components/ui/RowMenu';
 import { SectionCard } from '../../components/ui/SectionCard';
@@ -45,6 +46,15 @@ function formatMoney(amount: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
 }
 
+function StatusLine({ error, success }: { error: string | null; success: string | null }) {
+  return (
+    <>
+      {error ? <p role="alert" className="mb-4 text-sm text-[#FF3D00]">{error}</p> : null}
+      {success ? <p role="status" className="mb-4 text-sm text-[#FAFAFA]">{success}</p> : null}
+    </>
+  );
+}
+
 function displayStatus(invoice: Invoice) {
   if (invoice.status === 'issued' && invoice.dueAt && invoice.dueAt < today()) {
     return 'overdue';
@@ -72,6 +82,7 @@ export function PaymentsPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(hasSupabaseConfig);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -87,6 +98,10 @@ export function PaymentsPage() {
   const [payReference, setPayReference] = useState('');
   const [paying, setPaying] = useState(false);
 
+  const [pendingVoid, setPendingVoid] = useState<Invoice | null>(null);
+  const [voidPending, setVoidPending] = useState(false);
+  const [voidError, setVoidError] = useState<string | null>(null);
+
   const [myRole, setMyRole] = useState<UserRole | null>(null);
   const [openInvoiceMenu, setOpenInvoiceMenu] = useState<string | null>(null);
 
@@ -97,6 +112,16 @@ export function PaymentsPage() {
     };
     void loadRole();
   }, []);
+
+  const showError = (message: string) => {
+    setError(message);
+    setSuccess(null);
+  };
+
+  const showSuccess = (message: string) => {
+    setSuccess(message);
+    setError(null);
+  };
 
   const load = async () => {
     if (!hasSupabaseConfig) {
@@ -110,6 +135,7 @@ export function PaymentsPage() {
     const invoiceRepo = new SupabaseInvoiceRepository();
     const paymentRepo = new SupabasePaymentRepository();
     const memberRepo = new SupabaseMemberRepository();
+    setLoadError(null);
     try {
       const [loadedInvoices, loadedPayments, loadedMembers, loadedPlans] = await Promise.all([
         invoiceRepo.listInvoices(),
@@ -123,10 +149,7 @@ export function PaymentsPage() {
       setPlans(loadedPlans);
     } catch (e) {
       console.warn('Failed to load payment data from Supabase', e);
-      setInvoices(await mockInvoiceRepository.listInvoices());
-      setPayments(await mockPaymentRepository.listPayments());
-      setMembers(await mockMemberRepository.listMembers());
-      setPlans(await mockInvoiceRepository.listPlans());
+      setLoadError(e instanceof Error ? e.message : 'Failed to load payments data.');
     } finally {
       setLoading(false);
     }
@@ -156,11 +179,11 @@ export function PaymentsPage() {
 
     const member = members.find((candidate) => candidate.id === memberId);
     if (!member) {
-      setError('Select a member for the invoice.');
+      showError('Select a member for the invoice.');
       return;
     }
     if (dueAt && dueAt < phDateToday()) {
-      setError('Due date cannot be in the past.');
+      showError('Due date cannot be in the past.');
       return;
     }
 
@@ -174,13 +197,13 @@ export function PaymentsPage() {
         dueAt: dueAt || null,
         planId: planId || null
       });
-      setMemberId('');
       setPlanId('');
       setTotal('');
       setDueAt('');
       await load();
+      showSuccess('Invoice issued.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to issue invoice.');
+      showError(e instanceof Error ? e.message : 'Failed to issue invoice.');
     } finally {
       setSaving(false);
     }
@@ -188,7 +211,7 @@ export function PaymentsPage() {
 
   const handleRecordPayment = async (invoice: Invoice) => {
     if (!payAmount) {
-      setError('Enter a payment amount.');
+      showError('Enter a payment amount.');
       return;
     }
     const repo = hasSupabaseConfig ? new SupabasePaymentRepository() : mockPaymentRepository;
@@ -207,29 +230,36 @@ export function PaymentsPage() {
       });
       setPaymentFor(null);
       await load();
+      showSuccess('Payment recorded.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to record payment.');
+      showError(e instanceof Error ? e.message : 'Failed to record payment.');
     } finally {
       setPaying(false);
     }
   };
 
-  const handleVoid = async (invoice: Invoice) => {
-    if (
-      !window.confirm(
-        `Void ${invoice.invoiceNumber} (${formatMoney(invoice.total)})? This cannot be undone.`
-      )
-    ) {
+  const handleVoid = (invoice: Invoice) => {
+    setPendingVoid(invoice);
+    setVoidError(null);
+  };
+
+  const handleConfirmVoid = async () => {
+    const invoice = pendingVoid;
+    if (!invoice) {
       return;
     }
     const repo = hasSupabaseConfig ? new SupabaseInvoiceRepository() : mockInvoiceRepository;
-    setError(null);
-    setSuccess(null);
+    setVoidPending(true);
+    setVoidError(null);
     try {
       await repo.voidInvoice(invoice.id);
+      setPendingVoid(null);
       await load();
+      showSuccess(`Invoice ${invoice.invoiceNumber} voided.`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to void invoice.');
+      setVoidError(e instanceof Error ? e.message : 'Failed to void invoice.');
+    } finally {
+      setVoidPending(false);
     }
   };
 
@@ -266,6 +296,8 @@ export function PaymentsPage() {
     .sort()
     .map((name) => ({ name, today: staffTotalsToday.get(name) ?? 0, month: staffTotalsMonth.get(name) ?? 0 }));
 
+  const sortedMembers = [...members].sort((a, b) => a.fullName.localeCompare(b.fullName));
+
   const filteredInvoices =
     invoiceFilter === 'all' ? invoices : invoices.filter((invoice) => displayStatus(invoice) === invoiceFilter);
   const invoiceTotalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
@@ -286,9 +318,6 @@ export function PaymentsPage() {
       description="Issue invoices and record payments. Record-only — no payment processor."
     >
       <BackLink to="/app" label="Back to dashboard" />
-
-      {error ? <p className="text-sm text-[#FF3D00]">{error}</p> : null}
-      {success ? <p className="text-sm text-[#FAFAFA]">{success}</p> : null}
 
       <SectionCard title="Summary" description="At-a-glance money picture for the front desk.">
         <div className="grid gap-6 sm:grid-cols-3">
@@ -325,6 +354,7 @@ export function PaymentsPage() {
       {tab === 'invoices' ? (
         <>
           <SectionCard title="Issue invoice" description="Create a record-only invoice for a member. Select a plan to renew membership on payment.">
+            <StatusLine error={error} success={success} />
             <form className="flex flex-col gap-4" onSubmit={handleCreateInvoice}>
               <div className="grid gap-4 sm:grid-cols-4">
                 <label className="flex flex-col gap-2 text-sm">
@@ -335,7 +365,7 @@ export function PaymentsPage() {
                     onChange={(event) => setMemberId(event.target.value)}
                   >
                     <option value="">Select a member…</option>
-                    {members.map((member) => (
+                    {sortedMembers.map((member) => (
                       <option key={member.id} value={member.id}>
                         {member.fullName}
                       </option>
@@ -390,8 +420,16 @@ export function PaymentsPage() {
           </SectionCard>
 
           <SectionCard title="Invoices" description={`${invoices.length} invoice${invoices.length === 1 ? '' : 's'}.`}>
+            <StatusLine error={error} success={success} />
             {loading ? (
               <p className="text-sm text-[#A3A3A3]">Loading…</p>
+            ) : loadError ? (
+              <div className="flex flex-col items-start gap-4">
+                <p role="alert" className="text-sm text-[#FF3D00]">{loadError}</p>
+                <button className={primaryButtonClass} type="button" onClick={() => void load()}>
+                  Retry
+                </button>
+              </div>
             ) : (
               <>
                 <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -453,7 +491,7 @@ export function PaymentsPage() {
                               {status === 'issued' || status === 'overdue' ? (
                                 <>
                                   <button
-                                    className={primaryButtonClass}
+                                    className={ghostButtonClass}
                                     type="button"
                                     onClick={() => {
                                       setPaymentFor(paymentFor === invoice.id ? null : invoice.id);
@@ -466,6 +504,7 @@ export function PaymentsPage() {
                                   </button>
                                   {myRole === 'owner' ? (
                                     <RowMenu
+                                      id={`invoice-menu-${invoice.id}`}
                                       open={openInvoiceMenu === invoice.id}
                                       onOpenChange={(next) => setOpenInvoiceMenu(next ? invoice.id : null)}
                                       items={[
@@ -473,7 +512,7 @@ export function PaymentsPage() {
                                           label: 'Void',
                                           icon: Ban,
                                           danger: true,
-                                          onClick: () => void handleVoid(invoice)
+                                          onClick: () => handleVoid(invoice)
                                         }
                                       ]}
                                     />
@@ -576,8 +615,16 @@ export function PaymentsPage() {
         </>
       ) : (
         <SectionCard title="Payments" description={`${payments.length} recorded payment${payments.length === 1 ? '' : 's'}.`}>
+          <StatusLine error={error} success={success} />
           {loading ? (
             <p className="text-sm text-[#A3A3A3]">Loading…</p>
+          ) : loadError ? (
+            <div className="flex flex-col items-start gap-4">
+              <p role="alert" className="text-sm text-[#FF3D00]">{loadError}</p>
+              <button className={primaryButtonClass} type="button" onClick={() => void load()}>
+                Retry
+              </button>
+            </div>
           ) : payments.length === 0 ? (
             <p className="text-sm text-[#A3A3A3]">No payments recorded yet.</p>
           ) : (
@@ -647,6 +694,24 @@ export function PaymentsPage() {
           </div>
         </SectionCard>
       )}
+
+      {pendingVoid ? (
+        <ConfirmModal
+          title="Void invoice"
+          body={`Void ${pendingVoid.invoiceNumber} (${formatMoney(pendingVoid.total)})? This cannot be undone.`}
+          confirmLabel="Void invoice"
+          pendingLabel="Voiding…"
+          danger
+          pending={voidPending}
+          error={voidError}
+          onConfirm={() => void handleConfirmVoid()}
+          onCancel={() => {
+            if (!voidPending) {
+              setPendingVoid(null);
+            }
+          }}
+        />
+      ) : null}
     </PageShell>
   );
 }

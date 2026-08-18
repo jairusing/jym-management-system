@@ -5,13 +5,37 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { phDateInDays, phDateToday } from '../../lib/dates';
 import { PaymentsPage } from './PaymentsPage';
 import { mockInvoiceRepository } from './invoiceRepository';
+import { SupabaseInvoiceRepository } from './supabaseInvoiceRepository';
 import { mockPaymentRepository } from './paymentRepository';
+import { SupabasePaymentRepository } from './supabasePaymentRepository';
 import { mockMemberRepository } from '../members/memberRepository';
+import { SupabaseMemberRepository } from '../members/supabaseMemberRepository';
 import { mockStaffRepository } from '../staff/staffRepository';
+import { SupabaseStaffRepository } from '../staff/supabaseStaffRepository';
+
+const supabaseConfig = vi.hoisted(() => ({ hasSupabaseConfig: false }));
 
 vi.mock('../../lib/supabase', () => ({
-  hasSupabaseConfig: false,
+  get hasSupabaseConfig() {
+    return supabaseConfig.hasSupabaseConfig;
+  },
   supabase: null
+}));
+
+vi.mock('./supabaseInvoiceRepository', () => ({
+  SupabaseInvoiceRepository: vi.fn()
+}));
+
+vi.mock('./supabasePaymentRepository', () => ({
+  SupabasePaymentRepository: vi.fn()
+}));
+
+vi.mock('../members/supabaseMemberRepository', () => ({
+  SupabaseMemberRepository: vi.fn()
+}));
+
+vi.mock('../staff/supabaseStaffRepository', () => ({
+  SupabaseStaffRepository: vi.fn()
 }));
 
 function renderPage() {
@@ -54,6 +78,12 @@ afterEach(() => {
   mockInvoiceRepository.reset();
   mockPaymentRepository.reset();
   mockStaffRepository.reset();
+  supabaseConfig.hasSupabaseConfig = false;
+  vi.mocked(SupabaseInvoiceRepository).mockReset();
+  vi.mocked(SupabasePaymentRepository).mockReset();
+  vi.mocked(SupabaseMemberRepository).mockReset();
+  vi.mocked(SupabaseStaffRepository).mockReset();
+  vi.restoreAllMocks();
 });
 
 describe('PaymentsPage', () => {
@@ -84,9 +114,11 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('issued')).toBeTruthy();
     });
+    expect(screen.getAllByText('Invoice issued.').length).toBeGreaterThan(0);
     expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
     expect(screen.getByText(/· ₱1,500\.00 · issued/)).toBeTruthy();
     expect(screen.getAllByText(/^INV-/).length).toBe(1);
+    expect((screen.getByLabelText('Member') as HTMLSelectElement).value).toBe(member?.id);
 
     const saved = await mockInvoiceRepository.listInvoices();
     expect(saved.length).toBe(1);
@@ -124,7 +156,7 @@ describe('PaymentsPage', () => {
     fireEvent.submit(container.querySelector('form') as HTMLFormElement);
 
     await waitFor(() => {
-      expect(screen.getByText('Due date cannot be in the past.')).toBeTruthy();
+      expect(screen.getAllByText('Due date cannot be in the past.').length).toBeGreaterThan(0);
     });
     const saved = await mockInvoiceRepository.listInvoices();
     expect(saved.length).toBe(0);
@@ -156,6 +188,7 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('paid')).toBeTruthy();
     });
+    expect(screen.getAllByText('Payment recorded.').length).toBeGreaterThan(0);
 
     goToTab('Payments');
     expect(screen.getByText(/1,500\.00 · gcash/)).toBeTruthy();
@@ -173,7 +206,6 @@ describe('PaymentsPage', () => {
   });
 
   it('voids an issued invoice after confirmation', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const member = await seedMember();
     renderPage();
 
@@ -190,17 +222,21 @@ describe('PaymentsPage', () => {
     openInvoiceMenu('Juan Dela Cruz');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Void' }));
 
+    const dialog = await screen.findByRole('dialog', { name: 'Void invoice' });
+    expect(within(dialog).getByText(/This cannot be undone/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Void invoice' }));
+
     await waitFor(() => {
       expect(screen.getByText('void')).toBeTruthy();
     });
     expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull();
+    expect(screen.getAllByText(/invoice .* voided\./i).length).toBeGreaterThan(0);
 
     const saved = await mockInvoiceRepository.listInvoices();
     expect(saved[0]?.status).toBe('void');
   });
 
-  it('keeps the invoice when void is declined', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('keeps the invoice when void is cancelled', async () => {
     await mockInvoiceRepository.createInvoice({
       memberId: 'member-1',
       memberName: 'Maria Santos',
@@ -214,6 +250,12 @@ describe('PaymentsPage', () => {
     });
     openInvoiceMenu('Maria Santos');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Void' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Void invoice' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
@@ -470,5 +512,55 @@ describe('PaymentsPage', () => {
       expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
     });
     expect(screen.queryByRole('menuitem', { name: 'Void' })).toBeNull();
+  });
+
+  it('shows a load error with Retry instead of mock data when Supabase fails', async () => {
+    supabaseConfig.hasSupabaseConfig = true;
+    const listInvoices = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Network failure'))
+      .mockResolvedValueOnce([
+        {
+          id: 'invoice-1',
+          invoiceNumber: 'INV-1001',
+          memberId: 'member-1',
+          memberName: 'Juan Dela Cruz',
+          planId: null,
+          planName: null,
+          total: 1000,
+          status: 'issued',
+          issuedAt: '2026-08-01T00:00:00+08:00',
+          dueAt: null,
+          paidAt: null
+        }
+      ]);
+    const listPlans = vi.fn().mockResolvedValue([]);
+    const listPayments = vi.fn().mockResolvedValue([]);
+    const listMembers = vi.fn().mockResolvedValue([]);
+    vi.mocked(SupabaseInvoiceRepository).mockImplementation(
+      () => ({ listInvoices, listPlans }) as unknown as SupabaseInvoiceRepository
+    );
+    vi.mocked(SupabasePaymentRepository).mockImplementation(
+      () => ({ listPayments }) as unknown as SupabasePaymentRepository
+    );
+    vi.mocked(SupabaseMemberRepository).mockImplementation(
+      () => ({ listMembers }) as unknown as SupabaseMemberRepository
+    );
+    vi.mocked(SupabaseStaffRepository).mockImplementation(
+      () => ({ getMyRole: vi.fn(async () => 'owner') }) as unknown as SupabaseStaffRepository
+    );
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Network failure/)).toBeTruthy();
+    });
+    expect(screen.queryByText(/no invoices yet/i)).toBeNull();
+    expect(screen.queryByText(/^INV-/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => {
+      expect(screen.getByText('INV-1001')).toBeTruthy();
+    });
+    expect(screen.queryByText(/Network failure/)).toBeNull();
   });
 });

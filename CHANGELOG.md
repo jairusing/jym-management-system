@@ -5,6 +5,34 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.016 — Critique round 8: Payments void dialog, honest failures, real success feedback (2026-08-18)
+
+- Voiding an invoice now uses the shared ConfirmModal (danger variant) with
+  focus restore, in-dialog pending ("Voiding…") and in-dialog error instead
+  of the browser `window.confirm` — a 5-line "can we really void money"
+  moment is now an unskippable, accessible confirmation. The two tests that
+  spied on `window.confirm` now drive the real dialog (confirm + cancel
+  paths, plus the dialog body's "cannot be undone" copy).
+- Success feedback actually fires now: issuing an invoice, recording a
+  payment, and voiding each announce ("Invoice issued." / "Payment
+  recorded." / "Invoice INV-… voided.") in `role="status"` live regions
+  inside the working cards. Previously `setSuccess` was never assigned —
+  success was structurally impossible.
+- In Supabase mode a failed load no longer silently falls back to fabricated
+  mock money: the page shows the real error with a Retry button and stays
+  honest (no fake invoices/payments, no lying "No payments yet"). Members'
+  Retry pattern, applied here.
+- The row-level "Record payment" button is demoted to ghost styling — only
+  the confirm payment button inside the panel is primary (One Voice Rule;
+  previously 15 vermillion CTAs at row scale).
+- The void menu trigger now passes its `id` to RowMenu, so closing the menu
+  restores focus to the trigger instead of `<body>`.
+- Member select recall: the member stays selected after issuing an invoice
+  (front desk usually issues several invoices to one member in a row), and
+  member options are sorted by name.
+- Verified: full suite 250/250 (34 files, 182 runnable + 68 skipped live DB
+  tests), lint/tsc/build clean, detector scan 0 findings.
+
 ## v1.015 — Critique round 7: feedback at the action, modal focus, Enter-to-check-in (2026-08-18)
 
 - Success/error feedback moved out of the page top into the card the user is
