@@ -19,6 +19,15 @@ const RECENT_COUNT = 5;
 const TODAY_LIST_CAP = 10;
 const HISTORY_CAP = 200;
 
+function StatusLine({ error, success }: { error: string | null; success: string | null }) {
+  return (
+    <>
+      {error ? <p role="alert" className="mb-4 text-sm text-[#FF3D00]">{error}</p> : null}
+      {success ? <p role="status" className="mb-4 text-sm text-[#FAFAFA]">{success}</p> : null}
+    </>
+  );
+}
+
 export function CheckInsPage() {
   const [tab, setTab] = useState<'checkin' | 'today' | 'history'>('checkin');
   const [members, setMembers] = useState<Member[]>([]);
@@ -43,6 +52,16 @@ export function CheckInsPage() {
   const [pinValue, setPinValue] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
   const [pinSaving, setPinSaving] = useState(false);
+
+  const showError = (message: string) => {
+    setSuccess(null);
+    setError(message);
+  };
+
+  const showSuccess = (message: string) => {
+    setError(null);
+    setSuccess(message);
+  };
 
   const load = async () => {
     if (!hasSupabaseConfig) {
@@ -79,6 +98,7 @@ export function CheckInsPage() {
       setHistory(await repo.listCheckIns(phDayStartUtc(historyFrom), phDayEndUtc(historyTo)));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load attendance history.');
+      setSuccess(null);
     } finally {
       setHistoryLoading(false);
     }
@@ -158,17 +178,21 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const firstMatch = filteredMembers[0];
+    if (firstMatch) {
+      void handleCheckIn(firstMatch);
+    }
   };
 
   const handleQrCheckIn = async (code: string) => {
     const id = code.trim();
     if (!id) {
-      setError('Enter a member ID.');
+      showError('Enter a member ID.');
       return;
     }
     const member = members.find((candidate) => candidate.id === id);
     if (!member) {
-      setError('No member matches that ID.');
+      showError('No member matches that ID.');
       return;
     }
     await beginCheckIn(member, 'qr');
@@ -176,16 +200,16 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
 
   const beginCheckIn = async (member: Member, method: 'manual' | 'qr') => {
     if (checkIns.some((checkIn) => checkIn.memberId === member.id)) {
-      setError(`${member.fullName} is already checked in today.`);
+      showError(`${member.fullName} is already checked in today.`);
       return;
     }
     if (!member.isActive) {
-      setError('Cannot check in an inactive member.');
+      showError('Cannot check in an inactive member.');
       return;
     }
     const expired = membershipExpiry(member);
     if (expired?.blocked) {
-      setError(expired.message);
+      showError(expired.message);
       return;
     }
     setError(null);
@@ -207,7 +231,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       setPinValue('');
       setPinError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to check in member.');
+      showError(e instanceof Error ? e.message : 'Failed to check in member.');
     } finally {
       setCheckingInId(null);
       setQrCheckingIn(false);
@@ -218,13 +242,13 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
     const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
     try {
       await repo.recordCheckIn({ memberId: member.id, memberName: member.fullName, method });
-      setSuccess(method === 'qr' ? `${member.fullName} checked in via QR.` : `${member.fullName} checked in.`);
+      showSuccess(method === 'qr' ? `${member.fullName} checked in via QR.` : `${member.fullName} checked in.`);
       if (method === 'qr') {
         setQrCode('');
       }
       await refreshTodayCheckIns();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to check in member.');
+      showError(e instanceof Error ? e.message : 'Failed to check in member.');
     }
   };
 
@@ -273,7 +297,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
     try {
       await repo.deleteCheckIn(checkIn.id);
       setPendingDelete(null);
-      setSuccess('Check-in deleted.');
+      showSuccess('Check-in deleted.');
       await refreshTodayCheckIns();
       await loadHistory();
     } catch (e) {
@@ -302,9 +326,6 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
     >
       <BackLink to="/app" label="Back to dashboard" />
 
-      {error ? <p role="alert" className="mb-4 text-sm text-[#FF3D00]">{error}</p> : null}
-      {success ? <p role="status" className="mb-4 text-sm text-[#FAFAFA]">{success}</p> : null}
-
       <Tabs
         tabs={[
           { id: 'checkin', label: 'Check in' },
@@ -320,7 +341,16 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
           title="Check in a member"
           description="Find the member by name, scan their QR, or enter the QR member ID."
         >
-          <div className="flex flex-col gap-4 pb-4">
+          <StatusLine error={error} success={success} />
+
+          <form
+            aria-label="QR check-in"
+            className="flex flex-col gap-4 pb-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleQrCheckIn(qrCode);
+            }}
+          >
             <label className="flex flex-col gap-2 text-sm">
               <span>QR code or member ID</span>
               <input
@@ -335,13 +365,17 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
               <button className={primaryButtonClass} type="button" onClick={() => setScanning(true)}>
                 Scan QR
               </button>
-              <button className={primaryButtonClass} type="button" disabled={qrCheckingIn} onClick={() => void handleQrCheckIn(qrCode)}>
+              <button className={ghostButtonClass} type="button" disabled={qrCheckingIn} onClick={() => void handleQrCheckIn(qrCode)}>
                 {qrCheckingIn ? 'Checking in…' : 'Check in via QR'}
               </button>
             </div>
-          </div>
+          </form>
 
-          <form className="flex flex-col gap-4 border-t border-[#262626] pt-4" onSubmit={handleSearch}>
+          <form
+            aria-label="Search members"
+            className="flex flex-col gap-4 border-t border-[#262626] pt-4"
+            onSubmit={handleSearch}
+          >
             <label className="flex flex-col gap-2 text-sm">
               <span>Search members</span>
               <input
@@ -371,6 +405,11 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                         <div>
                           <p className="text-base font-medium text-[#FAFAFA]">
                             {member.fullName}
+                            {checkedInToday ? (
+                              <StatusBadge tone="good" className="ml-3">
+                                Checked in today
+                              </StatusBadge>
+                            ) : null}
                             {member.isActive ? null : (
                               <StatusBadge tone="bad" className="ml-3">
                                 Inactive
@@ -393,20 +432,16 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                             <p className="mt-1 text-xs text-[#FF3D00]">{expired.message}</p>
                           ) : null}
                         </div>
-                        <button
-                          className={checkedInToday ? ghostButtonClass : primaryButtonClass}
-                          type="button"
-                          disabled={
-                            !member.isActive || expired?.blocked || checkedInToday || checkingInId === member.id
-                          }
-                          onClick={() => void handleCheckIn(member)}
-                        >
-                          {checkedInToday
-                            ? 'Checked in today'
-                            : checkingInId === member.id
-                              ? 'Checking in…'
-                              : 'Check in'}
-                        </button>
+                        {checkedInToday ? null : (
+                          <button
+                            className={primaryButtonClass}
+                            type="button"
+                            disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
+                            onClick={() => void handleCheckIn(member)}
+                          >
+                            {checkingInId === member.id ? 'Checking in…' : 'Check in'}
+                          </button>
+                        )}
                       </li>
                     );
                   })}
@@ -431,6 +466,11 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                         <div>
                           <p className="text-base font-medium text-[#FAFAFA]">
                             {member.fullName}
+                            {checkedInToday ? (
+                              <StatusBadge tone="good" className="ml-3">
+                                Checked in today
+                              </StatusBadge>
+                            ) : null}
                             {member.isActive ? null : (
                               <StatusBadge tone="bad" className="ml-3">
                                 Inactive
@@ -453,20 +493,16 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                             <p className="mt-1 text-xs text-[#FF3D00]">{expired.message}</p>
                           ) : null}
                         </div>
-                        <button
-                          className={checkedInToday ? ghostButtonClass : primaryButtonClass}
-                          type="button"
-                          disabled={
-                            !member.isActive || expired?.blocked || checkedInToday || checkingInId === member.id
-                          }
-                          onClick={() => void handleCheckIn(member)}
-                        >
-                          {checkedInToday
-                            ? 'Checked in today'
-                            : checkingInId === member.id
-                              ? 'Checking in…'
-                              : 'Check in'}
-                        </button>
+                        {checkedInToday ? null : (
+                          <button
+                            className={primaryButtonClass}
+                            type="button"
+                            disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
+                            onClick={() => void handleCheckIn(member)}
+                          >
+                            {checkingInId === member.id ? 'Checking in…' : 'Check in'}
+                          </button>
+                        )}
                       </li>
                     );
                   })}
@@ -527,6 +563,8 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
           title="Today's check-ins"
           description={`${checkIns.length} check-in${checkIns.length === 1 ? '' : 's'} today.`}
         >
+          <StatusLine error={error} success={success} />
+
           {loading ? (
             <p className="text-sm text-[#A3A3A3]">Loading…</p>
           ) : checkIns.length === 0 ? (
@@ -570,6 +608,8 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
           title="Attendance history"
           description={`${history.length} check-in${history.length === 1 ? '' : 's'} in the selected range.`}
         >
+          <StatusLine error={error} success={success} />
+
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end">
             <label className="flex flex-col gap-2 text-sm">
               <span>From</span>

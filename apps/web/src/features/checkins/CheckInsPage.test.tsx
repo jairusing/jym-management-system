@@ -65,6 +65,7 @@ afterEach(() => {
   cleanup();
   mockMemberRepository.reset();
   mockCheckInRepository.reset();
+  vi.restoreAllMocks();
 });
 
 describe('CheckInsPage', () => {
@@ -603,7 +604,7 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     expect(saved[0]?.memberName).toBe('Ben Cruz');
   });
 
-  it('disables the check-in button once a member has checked in today', async () => {
+  it('marks a member as checked in today once they have checked in', async () => {
     await seedMembers();
     renderPage();
 
@@ -618,7 +619,66 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Checked in today' })).toBeTruthy();
+      expect(screen.getByText('Checked in today')).toBeTruthy();
+      expect(screen.getAllByRole('button', { name: 'Check in' })).toHaveLength(1);
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+  });
+
+  it('checks in the first matching member when the search form is submitted', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('Type a name…'), { target: { value: 'Maria' } });
+    fireEvent.submit(screen.getByRole('form', { name: 'Search members' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Maria Santos checked in\./i)).toBeTruthy();
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+    expect(saved[0]?.memberName).toBe('Maria Santos');
+  });
+
+  it('checks in via QR when the member ID form is submitted', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    const members = await mockMemberRepository.listMembers();
+    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+      target: { value: members[0]?.id }
+    });
+    fireEvent.submit(screen.getByRole('form', { name: 'QR check-in' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/checked in via QR/i)).toBeTruthy();
+    });
+  });
+
+  it('clears the success banner when a follow-up refresh fails', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    vi.spyOn(mockCheckInRepository, 'listTodayCheckIns').mockRejectedValueOnce(new Error('Network failure'));
+    const checkInButtons = screen.getAllByRole('button', { name: 'Check in' });
+    fireEvent.click(checkInButtons[0] as HTMLButtonElement);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toMatch(/Network failure/i);
+      expect(screen.queryByRole('status')).toBeNull();
     });
     const saved = await mockCheckInRepository.listTodayCheckIns();
     expect(saved.length).toBe(1);
@@ -691,7 +751,7 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     expect(saved.length).toBe(0);
   });
 
-  it('keeps a check-in when deletion is cancelled', async () => {
+  it('keeps a check-in when deletion is cancelled and restores focus to the trigger', async () => {
     await mockCheckInRepository.recordCheckIn({
       memberId: 'member-1',
       memberName: 'Juan Dela Cruz'
@@ -703,13 +763,16 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const deleteButton = screen.getByRole('button', { name: 'Delete' });
+    deleteButton.focus();
+    fireEvent.click(deleteButton);
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() => {
       expect(screen.getByText(/1 check-in today/i)).toBeTruthy();
     });
+    expect(document.activeElement).toBe(deleteButton);
     const saved = await mockCheckInRepository.listTodayCheckIns();
     expect(saved.length).toBe(1);
   });

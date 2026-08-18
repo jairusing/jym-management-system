@@ -36,7 +36,7 @@ An all-in-one operations tool for a single gym whose trustworthiness is its edge
 - **Payments:** invoices in ₱, record-only cash/GCash with reference; issue, record payment, void (owner only); collected-by-staff totals.
 - **Classes:** schedule, bookings, capacity.
 - **Audit:** actions logged; RLS is the security boundary; sensitive mutations (PIN) only via RPCs; CSP + security headers.
-- **Constraints:** no payment processor; single gym, no multi-branch/multi-tenant; versioned ship process (currently v1.014) with a changelog; full test suite (246 tests incl. live-DB integration) must stay green.
+- **Constraints:** no payment processor; single gym, no multi-branch/multi-tenant; versioned ship process (currently v1.015) with a changelog; full test suite (249 tests incl. live-DB integration) must stay green.
 
 ## Brand Commitments
 

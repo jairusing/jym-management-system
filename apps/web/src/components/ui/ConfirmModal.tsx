@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { dangerButtonClass, ghostButtonClass, primaryButtonClass } from './buttonClasses';
 
 export type ConfirmModalProps = {
@@ -26,6 +26,17 @@ export function ConfirmModal({
 }: ConfirmModalProps) {
   const bodyId = `confirm-body-${title.replace(/\W+/g, '-').toLowerCase()}`;
   const panelRef = useRef<HTMLDivElement>(null);
+  const savedFocusRef = useRef<HTMLElement | null>(null);
+  if (savedFocusRef.current === null) {
+    savedFocusRef.current = document.activeElement as HTMLElement | null;
+  }
+
+  useEffect(() => {
+    const target = savedFocusRef.current;
+    return () => {
+      target?.focus();
+    };
+  }, []);
   return (
     <div
       role="dialog"

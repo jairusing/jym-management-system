@@ -142,9 +142,26 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    scope queries with `within(dialog)` (the row's Delete button stays
    mounted); the double-check-in test asserts the disabled "Checked in
    today" button instead of the old repo-error path.
+- **v1.015** — critique round 7 (Check-ins re-critique P0+P1s + approved
+   P2s): the status line moved inside each SectionCard (above the fold of
+   the action) with mutual exclusion — `showError`/`showSuccess` clear the
+   other banner, fixing the success-then-refresh-failure contradiction.
+   ConfirmModal now restores focus to the trigger on close via a
+   render-phase `useRef(document.activeElement)` capture (autoFocus would
+   otherwise steal it) — benefits Members too. Enter keys are live: search
+   submit checks in the first match, the QR input is its own `<form>`.
+   "Check in via QR" demoted to ghost (Scan QR stays the single primary);
+   "Checked in today" became a green StatusBadge (`tone="good"`) next to the
+   name. Test notes: the cancel-delete test calls `deleteButton.focus()`
+   before opening the modal (jsdom `fireEvent.click` does not move focus)
+   then asserts `document.activeElement` is the trigger after close; the
+   coexistence test spies `listTodayCheckIns` to reject once after the
+   initial load and asserts `queryByRole('status')` is null while
+   `getByRole('alert')` shows the failure; both forms carry `aria-label` for
+   `getByRole('form', { name })` queries.
 - Migrations: `001`–`013`, `016`, `018`, `019`, `024`–`026` all applied to the
   live project. (`014`, `015`, `017` were deleted + marked reverted.)
-- Full suite: **246/246 (34 files)** including live integration tests. Build:
+- Full suite: **249/249 (34 files)** including live integration tests. Build:
   `tsc -b && vite build` clean. Deployed via Vercel auto-deploy on push to
   main → https://jym-management-system.vercel.app/
 
@@ -199,7 +216,7 @@ database-enforced invariants, RLS + live tests, Manila timezone correctness.
 
 ## Verification commands (from `apps/web`)
 
-- `npx vitest run` (with env vars above for full 246/246)
+- `npx vitest run` (with env vars above for full 249/249)
 - `npm run build` (tsc -b + vite build)
 
 ## Key files

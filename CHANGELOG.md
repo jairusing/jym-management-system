@@ -5,6 +5,26 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.015 — Critique round 7: feedback at the action, modal focus, Enter-to-check-in (2026-08-18)
+
+- Success/error feedback moved out of the page top into the card the user is
+  working in, and the two can no longer coexist: setting one clears the
+  other (a refresh failure after a successful check-in no longer stacks
+  white + vermillion text). Live regions (`role="status"` / `role="alert"`)
+  are preserved.
+- ConfirmModal restores focus to the triggering control when it closes
+  (cancel, Escape, backdrop, or success) — keyboard and screen-reader users
+  no longer land on `<body>` after a delete/pause/activate dialog. Shared
+  fix: Members and Check-ins both benefit.
+- Enter now does the work: submitting the member search checks in the first
+  match, and the QR/member-ID field is a real form so Enter checks in via QR.
+- "Check in via QR" demoted to a ghost button — scanning is the single
+  vermillion path, honoring the One Voice Rule.
+- "Checked in today" is now a proper green status badge next to the member's
+  name (per the Status Quartet) instead of a disabled 50%-opacity ghost
+  button at sub-AA contrast.
+- Verified: full suite 249/249 (34 files, live DB tests included);
+
 ## v1.014 — Critique round 6: check-in feedback, PIN panel, confirmable delete (2026-08-17)
 
 - Success and error feedback are announced: the success banner is a
