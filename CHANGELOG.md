@@ -5,6 +5,30 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.017 — Critique round 9: honest Summary, home-scoped feedback, void focus restore, payment panel semantics (2026-08-18)
+
+- The Summary strip no longer pretends to know money it doesn't: while
+  loading (or when the Supabase load failed) the three figures show an
+  em-dash instead of a fabricated "₱0.00 Outstanding" — the strip only
+  commits to numbers once the data actually loaded.
+- Feedback is home-scoped: a create error no longer gets displayed inside
+  the Invoices card's status line and a record/void error no longer appears
+  in the Issue card. Each card only shows feedback about its own work
+  (issue card vs invoices card), and the stray StatusLine in the Payments
+  card is gone.
+- Void confirmation restores focus to the row's "…" menu trigger via a new
+  optional `restoreFocusId` prop on ConfirmModal (the old code restored
+  focus to a just-unmounted element and landed on `<body>`).
+- The payment panel is now a real `<form>` with `aria-label="Record
+  payment"`: Enter submits, the amount field autofocuses when the panel
+  opens, Confirm is disabled while the amount is empty, the row toggle
+  exposes `aria-expanded`/`aria-controls` and locks while a payment is in
+  flight, the mismatch hint is wired with `aria-invalid` +
+  `aria-describedby`, and the void menu item is disabled while a void is
+  pending.
+- Verified: full suite 251/251 (34 files, 183 runnable + 68 skipped live DB
+  tests), lint/tsc/build clean, detector scan 0 findings.
+
 ## v1.016 — Critique round 8: Payments void dialog, honest failures, real success feedback (2026-08-18)
 
 - Voiding an invoice now uses the shared ConfirmModal (danger variant) with

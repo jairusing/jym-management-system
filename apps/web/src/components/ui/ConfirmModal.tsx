@@ -9,6 +9,7 @@ export type ConfirmModalProps = {
   danger?: boolean;
   pending?: boolean;
   error?: string | null;
+  restoreFocusId?: string;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -21,6 +22,7 @@ export function ConfirmModal({
   danger,
   pending,
   error,
+  restoreFocusId,
   onConfirm,
   onCancel
 }: ConfirmModalProps) {
@@ -32,11 +34,12 @@ export function ConfirmModal({
   }
 
   useEffect(() => {
-    const target = savedFocusRef.current;
+    const fallback = savedFocusRef.current;
     return () => {
+      const target = restoreFocusId ? document.getElementById(restoreFocusId) ?? fallback : fallback;
       target?.focus();
     };
-  }, []);
+  }, [restoreFocusId]);
   return (
     <div
       role="dialog"

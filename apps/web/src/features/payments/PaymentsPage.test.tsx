@@ -114,7 +114,7 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('issued')).toBeTruthy();
     });
-    expect(screen.getAllByText('Invoice issued.').length).toBeGreaterThan(0);
+    expect(screen.getByText('Invoice issued.')).toBeTruthy();
     expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
     expect(screen.getByText(/· ₱1,500\.00 · issued/)).toBeTruthy();
     expect(screen.getAllByText(/^INV-/).length).toBe(1);
@@ -156,7 +156,7 @@ describe('PaymentsPage', () => {
     fireEvent.submit(container.querySelector('form') as HTMLFormElement);
 
     await waitFor(() => {
-      expect(screen.getAllByText('Due date cannot be in the past.').length).toBeGreaterThan(0);
+      expect(screen.getByText('Due date cannot be in the past.')).toBeTruthy();
     });
     const saved = await mockInvoiceRepository.listInvoices();
     expect(saved.length).toBe(0);
@@ -181,6 +181,9 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Confirm payment' })).toBeTruthy();
     });
+    expect((screen.getByRole('button', { name: 'Close' }) as HTMLButtonElement).getAttribute('aria-expanded')).toBe(
+      'true'
+    );
     fireEvent.change(screen.getByLabelText('Method'), { target: { value: 'gcash' } });
     fireEvent.change(screen.getByLabelText('Reference'), { target: { value: 'G-12345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Confirm payment' }));
@@ -188,7 +191,7 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('paid')).toBeTruthy();
     });
-    expect(screen.getAllByText('Payment recorded.').length).toBeGreaterThan(0);
+    expect(screen.getByText('Payment recorded.')).toBeTruthy();
 
     goToTab('Payments');
     expect(screen.getByText(/1,500\.00 · gcash/)).toBeTruthy();
@@ -230,13 +233,13 @@ describe('PaymentsPage', () => {
       expect(screen.getByText('void')).toBeTruthy();
     });
     expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull();
-    expect(screen.getAllByText(/invoice .* voided\./i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/invoice .* voided\./i)).toBeTruthy();
 
     const saved = await mockInvoiceRepository.listInvoices();
     expect(saved[0]?.status).toBe('void');
   });
 
-  it('keeps the invoice when void is cancelled', async () => {
+  it('keeps the invoice when void is cancelled and restores focus to the trigger', async () => {
     await mockInvoiceRepository.createInvoice({
       memberId: 'member-1',
       memberName: 'Maria Santos',
@@ -248,7 +251,16 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
     });
-    openInvoiceMenu('Maria Santos');
+    const row = screen
+      .getAllByText((content) => content.startsWith('Maria Santos'))
+      .map((element) => element.closest('li'))
+      .find((element) => element !== null);
+    if (!row) {
+      throw new Error('invoice row for Maria Santos not found');
+    }
+    const trigger = within(row as HTMLElement).getByRole('button', { name: 'More' }) as HTMLButtonElement;
+    trigger.focus();
+    fireEvent.click(trigger);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Void' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Void invoice' });
@@ -256,6 +268,7 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
+    expect(document.activeElement).toBe(trigger);
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
@@ -490,11 +503,43 @@ describe('PaymentsPage', () => {
 
     fireEvent.change(amount, { target: { value: '100' } });
     expect(screen.getByText(/must equal/i)).toBeTruthy();
+    expect(amount.getAttribute('aria-invalid')).toBe('true');
+    expect(amount.getAttribute('aria-describedby')).toContain('amount-hint');
     expect((screen.getByRole('button', { name: 'Confirm payment' }) as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.change(amount, { target: { value: '1500' } });
     expect(screen.queryByText(/must equal/i)).toBeNull();
+    expect(amount.getAttribute('aria-invalid')).toBe('false');
+    expect(amount.getAttribute('aria-describedby')).toBeNull();
     expect((screen.getByRole('button', { name: 'Confirm payment' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('records a payment by submitting the payment form', async () => {
+    const member = await seedMember();
+    await mockInvoiceRepository.createInvoice({
+      memberId: member?.id ?? 'member-1',
+      memberName: 'Juan Dela Cruz',
+      total: 1500,
+      dueAt: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
+
+    const panel = await screen.findByRole('form', { name: 'Record payment' });
+    fireEvent.change(within(panel).getByLabelText('Reference'), { target: { value: 'G-67890' } });
+    fireEvent.submit(panel);
+
+    await waitFor(() => {
+      expect(screen.getByText('paid')).toBeTruthy();
+    });
+    expect(screen.getByText('Payment recorded.')).toBeTruthy();
+
+    const payments = await mockPaymentRepository.listPayments();
+    expect(payments[0]?.reference).toBe('G-67890');
   });
 
   it('hides the Void button for staff', async () => {
@@ -556,11 +601,17 @@ describe('PaymentsPage', () => {
     });
     expect(screen.queryByText(/no invoices yet/i)).toBeNull();
     expect(screen.queryByText(/^INV-/)).toBeNull();
+    const summaryCard = screen.getByText('Summary').closest('section');
+    expect(summaryCard).not.toBeNull();
+    expect(within(summaryCard as HTMLElement).getAllByText('—').length).toBe(3);
+    expect(within(summaryCard as HTMLElement).queryByText('₱' + '0.00')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => {
       expect(screen.getByText('INV-1001')).toBeTruthy();
     });
     expect(screen.queryByText(/Network failure/)).toBeNull();
+    expect(within(summaryCard as HTMLElement).getAllByText('₱' + '1,000.00').length).toBeGreaterThan(0);
+    expect(within(summaryCard as HTMLElement).queryAllByText('—').length).toBe(0);
   });
 });

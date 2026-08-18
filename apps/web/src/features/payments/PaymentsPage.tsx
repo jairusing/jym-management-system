@@ -30,6 +30,8 @@ const paymentMethods: { value: PaymentMethod; label: string }[] = [
 
 type InvoiceFilter = 'all' | 'issued' | 'overdue' | 'paid' | 'void';
 
+type FeedbackHome = 'issue' | 'invoices';
+
 const invoiceFilterChips: { id: InvoiceFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'issued', label: 'Issued' },
@@ -85,6 +87,8 @@ export function PaymentsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [errorHome, setErrorHome] = useState<FeedbackHome>('issue');
+  const [successHome, setSuccessHome] = useState<FeedbackHome>('issue');
 
   const [memberId, setMemberId] = useState('');
   const [planId, setPlanId] = useState('');
@@ -113,13 +117,15 @@ export function PaymentsPage() {
     void loadRole();
   }, []);
 
-  const showError = (message: string) => {
+  const showError = (message: string, home: FeedbackHome) => {
     setError(message);
+    setErrorHome(home);
     setSuccess(null);
   };
 
-  const showSuccess = (message: string) => {
+  const showSuccess = (message: string, home: FeedbackHome) => {
     setSuccess(message);
+    setSuccessHome(home);
     setError(null);
   };
 
@@ -179,11 +185,11 @@ export function PaymentsPage() {
 
     const member = members.find((candidate) => candidate.id === memberId);
     if (!member) {
-      showError('Select a member for the invoice.');
+      showError('Select a member for the invoice.', 'issue');
       return;
     }
     if (dueAt && dueAt < phDateToday()) {
-      showError('Due date cannot be in the past.');
+      showError('Due date cannot be in the past.', 'issue');
       return;
     }
 
@@ -201,9 +207,9 @@ export function PaymentsPage() {
       setTotal('');
       setDueAt('');
       await load();
-      showSuccess('Invoice issued.');
+      showSuccess('Invoice issued.', 'issue');
     } catch (e) {
-      showError(e instanceof Error ? e.message : 'Failed to issue invoice.');
+      showError(e instanceof Error ? e.message : 'Failed to issue invoice.', 'issue');
     } finally {
       setSaving(false);
     }
@@ -211,7 +217,7 @@ export function PaymentsPage() {
 
   const handleRecordPayment = async (invoice: Invoice) => {
     if (!payAmount) {
-      showError('Enter a payment amount.');
+      showError('Enter a payment amount.', 'invoices');
       return;
     }
     const repo = hasSupabaseConfig ? new SupabasePaymentRepository() : mockPaymentRepository;
@@ -230,9 +236,9 @@ export function PaymentsPage() {
       });
       setPaymentFor(null);
       await load();
-      showSuccess('Payment recorded.');
+      showSuccess('Payment recorded.', 'invoices');
     } catch (e) {
-      showError(e instanceof Error ? e.message : 'Failed to record payment.');
+      showError(e instanceof Error ? e.message : 'Failed to record payment.', 'invoices');
     } finally {
       setPaying(false);
     }
@@ -255,7 +261,7 @@ export function PaymentsPage() {
       await repo.voidInvoice(invoice.id);
       setPendingVoid(null);
       await load();
-      showSuccess(`Invoice ${invoice.invoiceNumber} voided.`);
+      showSuccess(`Invoice ${invoice.invoiceNumber} voided.`, 'invoices');
     } catch (e) {
       setVoidError(e instanceof Error ? e.message : 'Failed to void invoice.');
     } finally {
@@ -324,19 +330,19 @@ export function PaymentsPage() {
           <div className="flex flex-col gap-1">
             <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">Outstanding</p>
             <p className="text-2xl font-semibold tracking-[-0.04em] text-[#FF3D00]">
-              {formatMoney(outstandingTotal)}
+              {loading || loadError ? '—' : formatMoney(outstandingTotal)}
             </p>
           </div>
           <div className="flex flex-col gap-1">
             <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">Collected this month</p>
             <p className="text-2xl font-semibold tracking-[-0.04em] text-[#22C55E]">
-              {formatMoney(collectedThisMonth)}
+              {loading || loadError ? '—' : formatMoney(collectedThisMonth)}
             </p>
           </div>
           <div className="flex flex-col gap-1">
             <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">Overdue invoices</p>
             <p className="text-2xl font-semibold tracking-[-0.04em] text-[#FF3D00]">
-              {invoiceStatusCounts.overdue}
+              {loading || loadError ? '—' : invoiceStatusCounts.overdue}
             </p>
           </div>
         </div>
@@ -354,7 +360,10 @@ export function PaymentsPage() {
       {tab === 'invoices' ? (
         <>
           <SectionCard title="Issue invoice" description="Create a record-only invoice for a member. Select a plan to renew membership on payment.">
-            <StatusLine error={error} success={success} />
+            <StatusLine
+              error={errorHome === 'issue' ? error : null}
+              success={successHome === 'issue' ? success : null}
+            />
             <form className="flex flex-col gap-4" onSubmit={handleCreateInvoice}>
               <div className="grid gap-4 sm:grid-cols-4">
                 <label className="flex flex-col gap-2 text-sm">
@@ -420,7 +429,10 @@ export function PaymentsPage() {
           </SectionCard>
 
           <SectionCard title="Invoices" description={`${invoices.length} invoice${invoices.length === 1 ? '' : 's'}.`}>
-            <StatusLine error={error} success={success} />
+            <StatusLine
+              error={errorHome === 'invoices' ? error : null}
+              success={successHome === 'invoices' ? success : null}
+            />
             {loading ? (
               <p className="text-sm text-[#A3A3A3]">Loading…</p>
             ) : loadError ? (
@@ -493,6 +505,9 @@ export function PaymentsPage() {
                                   <button
                                     className={ghostButtonClass}
                                     type="button"
+                                    disabled={paying}
+                                    aria-expanded={paymentFor === invoice.id}
+                                    aria-controls={`payment-panel-${invoice.id}`}
                                     onClick={() => {
                                       setPaymentFor(paymentFor === invoice.id ? null : invoice.id);
                                       setPayAmount(String(invoice.total));
@@ -512,6 +527,7 @@ export function PaymentsPage() {
                                           label: 'Void',
                                           icon: Ban,
                                           danger: true,
+                                          disabled: voidPending,
                                           onClick: () => handleVoid(invoice)
                                         }
                                       ]}
@@ -523,7 +539,15 @@ export function PaymentsPage() {
                           </div>
 
                           {paymentFor === invoice.id ? (
-                            <div className="mt-4 flex flex-col gap-3 border border-[#262626] bg-[#1A1A1A] p-4">
+                            <form
+                              id={`payment-panel-${invoice.id}`}
+                              aria-label="Record payment"
+                              className="mt-4 flex flex-col gap-3 border border-[#262626] bg-[#1A1A1A] p-4"
+                              onSubmit={(event) => {
+                                event.preventDefault();
+                                void handleRecordPayment(invoice);
+                              }}
+                            >
                               <div className="grid gap-3 sm:grid-cols-3">
                                 <label className="flex flex-col gap-2 text-sm">
                                   <span>Amount</span>
@@ -534,10 +558,13 @@ export function PaymentsPage() {
                                     step={0.01}
                                     value={payAmount}
                                     onChange={(event) => setPayAmount(event.target.value)}
+                                    autoFocus
+                                    aria-invalid={amountMismatch}
+                                    aria-describedby={amountMismatch ? `amount-hint-${invoice.id}` : undefined}
                                     required
                                   />
                                   {amountMismatch ? (
-                                    <span className="text-xs text-[#FF3D00]">
+                                    <span id={`amount-hint-${invoice.id}`} className="text-xs text-[#FF3D00]">
                                       Must equal {formatMoney(payingInvoice?.total ?? 0)}
                                     </span>
                                   ) : null}
@@ -569,14 +596,13 @@ export function PaymentsPage() {
                               <div>
                                 <button
                                   className={primaryButtonClass}
-                                  type="button"
-                                  disabled={paying || amountMismatch}
-                                  onClick={() => void handleRecordPayment(invoice)}
+                                  type="submit"
+                                  disabled={paying || amountMismatch || payAmount === ''}
                                 >
                                   {paying ? 'Recording…' : 'Confirm payment'}
                                 </button>
                               </div>
-                            </div>
+                            </form>
                           ) : null}
                         </li>
                       );
@@ -615,7 +641,6 @@ export function PaymentsPage() {
         </>
       ) : (
         <SectionCard title="Payments" description={`${payments.length} recorded payment${payments.length === 1 ? '' : 's'}.`}>
-          <StatusLine error={error} success={success} />
           {loading ? (
             <p className="text-sm text-[#A3A3A3]">Loading…</p>
           ) : loadError ? (
@@ -704,6 +729,7 @@ export function PaymentsPage() {
           danger
           pending={voidPending}
           error={voidError}
+          restoreFocusId={`invoice-menu-${pendingVoid.id}`}
           onConfirm={() => void handleConfirmVoid()}
           onCancel={() => {
             if (!voidPending) {

@@ -175,6 +175,24 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `supabaseConfig` + mocked Supabase repo classes (Members pattern) for
    the load-error/Retry test; feedback assertions use `getAllByText` since
    the banner renders in two cards at once.
+- **v1.017** — critique round 9 (Payments re-critique P1s + P2s): the
+   Summary strip shows an em-dash on all three figures while loading or
+   when the Supabase load failed — no fabricated "₱0.00 Outstanding".
+   Feedback is home-scoped: `showError`/`showSuccess` take a
+   `FeedbackHome` ('issue' | 'invoices') so each card only announces its
+   own work; the stray StatusLine in the Payments card is gone. Void
+   focus restore moved from a render-phase capture of a just-unmounted
+   menuitem to ConfirmModal's new optional `restoreFocusId` prop (points
+   at the live `invoice-menu-<id>` trigger). The payment panel is now a
+   `<form aria-label="Record payment">`: Enter submits, amount
+   autofocuses, Confirm disabled while the amount is empty, the row
+   toggle gets `aria-expanded`/`aria-controls` and locks while paying,
+   the mismatch hint is `aria-invalid` + `aria-describedby`, the void
+   menu item is disabled while a void is pending. Test notes: em-dash
+   assertions scope queries to the Summary card with
+   `within(summaryCard)` (the PageShell description also contains an
+   em-dash) and use `queryAllByText` to assert the placeholders are gone
+   (`getAllByText` throws on zero matches).
 - Migrations: `001`–`013`, `016`, `018`, `019`, `024`–`026` all applied to the
    live project. (`014`, `015`, `017` were deleted + marked reverted.)
 - Full suite: **250/250 (34 files)** including live integration tests. Build:
