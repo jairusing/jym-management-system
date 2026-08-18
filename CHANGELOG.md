@@ -5,6 +5,27 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.018 — Critique round 4 (Payments): no stuck panel after void, retry shows loading, honest pagination footer, focus survives void (2026-08-18)
+
+- The payment panel can no longer get stranded: if the owner opens the
+  inline panel and then voids that same invoice, the panel closes with the
+  void (previously the row's Close control unmounted while the panel stayed
+  open and would throw "Invoice is not payable." on submit).
+- Retry now re-enters the loading state (`setLoading(true)` at the top of
+  the Supabase load path), so a retry shows the loading state, hides the
+  stale error, and can't be double-clicked into overlapping requests.
+- The Payments tab's pagination footer moved inside the data branch — no
+  more "0 results" next to "Loading…" or next to the load error (the
+  invoices tab already scoped it this way).
+- After a successful void, focus lands on the voided row's Statement link
+  instead of `<body>`: the row's Statement link now carries a stable id and
+  the void handler focuses it once the refresh completes (the modal
+  cleanup alone can't win — its primary target, the menu trigger, still
+  exists until the refresh lands, then dies with the voided row).
+- Verified: full suite 252/252 (34 files, 184 runnable + 68 skipped live DB
+  tests), lint/tsc/build clean, detector scan 0 findings. Critique score
+  30/40 (trend 23 → 21 → 28 → 30).
+
 ## v1.017 — Critique round 9: honest Summary, home-scoped feedback, void focus restore, payment panel semantics (2026-08-18)
 
 - The Summary strip no longer pretends to know money it doesn't: while

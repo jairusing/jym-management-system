@@ -193,6 +193,23 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `within(summaryCard)` (the PageShell description also contains an
    em-dash) and use `queryAllByText` to assert the placeholders are gone
    (`getAllByText` throws on zero matches).
+- **v1.018** — critique round 4 (Payments, score 30/40, trend
+   23→21→28→30): the payment panel closes when its invoice is voided (the
+   row's Close toggle unmounts on void, so the panel was previously
+   stranded with an enabled Confirm that would throw "Invoice is not
+   payable."). Retry re-enters the loading state (`setLoading(true)` in
+   `load()`'s Supabase path) — no stale error + double-click races. The
+   Payments tab pagination footer moved inside the data branch (no "0
+   results" beside "Loading…" or the load error). After a successful void,
+   focus goes to the row's Statement link: the always-rendered Statement
+   link carries `id={`invoice-statement-${invoice.id}`}` and
+   `handleConfirmVoid` focuses it after the refresh (a ConfirmModal
+   `fallbackFocusId` prop was tried first — the cleanup runs while the
+   menu trigger still exists pre-refresh, so it wins and then dies with
+   the row; handler-level focus after `load()` is the robust spot).
+   Test notes: new "closes the payment panel when its invoice is voided";
+   the void-success test asserts `document.activeElement` is the row's
+   Statement link.
 - Migrations: `001`–`013`, `016`, `018`, `019`, `024`–`026` all applied to the
    live project. (`014`, `015`, `017` were deleted + marked reverted.)
 - Full suite: **250/250 (34 files)** including live integration tests. Build:

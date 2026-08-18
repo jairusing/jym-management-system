@@ -142,6 +142,7 @@ export function PaymentsPage() {
     const paymentRepo = new SupabasePaymentRepository();
     const memberRepo = new SupabaseMemberRepository();
     setLoadError(null);
+    setLoading(true);
     try {
       const [loadedInvoices, loadedPayments, loadedMembers, loadedPlans] = await Promise.all([
         invoiceRepo.listInvoices(),
@@ -260,8 +261,14 @@ export function PaymentsPage() {
     try {
       await repo.voidInvoice(invoice.id);
       setPendingVoid(null);
+      if (paymentFor === invoice.id) {
+        setPaymentFor(null);
+        setPayAmount('');
+        setPayReference('');
+      }
       await load();
       showSuccess(`Invoice ${invoice.invoiceNumber} voided.`, 'invoices');
+      document.getElementById(`invoice-statement-${invoice.id}`)?.focus();
     } catch (e) {
       setVoidError(e instanceof Error ? e.message : 'Failed to void invoice.');
     } finally {
@@ -497,7 +504,11 @@ export function PaymentsPage() {
                               </p>
                             </div>
                             <div className="flex shrink-0 flex-wrap gap-2 whitespace-nowrap">
-                              <a className={ghostButtonClass} href={`/app/members/${invoice.memberId}`}>
+                              <a
+                                className={ghostButtonClass}
+                                href={`/app/members/${invoice.memberId}`}
+                                id={`invoice-statement-${invoice.id}`}
+                              >
                                 Statement
                               </a>
                               {status === 'issued' || status === 'overdue' ? (
@@ -689,34 +700,33 @@ export function PaymentsPage() {
                 </li>
               ))}
             </ul>
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-6">
+              <p className="text-sm text-[#A3A3A3]">
+                {payments.length === 0
+                  ? '0 results'
+                  : `Showing ${(paymentSafePage - 1) * PAGE_SIZE + 1}–${Math.min(paymentSafePage * PAGE_SIZE, payments.length)} of ${payments.length}`}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  className={ghostButtonClass}
+                  type="button"
+                  disabled={paymentSafePage <= 1}
+                  onClick={() => setPaymentPage(paymentSafePage - 1)}
+                >
+                  Prev
+                </button>
+                <button
+                  className={ghostButtonClass}
+                  type="button"
+                  disabled={paymentSafePage >= paymentTotalPages}
+                  onClick={() => setPaymentPage(paymentSafePage + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
             </>
           )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-6">
-            <p className="text-sm text-[#A3A3A3]">
-              {payments.length === 0
-                ? '0 results'
-                : `Showing ${(paymentSafePage - 1) * PAGE_SIZE + 1}–${Math.min(paymentSafePage * PAGE_SIZE, payments.length)} of ${payments.length}`}
-            </p>
-            <div className="flex gap-2">
-              <button
-                className={ghostButtonClass}
-                type="button"
-                disabled={paymentSafePage <= 1}
-                onClick={() => setPaymentPage(paymentSafePage - 1)}
-              >
-                Prev
-              </button>
-              <button
-                className={ghostButtonClass}
-                type="button"
-                disabled={paymentSafePage >= paymentTotalPages}
-                onClick={() => setPaymentPage(paymentSafePage + 1)}
-              >
-                Next
-              </button>
-            </div>
-          </div>
         </SectionCard>
       )}
 

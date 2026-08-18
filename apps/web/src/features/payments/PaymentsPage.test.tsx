@@ -237,6 +237,9 @@ describe('PaymentsPage', () => {
 
     const saved = await mockInvoiceRepository.listInvoices();
     expect(saved[0]?.status).toBe('void');
+    const statementLink = document.getElementById(`invoice-statement-${saved[0]?.id}`);
+    expect(statementLink).not.toBeNull();
+    expect(document.activeElement).toBe(statementLink);
   });
 
   it('keeps the invoice when void is cancelled and restores focus to the trigger', async () => {
@@ -275,6 +278,32 @@ describe('PaymentsPage', () => {
     });
     const saved = await mockInvoiceRepository.listInvoices();
     expect(saved[0]?.status).toBe('issued');
+  });
+
+  it('closes the payment panel when its invoice is voided', async () => {
+    await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Maria Santos',
+      total: 800,
+      dueAt: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
+    expect(screen.getByRole('form', { name: 'Record payment' })).toBeTruthy();
+
+    openInvoiceMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Void' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Void invoice' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Void invoice' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('form', { name: 'Record payment' })).toBeNull();
+    });
+    expect(screen.getByText(/invoice .* voided\./i)).toBeTruthy();
   });
 
   it('shows an overdue badge when the due date has passed', async () => {
