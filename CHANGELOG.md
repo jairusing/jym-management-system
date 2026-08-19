@@ -5,6 +5,26 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.024 — Critique round 9 (Dashboard): final a11y polish — banner focus, no focus yank on failed retry, refresh completion announced (2026-08-20)
+
+- A failed refresh now moves focus to the banner's own Retry button (it
+  previously required a backward tab to reach); a failed Retry no longer
+  yanks focus to the hero "Today" heading after the alert has fired —
+  focus is only restored on success.
+- The "Updated HH:MM" caption is now an `aria-live="polite"` region, so
+  a screen-reader user hears when a refresh completes instead of nothing.
+- The Refresh button's label swap ("Refresh" → "Refreshing…") no longer
+  nudges the adjacent "Record a check-in" link (fixed width).
+- `dangerButtonClass` focus-visible is no longer dead code: its underline
+  is hidden by default and appears only on keyboard focus (it was
+  declared to scale on focus but had no underline base to scale).
+- Deliberately deferred (documented in HANDOFF): extracting hard-coded
+  hex literals into design tokens — that is a repo-wide convention in
+  every feature page, not a Dashboard-specific defect, and would be a
+  cross-app refactor.
+- Verified: full suite 262/262 (194 runnable + 68 skipped live DB),
+  lint/tsc/build clean, detector 0 findings.
+
 ## v1.023 — Critique round 8 (Dashboard): refresh no longer blanks the screen or loses data, focus survives reload (2026-08-20)
 
 - Refresh no longer unmounts the whole dashboard: the page keeps showing

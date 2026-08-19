@@ -193,6 +193,22 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `within(summaryCard)` (the PageShell description also contains an
    em-dash) and use `queryAllByText` to assert the placeholders are gone
    (`getAllByText` throws on zero matches).
+- **v1.024** — critique round 9 (Dashboard, final a11y polish): a failed
+   refresh moves focus to the banner's Retry (`refreshRetryRef` + effect;
+   it previously needed a backward tab). A failed Retry no longer yanks
+   focus to the hero — `restoreFocusRef` is cleared in the load `catch`,
+   so focus only returns to "Today" on success (was: focus moved to the
+   hero AFTER the alert had already fired). "Updated HH:MM" is now
+   `aria-live="polite"`, so refresh completion is announced. The Refresh
+   button label swap no longer nudges the CTA (min-width + centered).
+   `dangerButtonClass` focus-visible is no longer dead code — the
+   underline is hidden by default (`after:scale-x-0`) and appears only on
+   keyboard focus. Deliberately deferred: hard-coded hex tokens (repo-wide
+   convention across every feature page; a cross-app refactor, not a
+   Dashboard defect). Verified: full suite 262/262, lint/tsc/build clean,
+   detector 0 findings. The Dashboard critique loop is plateauing
+   (15 → 30 → 28 → 26 → this polish); remaining findings are P2 polish
+   and token hygiene.
 - **v1.023** — critique round 8 (Dashboard; the round-3 re-critique had
    scored 28/40 — down from 30 — because the refresh work introduced
    regressions, now fixed): Refresh no longer unmounts the whole dashboard

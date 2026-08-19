@@ -35,6 +35,7 @@ export function DashboardPage() {
   const [isDemo, setIsDemo] = useState(!hasSupabaseConfig);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
+  const refreshRetryRef = useRef<HTMLButtonElement>(null);
   const heroRef = useRef<HTMLHeadingElement>(null);
   const restoreFocusRef = useRef(false);
   const viewRef = useRef<DashboardView | null>(null);
@@ -62,6 +63,7 @@ export function DashboardPage() {
     } catch (e) {
       console.warn('Failed to load dashboard from Supabase', e);
       const message = e instanceof Error ? e.message : 'Failed to load dashboard.';
+      restoreFocusRef.current = false;
       if (viewRef.current) {
         setRefreshError(message);
       } else {
@@ -81,6 +83,12 @@ export function DashboardPage() {
       retryRef.current?.focus();
     }
   }, [error]);
+
+  useEffect(() => {
+    if (refreshError) {
+      refreshRetryRef.current?.focus();
+    }
+  }, [refreshError]);
 
   useEffect(() => {
     if (!loading && restoreFocusRef.current) {
@@ -126,6 +134,7 @@ export function DashboardPage() {
           <p className="text-xs leading-relaxed text-[#737373]">{refreshError}</p>
           <button
             type="button"
+            ref={refreshRetryRef}
             className={ghostButtonClass}
             onClick={requestReload}
             disabled={loading}
@@ -178,12 +187,14 @@ export function DashboardPage() {
             </div>
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:gap-6">
               {lastUpdated ? (
-                <p className="text-xs text-[#A3A3A3]">Updated {lastUpdated}</p>
+                <p className="text-xs text-[#A3A3A3]" aria-live="polite">
+                  Updated {lastUpdated}
+                </p>
               ) : null}
               {!isDemo ? (
                 <button
                   type="button"
-                  className={ghostButtonClass}
+                  className={`${ghostButtonClass} min-w-28 justify-center`}
                   onClick={requestReload}
                   disabled={loading}
                 >
