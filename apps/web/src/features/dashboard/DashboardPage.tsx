@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { ghostButtonClass } from '../../components/ui/buttonClasses';
@@ -31,14 +31,20 @@ export function DashboardPage() {
   const [view, setView] = useState<DashboardView | null>(null);
   const [loading, setLoading] = useState(hasSupabaseConfig);
   const [error, setError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(!hasSupabaseConfig);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
+  const heroRef = useRef<HTMLHeadingElement>(null);
+  const restoreFocusRef = useRef(false);
+  const viewRef = useRef<DashboardView | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
+    setRefreshError(null);
     if (!hasSupabaseConfig) {
       const demo = await mockDashboardRepository.getDashboard();
+      viewRef.current = demo;
       setView(demo);
       setIsDemo(true);
       setLastUpdated(updatedAt());
@@ -49,27 +55,39 @@ export function DashboardPage() {
     setError(null);
     try {
       const data = await repo.getDashboard();
+      viewRef.current = data;
       setView(data);
       setIsDemo(false);
       setLastUpdated(updatedAt());
     } catch (e) {
       console.warn('Failed to load dashboard from Supabase', e);
-      setError(e instanceof Error ? e.message : 'Failed to load dashboard.');
-      setView(null);
+      const message = e instanceof Error ? e.message : 'Failed to load dashboard.';
+      if (viewRef.current) {
+        setRefreshError(message);
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   useEffect(() => {
     if (error) {
       retryRef.current?.focus();
     }
   }, [error]);
+
+  useEffect(() => {
+    if (!loading && restoreFocusRef.current) {
+      restoreFocusRef.current = false;
+      heroRef.current?.focus();
+    }
+  }, [loading]);
 
   const stats = view?.stats;
   const weeklyAttendance = view?.weeklyAttendance ?? [];
@@ -83,6 +101,11 @@ export function DashboardPage() {
       : ''
   }`;
 
+  const requestReload = () => {
+    restoreFocusRef.current = true;
+    void load();
+  };
+
   return (
     <PageShell
       eyebrow="Home"
@@ -95,7 +118,24 @@ export function DashboardPage() {
         </p>
       ) : null}
 
-      {loading ? (
+      {refreshError ? (
+        <div className="flex flex-col gap-3 border border-[#262626] bg-[#0F0F0F] p-4 sm:p-6" role="alert">
+          <p className="text-sm leading-relaxed text-[#A3A3A3]">
+            Couldn't refresh the dashboard — showing data from {lastUpdated ?? 'the last load'}.
+          </p>
+          <p className="text-xs leading-relaxed text-[#737373]">{refreshError}</p>
+          <button
+            type="button"
+            className={ghostButtonClass}
+            onClick={requestReload}
+            disabled={loading}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
+      {loading && !view ? (
         <SectionCard title="Attendance" titleAs="h2">
           <p className="text-sm text-[#A3A3A3]" role="status">
             Loading…
@@ -103,18 +143,18 @@ export function DashboardPage() {
         </SectionCard>
       ) : error ? (
         <section className="border border-[#262626] bg-[#0F0F0F] p-6 sm:p-8">
-          <h2 className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">Dashboard</h2>
+          <h2 className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
+            Dashboard unavailable
+          </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#A3A3A3]" role="alert">
             Couldn't load the dashboard.
           </p>
-          {error ? (
-            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[#737373]">{error}</p>
-          ) : null}
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[#737373]">{error}</p>
           <button
             type="button"
             ref={retryRef}
             className={ghostButtonClass}
-            onClick={() => void load()}
+            onClick={requestReload}
             disabled={loading}
           >
             Retry
@@ -124,7 +164,13 @@ export function DashboardPage() {
         <>
           <section className="flex flex-col gap-6 border border-[#262626] bg-[#0F0F0F] p-6 sm:flex-row sm:items-end sm:justify-between sm:p-8">
             <div className="flex flex-col gap-1">
-              <h2 className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">Today</h2>
+              <h2
+                ref={heroRef}
+                tabIndex={-1}
+                className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]"
+              >
+                Today
+              </h2>
               <p className="text-4xl font-semibold tracking-[-0.04em] text-[#FAFAFA]">
                 {stats?.attendanceToday ?? 0}
               </p>
@@ -134,14 +180,16 @@ export function DashboardPage() {
               {lastUpdated ? (
                 <p className="text-xs text-[#A3A3A3]">Updated {lastUpdated}</p>
               ) : null}
-              <button
-                type="button"
-                className={ghostButtonClass}
-                onClick={() => void load()}
-                disabled={loading}
-              >
-                Refresh
-              </button>
+              {!isDemo ? (
+                <button
+                  type="button"
+                  className={ghostButtonClass}
+                  onClick={requestReload}
+                  disabled={loading}
+                >
+                  {loading ? 'Refreshing…' : 'Refresh'}
+                </button>
+              ) : null}
               <a href="/app/checkins" className={heroButtonClass}>
                 Record a check-in
               </a>
@@ -159,7 +207,7 @@ export function DashboardPage() {
               </div>
               <div>
                 <div
-                  className="flex h-40 items-end gap-2"
+                  className="flex h-40 items-end gap-2 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#FF3D00]"
                   role="img"
                   aria-label={chartLabel}
                   tabIndex={0}

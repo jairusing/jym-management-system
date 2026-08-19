@@ -5,6 +5,31 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.023 — Critique round 8 (Dashboard): refresh no longer blanks the screen or loses data, focus survives reload (2026-08-20)
+
+- Refresh no longer unmounts the whole dashboard: the page keeps showing
+  the last-good numbers while it re-fetches, and the Refresh button itself
+  switches to "Refreshing…" and is disabled during the load (previously
+  the disabled guard was dead code — the button only rendered after
+  loading finished, and every refresh flashed a full-screen loading card).
+- A failed refresh no longer destroys good data: instead of wiping the
+  dashboard to the error card, the page keeps the last-good view and shows
+  an inline "Couldn't refresh the dashboard — showing data from HH:MM."
+  banner with its own Retry.
+- Focus survives reload: after a successful Refresh or Retry, focus
+  returns to the hero "Today" heading instead of falling to `<body>`.
+- Refresh is hidden in demo mode — it previously re-stamped "Updated"
+  over immutable mock data.
+- The error card heading is now "Dashboard unavailable" (it was duplicating
+  the page h1 "Dashboard"); the keyboard-reachable chart gained a visible
+  `focus-visible` outline; `dangerButtonClass` matches its siblings with a
+  `focus-visible` state.
+- `load()` is wrapped in `useCallback` with a view ref so the
+  refresh-vs-first-load error decision reads the current view without
+  re-running the mount effect (and satisfies the hooks lint rule).
+- Verified: full suite 262/262 (194 runnable + 68 skipped live DB),
+  lint/tsc/build clean, detector 0 findings.
+
 ## v1.022 — Critique round 7 (Dashboard, 30 → higher): refresh control, honest Peak, h2 structure, focus a11y (2026-08-20)
 
 - The dashboard is no longer a one-shot snapshot: a Refresh button

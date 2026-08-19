@@ -193,6 +193,25 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `within(summaryCard)` (the PageShell description also contains an
    em-dash) and use `queryAllByText` to assert the placeholders are gone
    (`getAllByText` throws on zero matches).
+- **v1.023** — critique round 8 (Dashboard; the round-3 re-critique had
+   scored 28/40 — down from 30 — because the refresh work introduced
+   regressions, now fixed): Refresh no longer unmounts the whole dashboard
+   (last-good numbers stay visible while re-fetching; the button shows
+   "Refreshing…" and its disabled guard is now live instead of dead code).
+   A failed refresh keeps the last-good data and shows an inline
+   "Couldn't refresh — showing data from HH:MM." banner with Retry
+   (was: `setView(null)` wiped the dashboard). Focus returns to the hero
+   "Today" heading after a successful Refresh/Retry (was: fell to
+   `<body>`). Refresh is hidden in demo mode (was re-stamping "Updated"
+   over immutable mock data). Error card heading is "Dashboard
+   unavailable" (was duplicating the h1). Chart got a visible
+   `focus-visible` outline; `dangerButtonClass` matched its siblings.
+   `load()` is now `useCallback`-wrapped with a `viewRef` so the
+   refresh-vs-first-load error branch reads current state without
+   re-running the mount effect. Test notes: new "keeps last-good data and
+   shows an inline banner when a refresh fails" (resolve → reject →
+   resolve mock chain). Verified: full suite 262/262, lint/tsc/build
+   clean, detector 0 findings.
 - **v1.022** — critique round 7 (Dashboard): the one-shot snapshot is
    gone — a Refresh button re-fetches and an "Updated HH:MM" caption
    shows when the numbers were last fetched. The chart no longer

@@ -120,7 +120,7 @@ describe('DashboardPage', () => {
     });
     expect(screen.getByText(/Demo data/i)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Record a check-in' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Refresh' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Refresh' })).toBeNull();
     expect(screen.getByText(/Updated/)).toBeTruthy();
     expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThanOrEqual(4);
   });
@@ -152,5 +152,42 @@ describe('DashboardPage', () => {
     expect(getDashboard).toHaveBeenCalledTimes(2);
     expect(screen.queryByText(/Demo data/i)).toBeNull();
     expect(screen.getByText(/Updated/)).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Today' }));
+  });
+
+  it('keeps last-good data and shows an inline banner when a refresh fails', async () => {
+    supabaseConfig.hasSupabaseConfig = true;
+    const getDashboard = vi
+      .fn()
+      .mockResolvedValueOnce(sampleView)
+      .mockRejectedValueOnce(new Error('refresh hiccup'))
+      .mockResolvedValueOnce(sampleView);
+    SupabaseDashboardRepositoryMock.mockImplementation(
+      () => ({ getDashboard }) as unknown as DashboardRepository
+    );
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Today')).toBeTruthy();
+    });
+    expect(screen.getByText(/Updated/)).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain("Couldn't refresh the dashboard");
+    });
+    expect(screen.getByText('Today')).toBeTruthy();
+    expect(screen.getByText('refresh hiccup')).toBeTruthy();
+    expect(getDashboard).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+    expect(screen.getByText('Today')).toBeTruthy();
+    expect(getDashboard).toHaveBeenCalledTimes(3);
   });
 });
