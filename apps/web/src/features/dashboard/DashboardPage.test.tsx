@@ -64,6 +64,7 @@ describe('DashboardPage', () => {
     });
     expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/0\.00/).length).toBe(3);
+    expect(screen.queryByText(/Peak/)).toBeNull();
   });
 
   it('renders attendance numbers and weekly bars', async () => {
@@ -74,11 +75,12 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('This week')).toBeTruthy();
+      expect(screen.getByText('Last 7 days')).toBeTruthy();
     });
     expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText('3')).toBeTruthy();
     expect(screen.getByLabelText(/daily check-ins/i)).toBeTruthy();
+    expect(screen.getByText('Peak: 1 check-in in a day')).toBeTruthy();
   });
 
   it('renders revenue and outstanding totals', async () => {
@@ -118,6 +120,9 @@ describe('DashboardPage', () => {
     });
     expect(screen.getByText(/Demo data/i)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Record a check-in' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeTruthy();
+    expect(screen.getByText(/Updated/)).toBeTruthy();
+    expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThanOrEqual(4);
   });
 
   it('shows an error and Retry when Supabase load fails, then recovers', async () => {
@@ -134,8 +139,9 @@ describe('DashboardPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain("Couldn't load the dashboard.");
     });
-    expect(screen.getByRole('alert').textContent).toContain('db unavailable');
+    expect(screen.getByText('db unavailable')).toBeTruthy();
     expect(screen.queryByText(/Demo data/i)).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Retry' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
@@ -145,5 +151,6 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('4').length).toBeGreaterThanOrEqual(2);
     expect(getDashboard).toHaveBeenCalledTimes(2);
     expect(screen.queryByText(/Demo data/i)).toBeNull();
+    expect(screen.getByText(/Updated/)).toBeTruthy();
   });
 });

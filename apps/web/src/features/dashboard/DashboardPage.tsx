@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { ghostButtonClass } from '../../components/ui/buttonClasses';
@@ -21,27 +21,37 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const heroButtonClass =
-  'relative inline-flex items-center gap-2 px-1 py-2 text-base font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-colors duration-150 hover:text-[#FF3D00] active:translate-y-px after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#FF3D00]';
+  'relative inline-flex items-center gap-2 px-1 py-2 text-base font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-colors duration-150 hover:text-[#FF3D00] active:translate-y-px focus-visible:after:scale-x-110 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#FF3D00]';
+
+function updatedAt() {
+  return new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+}
 
 export function DashboardPage() {
   const [view, setView] = useState<DashboardView | null>(null);
   const [loading, setLoading] = useState(hasSupabaseConfig);
   const [error, setError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(!hasSupabaseConfig);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
 
   const load = async () => {
+    setLoading(true);
     if (!hasSupabaseConfig) {
-      setView(await mockDashboardRepository.getDashboard());
-      setLoading(false);
+      const demo = await mockDashboardRepository.getDashboard();
+      setView(demo);
       setIsDemo(true);
+      setLastUpdated(updatedAt());
+      setLoading(false);
       return;
     }
     const repo = new SupabaseDashboardRepository();
     setError(null);
-    setLoading(true);
     try {
-      setView(await repo.getDashboard());
+      const data = await repo.getDashboard();
+      setView(data);
       setIsDemo(false);
+      setLastUpdated(updatedAt());
     } catch (e) {
       console.warn('Failed to load dashboard from Supabase', e);
       setError(e instanceof Error ? e.message : 'Failed to load dashboard.');
@@ -55,13 +65,23 @@ export function DashboardPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    if (error) {
+      retryRef.current?.focus();
+    }
+  }, [error]);
+
   const stats = view?.stats;
   const weeklyAttendance = view?.weeklyAttendance ?? [];
-  const maxDay = Math.max(1, ...weeklyAttendance.map((day) => day.count));
+  const peak = weeklyAttendance.reduce((max, day) => Math.max(max, day.count), 0);
   const todayKey = phDateToday();
-  const chartLabel = `Bar chart of daily check-ins over the last 7 days: ${weeklyAttendance
-    .map((day) => `${day.label}: ${day.count}${day.date === todayKey ? ' so far' : ''}`)
-    .join(', ')}`;
+  const chartLabel = `Bar chart of daily check-ins over the last 7 days${
+    weeklyAttendance.length > 0
+      ? `: ${weeklyAttendance
+          .map((day) => `${day.label}: ${day.count}${day.date === todayKey ? ' so far' : ''}`)
+          .join(', ')}`
+      : ''
+  }`;
 
   return (
     <PageShell
@@ -76,56 +96,76 @@ export function DashboardPage() {
       ) : null}
 
       {loading ? (
-        <SectionCard title="Attendance">
+        <SectionCard title="Attendance" titleAs="h2">
           <p className="text-sm text-[#A3A3A3]" role="status">
             Loading…
           </p>
         </SectionCard>
       ) : error ? (
         <section className="border border-[#262626] bg-[#0F0F0F] p-6 sm:p-8">
-          <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">Dashboard</p>
+          <h2 className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">Dashboard</h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#A3A3A3]" role="alert">
-            Couldn't load the dashboard. {error}
+            Couldn't load the dashboard.
           </p>
+          {error ? (
+            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[#737373]">{error}</p>
+          ) : null}
           <button
             type="button"
+            ref={retryRef}
             className={ghostButtonClass}
-            onClick={() => {
-              setLoading(true);
-              void load();
-            }}
+            onClick={() => void load()}
+            disabled={loading}
           >
             Retry
           </button>
         </section>
-      ) : (
+      ) : view ? (
         <>
           <section className="flex flex-col gap-6 border border-[#262626] bg-[#0F0F0F] p-6 sm:flex-row sm:items-end sm:justify-between sm:p-8">
             <div className="flex flex-col gap-1">
-              <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">Today</p>
+              <h2 className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">Today</h2>
               <p className="text-4xl font-semibold tracking-[-0.04em] text-[#FAFAFA]">
                 {stats?.attendanceToday ?? 0}
               </p>
               <p className="text-sm text-[#A3A3A3]">check-ins so far</p>
             </div>
-            <a href="/app/checkins" className={heroButtonClass}>
-              Record a check-in
-            </a>
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:gap-6">
+              {lastUpdated ? (
+                <p className="text-xs text-[#A3A3A3]">Updated {lastUpdated}</p>
+              ) : null}
+              <button
+                type="button"
+                className={ghostButtonClass}
+                onClick={() => void load()}
+                disabled={loading}
+              >
+                Refresh
+              </button>
+              <a href="/app/checkins" className={heroButtonClass}>
+                Record a check-in
+              </a>
+            </div>
           </section>
 
-          <SectionCard title="Attendance" description="Check-ins over the past week.">
+          <SectionCard
+            title="Attendance"
+            description="Check-ins over the last 7 days."
+            titleAs="h2"
+          >
             <div className="flex flex-col gap-8">
               <div className="flex flex-wrap gap-10">
-                <Stat label="This week" value={String(stats?.attendanceWeek ?? 0)} />
+                <Stat label="Last 7 days" value={String(stats?.attendanceWeek ?? 0)} />
               </div>
               <div>
                 <div
                   className="flex h-40 items-end gap-2"
                   role="img"
                   aria-label={chartLabel}
+                  tabIndex={0}
                 >
                   {weeklyAttendance.map((day) => {
-                    const height = Math.round((day.count / maxDay) * 100);
+                    const height = peak > 0 ? Math.round((day.count / peak) * 100) : 0;
                     const isToday = day.date === todayKey;
                     return (
                       <div
@@ -151,12 +191,16 @@ export function DashboardPage() {
                     );
                   })}
                 </div>
-                <p className="mt-2 text-xs text-[#A3A3A3]">Peak: {maxDay} check-ins in a day</p>
+                {peak > 0 ? (
+                  <p className="mt-2 text-xs text-[#A3A3A3]">
+                    Peak: {peak} check-in{peak === 1 ? '' : 's'} in a day
+                  </p>
+                ) : null}
               </div>
             </div>
           </SectionCard>
 
-          <SectionCard title="Revenue" description="Recorded payments and outstanding invoices.">
+          <SectionCard title="Revenue" description="Recorded payments and outstanding invoices." titleAs="h2">
             <div className="flex flex-wrap gap-10">
               <Stat label="This month" value={formatMoney(stats?.revenueMonth ?? 0)} />
               <Stat label="All time" value={formatMoney(stats?.revenueTotal ?? 0)} />
@@ -164,13 +208,13 @@ export function DashboardPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Membership" description="Active registered members.">
+          <SectionCard title="Membership" description="Active registered members." titleAs="h2">
             <div className="flex flex-wrap gap-10">
               <Stat label="Active members" value={String(stats?.activeMembers ?? 0)} />
             </div>
           </SectionCard>
         </>
-      )}
+      ) : null}
     </PageShell>
   );
 }

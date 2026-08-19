@@ -193,6 +193,20 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `within(summaryCard)` (the PageShell description also contains an
    em-dash) and use `queryAllByText` to assert the placeholders are gone
    (`getAllByText` throws on zero matches).
+- **v1.022** — critique round 7 (Dashboard): the one-shot snapshot is
+   gone — a Refresh button re-fetches and an "Updated HH:MM" caption
+   shows when the numbers were last fetched. The chart no longer
+   fabricates a stat on a fully zero week ("Peak" caption only renders
+   when a peak day exists and is pluralized; bars scale to the real max).
+   "This week" renamed "Last 7 days" (matches the rolling filter). The
+   error state leads with friendly "Couldn't load the dashboard." and the
+   raw Supabase detail is muted technical text; Retry now receives focus
+   on error. Heading structure: hero "Today" + card titles are real `h2`s
+   (SectionCard gained an optional `titleAs` prop, default `p` — the
+   default is unchanged for other pages). Keyboard focus: ghost/primary/
+   outline button classes + hero CTA got explicit `focus-visible:` states;
+   the chart is keyboard-reachable (`tabIndex`). Verified: full suite
+   261/261, lint/tsc/build clean, detector 0 findings.
 - **v1.021** — critique round 6 (Dashboard, first round, score 15/40):
    the silent mock-data fallback is gone. When Supabase is configured but
    fails, `DashboardPage` shows a real error state + Retry button (mock
@@ -317,9 +331,11 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    account would let us live-test the staff-void path (unit/mock coverage
    only today; the live tests run as the owner).
 6. **Critique round 6 (Dashboard) — shipped 2026-08-20 (v1.021):** P0
-   (mock fallback), chart a11y, and front-desk reorder are done. Deferred
-   by user decision (Top 3 only): time-bucket wording + date subcaptions,
-   loading skeletons, distinct empty states. A future round could add a
+   (mock fallback), chart a11y, and front-desk reorder are done. Round 7
+   (v1.022) closed the P1 stale-data gap (Refresh + "Updated"), the false
+   Peak, bucket wording, and the a11y headings/focus items. Remaining
+   known P2s: mock repo uses browser-local day buckets vs the live
+   Asia/Manila buckets (demo mode only), and a future round could add a
    real "recent check-ins / who's in the building" list to the dashboard —
    that needs a repository extension (the dashboard repo currently only
    returns stats + weekly attendance).

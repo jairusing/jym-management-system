@@ -5,6 +5,29 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.022 — Critique round 7 (Dashboard, 30 → higher): refresh control, honest Peak, h2 structure, focus a11y (2026-08-20)
+
+- The dashboard is no longer a one-shot snapshot: a Refresh button
+  re-fetches on demand and an "Updated 8:42 AM" caption shows when the
+  numbers were last fetched (P1 stale-data gap closed).
+- The chart no longer fabricates a stat on an empty week: the "Peak"
+  caption only renders when there was actually a peak day, and is
+  pluralized ("Peak: 1 check-in in a day" vs "…check-ins…"). Bar heights
+  scale to the real max instead of a forced 1.
+- "This week" renamed to "Last 7 days" to match the actual rolling
+  7-day filter (calendar-week vs rolling mismatch gone).
+- The error state now leads with a friendly "Couldn't load the
+  dashboard." and shows the raw Supabase detail only as muted technical
+  text; the Retry button receives focus when the error appears.
+- Headings: the hero "Today" and the Attendance/Revenue/Membership card
+  titles are now real `h2`s (SectionCard gained an optional `titleAs`
+  prop, default `p`), so a screen-reader user can jump between sections.
+- Keyboard focus: ghost/primary/outline button classes and the hero CTA
+  gained explicit `focus-visible:` states (previously hover-only
+  affordances); the chart is now keyboard-reachable (`tabIndex`).
+- Verified: full suite 261/261 (193 runnable + 68 skipped live DB),
+  lint/tsc/build clean, detector 0 findings.
+
 ## v1.021 — Critique round 6 (Dashboard): no fabricated data, a chart that speaks, front desk first (2026-08-20)
 
 - The fake-data fallback is gone: when Supabase is configured but
