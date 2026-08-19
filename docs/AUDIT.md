@@ -118,12 +118,14 @@ actual code, schema, and migrations. Severity: 🔴 CRITICAL · 🟠 MAJOR · �
 
 - **E1 🟠 — Password policy is Supabase's 6-char minimum**; no rotation, no
   2FA. Document as scope decision.
-- **E2 ✅ FIXED (v1.007) — Control matrix too permissive: staff can void and
-  deactivate.** Migration `022` adds DB triggers that raise unless the actor
-  is owner: invoices → `'void'`, members → `is_active` false (staff can still
-  pay, edit, check in, and reactivate). The Void and Deactivate buttons are
-  hidden for staff in the UI. Live-tested with a temporarily promoted staff
-  account.
+- **E2 ✅ FIXED (v1.007) → refined (v1.020) — Control matrix too permissive
+  / too strict: staff can void, and no way to undo a wrong payment.** Migration
+  `022` made void owner-only via DB triggers; migration `027` (v1.020) relaxes
+  that: owner OR staff may void an `issued` invoice (trigger + audit log), and
+  the owner-only `rpc_void_invoice` undoes a payment on a `paid` invoice —
+  payment rows are deleted and the invoice returns to `issued` (no direct
+  paid→void update is possible, so money can't be written off on the books).
+  Staff still cannot deactivate members (owner-only trigger).
 - **E3 🟡 → mostly fixed (v1.007) — Self-signup orphans pollute
   profiles/staff list.** Staff can now link an orphan account to a member via
   "Link existing" (api/link-account.ts). Orphans that are never linked still

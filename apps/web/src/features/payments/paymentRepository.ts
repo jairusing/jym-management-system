@@ -86,6 +86,10 @@ class MockPaymentRepository implements PaymentRepository {
     return payment;
   }
 
+  removePaymentsForInvoice(invoiceId: string) {
+    this.payments = this.payments.filter((payment) => payment.invoiceId !== invoiceId);
+  }
+
   reset() {
     this.payments = [];
   }

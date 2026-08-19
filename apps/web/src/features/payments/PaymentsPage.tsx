@@ -289,10 +289,17 @@ setPlanId('');
       }
       const refreshed = await load();
       if (refreshed) {
-        showSuccess(`Invoice ${invoice.invoiceNumber} voided.`, 'invoices');
+        showSuccess(
+          invoice.status === 'paid'
+            ? `Payment on ${invoice.invoiceNumber} undone — invoice back to issued.`
+            : `Invoice ${invoice.invoiceNumber} voided.`,
+          'invoices'
+        );
       } else {
         showError(
-          `Invoice ${invoice.invoiceNumber} voided, but the list may be out of date — Retry to refresh.`,
+          invoice.status === 'paid'
+            ? `Payment on ${invoice.invoiceNumber} undone, but the list may be out of date — Retry to refresh.`
+            : `Invoice ${invoice.invoiceNumber} voided, but the list may be out of date — Retry to refresh.`,
           'invoices'
         );
       }
@@ -585,23 +592,36 @@ setPlanId('');
                                   >
                                     {paymentFor === invoice.id ? 'Close' : 'Record payment'}
                                   </button>
-                                  {myRole === 'owner' ? (
-                                    <RowMenu
-                                      id={`invoice-menu-${invoice.id}`}
-                                      open={openInvoiceMenu === invoice.id}
-                                      onOpenChange={(next) => setOpenInvoiceMenu(next ? invoice.id : null)}
-                                      items={[
-                                        {
-                                          label: 'Void',
-                                          icon: Ban,
-                                          danger: true,
-                                          disabled: voidPending,
-                                          onClick: () => handleVoid(invoice)
-                                        }
-                                      ]}
-                                    />
-                                  ) : null}
+                                  <RowMenu
+                                    id={`invoice-menu-${invoice.id}`}
+                                    open={openInvoiceMenu === invoice.id}
+                                    onOpenChange={(next) => setOpenInvoiceMenu(next ? invoice.id : null)}
+                                    items={[
+                                      {
+                                        label: 'Void',
+                                        icon: Ban,
+                                        danger: true,
+                                        disabled: voidPending,
+                                        onClick: () => handleVoid(invoice)
+                                      }
+                                    ]}
+                                  />
                                 </>
+                              ) : myRole === 'owner' ? (
+                                <RowMenu
+                                  id={`invoice-menu-${invoice.id}`}
+                                  open={openInvoiceMenu === invoice.id}
+                                  onOpenChange={(next) => setOpenInvoiceMenu(next ? invoice.id : null)}
+                                  items={[
+                                    {
+                                      label: 'Undo payment',
+                                      icon: Ban,
+                                      danger: true,
+                                      disabled: voidPending,
+                                      onClick: () => handleVoid(invoice)
+                                    }
+                                  ]}
+                                />
                               ) : null}
                             </div>
                           </div>
@@ -789,10 +809,14 @@ setPlanId('');
 
       {pendingVoid ? (
         <ConfirmModal
-          title="Void invoice"
-          body={`Void ${pendingVoid.invoiceNumber} (${formatMoney(pendingVoid.total)})? This cannot be undone.`}
-          confirmLabel="Void invoice"
-          pendingLabel="Voiding…"
+          title={pendingVoid.status === 'paid' ? 'Undo payment' : 'Void invoice'}
+          body={
+            pendingVoid.status === 'paid'
+              ? `Undo the payment on ${pendingVoid.invoiceNumber} (${formatMoney(pendingVoid.total)})? The payment record is removed and the invoice returns to issued.`
+              : `Void ${pendingVoid.invoiceNumber} (${formatMoney(pendingVoid.total)})? This cannot be undone.`
+          }
+          confirmLabel={pendingVoid.status === 'paid' ? 'Undo payment' : 'Void invoice'}
+          pendingLabel={pendingVoid.status === 'paid' ? 'Undoing…' : 'Voiding…'}
           danger
           pending={voidPending}
           error={voidError}

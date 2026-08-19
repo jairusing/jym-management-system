@@ -127,30 +127,10 @@ export class SupabaseInvoiceRepository {
   async voidInvoice(id: string): Promise<Invoice> {
     const client = ensureSupabase();
 
-    const { data: current, error: currentError } = await client
-      .from('invoices')
-      .select('status')
-      .eq('id', id)
-      .maybeSingle();
-    if (currentError) {
-      throw new Error(`Failed to load invoice: ${currentError.message}`);
-    }
-    if (!current) {
-      throw new Error('Invoice not found.');
-    }
-    if (current.status === 'paid') {
-      throw new Error('A paid invoice cannot be voided.');
-    }
-
-    const { data, error } = await client
-      .from('invoices')
-      .update({ status: 'void' })
-      .eq('id', id)
-      .select(invoiceColumns)
-      .single();
+    const { data, error } = await client.rpc('rpc_void_invoice', { p_invoice_id: id }).single();
 
     if (error || !data) {
-      throw new Error(`Failed to void invoice: ${error?.message ?? 'unknown'}`);
+      throw new Error(error?.message ?? 'Failed to void invoice.');
     }
 
     return mapInvoice(data as InvoiceRow);

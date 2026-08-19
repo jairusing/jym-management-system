@@ -229,10 +229,33 @@ describeLive('SupabasePaymentRepository (live)', () => {
     ).rejects.toThrow('Invoice is not payable.');
   });
 
-  it('rejects voiding a paid invoice', async () => {
-    await expect(invoiceRepo.voidInvoice(invoiceId as string)).rejects.toThrow(
-      'A paid invoice cannot be voided.'
-    );
+  it('undoes a payment on a paid invoice as the owner (payment removed, invoice back to issued)', async () => {
+    const invoice = await invoiceRepo.createInvoice({
+      memberId: memberId as string,
+      memberName: memberName as string,
+      total: 450,
+      dueAt: null
+    });
+    await paymentRepo.recordPayment({
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      memberId: memberId as string,
+      memberName: memberName as string,
+      amount: 450,
+      method: 'cash',
+      reference: null
+    });
+
+    const undone = await invoiceRepo.voidInvoice(invoice.id);
+    expect(undone.status).toBe('issued');
+    expect(undone.paidAt).toBeNull();
+
+    const payments = await paymentRepo.listPayments();
+    expect(payments.some((payment) => payment.invoiceId === invoice.id)).toBe(false);
+
+    const reloaded = (await invoiceRepo.listInvoices()).find((candidate) => candidate.id === invoice.id);
+    expect(reloaded?.status).toBe('issued');
+    expect(reloaded?.paidAt).toBeNull();
   });
 
   it('lists payments including the created one', async () => {

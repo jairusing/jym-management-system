@@ -55,6 +55,48 @@ describe('mockPaymentRepository', () => {
     ).rejects.toThrow('Invoice is not payable.');
   });
 
+  it('rejects voiding an already-void invoice', async () => {
+    const invoice = await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Ana',
+      total: 1500,
+      dueAt: null
+    });
+    await mockInvoiceRepository.voidInvoice(invoice.id);
+
+    await expect(mockInvoiceRepository.voidInvoice(invoice.id)).rejects.toThrow(
+      'Invoice is already void.'
+    );
+  });
+
+  it('undoes a payment on a paid invoice and removes the payment record', async () => {
+    const invoice = await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Ana',
+      total: 1500,
+      dueAt: null
+    });
+    await mockPaymentRepository.recordPayment({
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      memberId: 'member-1',
+      memberName: 'Ana',
+      amount: 1500,
+      method: 'cash',
+      reference: null
+    });
+    expect(await mockPaymentRepository.listPayments()).toHaveLength(1);
+
+    const undone = await mockInvoiceRepository.voidInvoice(invoice.id);
+
+    expect(undone.status).toBe('issued');
+    expect(undone.paidAt).toBeNull();
+    expect(await mockPaymentRepository.listPayments()).toHaveLength(0);
+    const reloaded = (await mockInvoiceRepository.listInvoices())[0];
+    expect(reloaded?.status).toBe('issued');
+    expect(reloaded?.paidAt).toBeNull();
+  });
+
   it('rejects a payment below the invoice total', async () => {
     const invoice = await mockInvoiceRepository.createInvoice({
       memberId: 'member-1',

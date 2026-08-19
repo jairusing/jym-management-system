@@ -64,11 +64,23 @@ member's own row and records tied to it (`memberships`, `invoices`,
    role management (`profiles_update_role_owner`), everything staff can do.
 2. **Staff** — runs daily operations: member CRUD, check-ins, invoices,
    payments, classes, sessions, bookings. Cannot delete business records;
-   deletion is owner-only or blocked entirely (`delete_none`).
+   deletion is owner-only or blocked entirely (`delete_none`). Can void
+   *issued* invoices (migration `027` relaxed the owner-only trigger); a
+   *paid* invoice can only move back to issued through the owner-only
+   `rpc_void_invoice` (undo payment — removes the payment rows).
 3. **Member** — read and act only on their own data: own profile, own records,
    booking insert for their own member row, class catalog read. Cannot see
    other members' data, check-ins, invoices, or payments.
 4. **Anonymous** — reads zero rows everywhere; `auth_role()` is NULL.
+
+## Stored procedures (SECURITY DEFINER, auth_role()-gated)
+
+- `rpc_record_payment` (staff+owner) — atomic payment + invoice-paid +
+  membership renewal; requires exact total; invoice must be `issued`.
+- `rpc_void_invoice` (staff: issued invoices; owner: also paid = undo) —
+  issued → `void` (audit-logged by trigger); paid → payment rows deleted,
+  invoice back to `issued`, `paid_at` cleared, `undo_payment` audit row.
+- `rpc_set_member_pin` / `rpc_verify_member_pin` (staff+owner).
 
 ## Threat model notes
 

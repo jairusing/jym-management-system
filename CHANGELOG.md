@@ -5,6 +5,29 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.020 — Critique round 5 (user-approved): staff can void issued invoices, owner can undo a payment (2026-08-19)
+
+- Migration `027` + new `rpc_void_invoice`: staff can now void *issued*
+  invoices (the owner-only trigger relaxes to owner OR staff for
+  issued → void), and the owner can undo a wrong payment on a *paid*
+  invoice — the payment rows are deleted, the invoice returns to
+  issued, `paid_at` clears, and an `undo_payment` row lands in
+  `audit_log`. Direct paid → void updates stay blocked for everyone, so
+  money can never be written off without removing the payment record.
+- `SupabaseInvoiceRepository.voidInvoice` calls the RPC; the mock mirrors
+  the RPC (undo removes payment rows via the new
+  `MockPaymentRepository.removePaymentsForInvoice`).
+- UI: issued/overdue rows show the Void menu for staff AND owner (was
+  owner-only); paid rows show "Undo payment" for the owner with its own
+  confirmation copy ("The payment record is removed and the invoice
+  returns to issued.") and success message.
+- Payment methods remain Cash / GCash / Card / Bank (deliberate user
+  decision — the gym may take other methods later; documented in HANDOFF).
+- Verified: full suite 259/259 (34 files, 191 runnable + 68 skipped live
+  DB tests), live payments suites 15/15 against the real DB, lint/tsc/
+  build clean, detector scan 0 findings, migration `027` applied live
+  (Local = Remote).
+
 ## v1.019 — Critique round 5 (Payments): no false failure on refresh, role errors surface, honest void/issue/record under refresh failure, focus lands after every action (2026-08-18)
 
 - The "failed to record/issue" lie is gone: issuing, recording, and voiding

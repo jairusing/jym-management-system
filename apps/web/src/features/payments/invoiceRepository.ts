@@ -1,6 +1,7 @@
 export type InvoiceStatus = 'issued' | 'paid' | 'overdue' | 'void';
 
 import { PH_TIME_ZONE } from '../../lib/dates';
+import { mockPaymentRepository } from './paymentRepository';
 
 export type Plan = {
   id: string;
@@ -96,10 +97,16 @@ class MockInvoiceRepository implements InvoiceRepository {
     if (!current) {
       throw new Error('Invoice not found.');
     }
-    if (current.status === 'paid') {
-      throw new Error('A paid invoice cannot be voided.');
+    if (current.status === 'void') {
+      throw new Error('Invoice is already void.');
     }
-    const updated: Invoice = { ...current, status: 'void' };
+    let updated: Invoice;
+    if (current.status === 'paid') {
+      mockPaymentRepository.removePaymentsForInvoice(id);
+      updated = { ...current, status: 'issued', paidAt: null };
+    } else {
+      updated = { ...current, status: 'void' };
+    }
     this.invoices = this.invoices.map((invoice) => (invoice.id === id ? updated : invoice));
     return updated;
   }

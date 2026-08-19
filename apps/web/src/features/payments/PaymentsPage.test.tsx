@@ -246,6 +246,90 @@ describe('PaymentsPage', () => {
     expect(document.activeElement).toBe(statementLink);
   });
 
+  it('undoes a payment on a paid invoice as the owner', async () => {
+    const member = await seedMember();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Member')).toBeTruthy();
+    });
+    fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
+    fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '800' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Issue invoice' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm payment' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('paid')).toBeTruthy();
+    });
+
+    openInvoiceMenu('Juan Dela Cruz');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Undo payment' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Undo payment' });
+    expect(within(dialog).getByText(/payment record is removed/i)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Undo payment' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    });
+    expect(screen.getByText(/payment on .* undone/i)).toBeTruthy();
+    const summaryCard = screen.getByText('Summary').closest('section');
+    expect(summaryCard).not.toBeNull();
+    expect(within(summaryCard as HTMLElement).getByText('₱800.00')).toBeTruthy();
+    expect(within(summaryCard as HTMLElement).getByText('₱0.00')).toBeTruthy();
+
+    const saved = await mockInvoiceRepository.listInvoices();
+    expect(saved[0]?.status).toBe('issued');
+    expect(saved[0]?.paidAt).toBeNull();
+    expect(await mockPaymentRepository.listPayments()).toHaveLength(0);
+  });
+
+  it('shows Void to staff on issued invoices and hides the menu on paid rows', async () => {
+    mockStaffRepository.setMyRole('staff');
+    const member = await seedMember();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Member')).toBeTruthy();
+    });
+    fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
+    fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '800' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Issue invoice' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    });
+    openInvoiceMenu('Juan Dela Cruz');
+    expect(screen.getByRole('menuitem', { name: 'Void' })).toBeTruthy();
+    const row = screen
+      .getAllByText((content) => content.startsWith('Juan Dela Cruz'))
+      .map((element) => element.closest('li'))
+      .find((element) => element !== null);
+    expect(row).not.toBeNull();
+    fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'More' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm payment' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('paid')).toBeTruthy();
+    });
+    const paidRow = screen
+      .getAllByText((content) => content.startsWith('Juan Dela Cruz'))
+      .map((element) => element.closest('li'))
+      .find((element) => element !== null);
+    expect(paidRow).not.toBeNull();
+    expect(within(paidRow as HTMLElement).queryByRole('button', { name: 'More' })).toBeNull();
+  });
+
   it('keeps the invoice when void is cancelled and restores focus to the trigger', async () => {
     await mockInvoiceRepository.createInvoice({
       memberId: 'member-1',

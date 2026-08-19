@@ -41,8 +41,9 @@ membership. No plan = money record only (e.g. PT sessions).
 ### 5. Renewals and overdue chasing
 Payments page summary strip: Outstanding · Collected this month · Overdue
 invoices. Status chips (All/Issued/Overdue/Paid/Void) filter the list; every
-row links to the member's statement. Void cancels an issued invoice; paid
-invoices cannot be voided.
+row links to the member's statement. Void cancels an issued invoice (staff
+and owner). A paid invoice shows "Undo payment" (owner only): the payment
+record is removed and the invoice returns to issued so it can be paid again.
 
 ### 6. Member statement
 Members → Statement: join date+time, outstanding balance, total paid,

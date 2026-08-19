@@ -193,6 +193,25 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `within(summaryCard)` (the PageShell description also contains an
    em-dash) and use `queryAllByText` to assert the placeholders are gone
    (`getAllByText` throws on zero matches).
+- **v1.020** — critique round 5 P1 (user-approved): staff can void issued
+   invoices, and the owner can undo a payment on a paid invoice. Migration
+   `027`: `enforce_owner_only_actions` now allows owner OR staff to set an
+   `issued` invoice to `void`, and blocks every other status→`void` write
+   (a direct paid→void update would leave the money on the books); new
+   SECURITY DEFINER `rpc_void_invoice(p_invoice_id)` — issued → `void`
+   (staff+owner, audit trigger logs it), paid → owner-only undo (payment
+   rows deleted, invoice back to `issued`, `paid_at` cleared,
+   `undo_payment` audit row). `SupabaseInvoiceRepository.voidInvoice` now
+   calls the RPC; the mock mirrors it (`MockPaymentRepository` gained
+   `removePaymentsForInvoice`). UI: the row menu shows Void on
+   issued/overdue rows for staff AND owner; paid rows show "Undo payment"
+   (owner only) with its own confirm dialog copy. Payment methods stay
+   Cash/GCash/Card/Bank (user decision — keep all four). Test notes: the
+   live undo test creates its own invoice+payment (the shared paid invoice
+   must survive for the later list test); staff role in component tests via
+   `mockStaffRepository.setMyRole('staff')` before `renderPage()`.
+   Verified: full suite green, lint/tsc/build clean, detector 0 findings;
+   migration `027` applied live, `migration list` Local = Remote.
 - **v1.019** — critique round 5 (Payments): no false failure on refresh.
    Issue/record/void now split the write from the refresh, and `load()`
    returns a boolean so callers can tell a failed refresh from a failed
@@ -276,14 +295,12 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
 3. **B5** — renewal reminders (dashboard alert, deferred).
 4. Deferred features (document as deliberate): receipts, renewal reminders,
    analytics, kiosk mode.
-5. **Critique round 5 — two policy items await user approval (do NOT
-   implement without it):**
-   - Staff Void + paid-invoice void: an owner-only RPC is needed to void
-     invoices from staff accounts (and to undo an accidentally recorded
-     payment) — this is a schema/RPC/RLS change, so it needs explicit
-     approval. Reviewers flagged it P1.
-   - Restrict `paymentMethods` to Cash/GCash only (drop Card/Bank) — product
-     policy decision, flagged P2.
+5. **Critique round 5 — resolved 2026-08-19 (v1.020):** staff Void + paid-
+   invoice undo shipped (migration `027`, `rpc_void_invoice`, owner-only for
+   the paid undo). Payment methods: user decided to KEEP Cash/GCash/Card/
+   Bank — do not restrict. Any remaining round-5 follow-up: a staff live
+   account would let us live-test the staff-void path (unit/mock coverage
+   only today; the live tests run as the owner).
 
 Deploy note for v1.005: before the live create-login path works, set
 `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project env (and confirm

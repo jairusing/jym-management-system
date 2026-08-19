@@ -44,6 +44,6 @@ erDiagram
 1. **Walk-in members** — `members.user_id` is nullable, so walk-ins need no account; member-only RLS paths key off `members.user_id`.
 2. **Membership history** — `memberships` stores rows, not a single "current plan" column; the current membership is the latest `status = 'active'` row. `memberships` cannot be deleted (RLS `delete_none`).
 3. **Materialized sessions** — `class_sessions` rows are created explicitly (UI: "Schedule this week"); bookings never reference the recurring `classes` row directly, so a class can be edited without corrupting existing bookings.
-4. **Invoice/payment split** — `invoices` (document, status lifecycle issued → paid/void) and `payments` (money entry with `processed_by` audit). Recording a payment flips the invoice to paid (client-side two-step in `supabasePaymentRepository.ts`).
+4. **Invoice/payment split** — `invoices` (document, status lifecycle issued → paid/void; owner can undo a paid invoice back to issued) and `payments` (money entry with `processed_by` audit). Recording a payment flips the invoice to paid (client-side two-step in `supabasePaymentRepository.ts`).
 5. **Cascade rules** — `members` delete → cascades `check_ins`, `memberships`, `class_bookings`; `classes` delete → cascades `class_sessions` → `class_bookings`. `invoices`/`payments`/`memberships` use RESTRICT or `delete_none` — financial records are never removed.
 6. **Audit trail** — `check_ins.processed_by` and `payments.processed_by` reference `profiles.id` (who recorded the event; NULL for seeds/legacy rows).
