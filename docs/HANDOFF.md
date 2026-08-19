@@ -193,6 +193,21 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `within(summaryCard)` (the PageShell description also contains an
    em-dash) and use `queryAllByText` to assert the placeholders are gone
    (`getAllByText` throws on zero matches).
+- **v1.021** — critique round 6 (Dashboard, first round, score 15/40):
+   the silent mock-data fallback is gone. When Supabase is configured but
+   fails, `DashboardPage` shows a real error state + Retry button (mock
+   zeros only when no database is configured, and then labeled "Demo
+   data"). The bar chart got `role="img"` + a full per-day aria-label
+   (today marked "so far"), per-column `title` tooltips, a "Peak: N
+   check-ins in a day" caption, and a marker dot under today's column.
+   Layout is front-desk first: a hero with today's count + the "Record a
+   check-in" link as the visual primary, then the weekly chart, revenue,
+   membership. Test notes: demo/error tests use a hoisted
+   `hasSupabaseConfig` getter and a mocked `SupabaseDashboardRepository`
+   (`rejectOnce` then `resolveOnce`). Verified: full suite green (261
+   tests), lint/tsc/build clean, detector 0 findings. Dashboard critique
+   snapshot: `apps-web-src-features-dashboard-dashboardpage-tsx` first run
+   15/40 (trend file created).
 - **v1.020** — critique round 5 P1 (user-approved): staff can void issued
    invoices, and the owner can undo a payment on a paid invoice. Migration
    `027`: `enforce_owner_only_actions` now allows owner OR staff to set an
@@ -301,6 +316,13 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    Bank — do not restrict. Any remaining round-5 follow-up: a staff live
    account would let us live-test the staff-void path (unit/mock coverage
    only today; the live tests run as the owner).
+6. **Critique round 6 (Dashboard) — shipped 2026-08-20 (v1.021):** P0
+   (mock fallback), chart a11y, and front-desk reorder are done. Deferred
+   by user decision (Top 3 only): time-bucket wording + date subcaptions,
+   loading skeletons, distinct empty states. A future round could add a
+   real "recent check-ins / who's in the building" list to the dashboard —
+   that needs a repository extension (the dashboard repo currently only
+   returns stats + weekly attendance).
 
 Deploy note for v1.005: before the live create-login path works, set
 `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project env (and confirm

@@ -5,6 +5,26 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.021 — Critique round 6 (Dashboard): no fabricated data, a chart that speaks, front desk first (2026-08-20)
+
+- The fake-data fallback is gone: when Supabase is configured but
+  unreachable, the page now shows a real error state with a Retry button
+  instead of silently swapping in zeros from the mock repo. Demo data only
+  appears when no database is configured at all, and is then labeled with
+  a "Demo data" notice.
+- The bar chart is now accessible and readable: `role="img"` on the chart
+  with a full aria-label ("Mon: 12, Tue: 8, … so far" for today), a
+  `title` tooltip per column, a "Peak: N check-ins in a day" caption, and
+  a marker under today's column so "today is in progress" is both visible
+  and audible.
+- Front desk first: the page leads with a hero — today's check-in count
+  plus the "Record a check-in" action as the visual primary — with the
+  weekly chart, revenue, and membership below. The duplicate bottom CTA
+  is gone.
+- Verified: full suite 261/261 (193 runnable + 68 skipped live DB tests),
+  lint/tsc/build clean, detector 0 findings. Dashboard critique snapshot:
+  first round 15/40 (Poor); trend file created.
+
 ## v1.020 — Critique round 5 (user-approved): staff can void issued invoices, owner can undo a payment (2026-08-19)
 
 - Migration `027` + new `rpc_void_invoice`: staff can now void *issued*
