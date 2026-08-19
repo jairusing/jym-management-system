@@ -5,6 +5,34 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.019 — Critique round 5 (Payments): no false failure on refresh, role errors surface, honest void/issue/record under refresh failure, focus lands after every action (2026-08-18)
+
+- The "failed to record/issue" lie is gone: issuing, recording, and voiding
+  now separate the write from the refresh. If the write succeeds but the
+  follow-up refresh fails, the page says exactly that — "Invoice issued,
+  but the list may be out of date — Retry to refresh." (and the same for
+  record and void) instead of claiming the payment/invoice failed. Retrying
+  the write could previously duplicate an invoice that actually succeeded.
+- `load()` now reports success/failure (returns boolean) so callers can
+  distinguish a failed refresh from a failed write.
+- Role lookup failures surface instead of silently locking out Void: if
+  `getMyRole` fails, the Invoices card shows a "Couldn't verify your role —
+  Void is unavailable." alert with a "Retry role" button instead of hiding
+  the Void actions with no explanation.
+- After recording a payment, focus lands on the paid invoice's Statement
+  link (previously focus fell to `<body>` after the panel closed).
+- Void focus fallback fixed: when the voided row leaves a filtered list,
+  focus restores to the active filter chip (the selector now uses the
+  chip's display label, matching its aria-label — previously the lowercase
+  filter id never matched and focus fell to `<body>`).
+- The Issue form is disabled during loading and while the load failed, with
+  a hint line ("Loading members and plans…" / "Members and plans are
+  unavailable while the load failed.") instead of letting the owner submit
+  against an empty member/plan picker.
+- Verified: Payments suite 23/23, full suite 255/255 (34 files, 187 runnable
+  + 68 skipped live DB tests), lint/tsc/build clean, detector scan 0
+  findings.
+
 ## v1.018 — Critique round 4 (Payments): no stuck panel after void, retry shows loading, honest pagination footer, focus survives void (2026-08-18)
 
 - The payment panel can no longer get stranded: if the owner opens the

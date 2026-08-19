@@ -193,6 +193,28 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `within(summaryCard)` (the PageShell description also contains an
    em-dash) and use `queryAllByText` to assert the placeholders are gone
    (`getAllByText` throws on zero matches).
+- **v1.019** — critique round 5 (Payments): no false failure on refresh.
+   Issue/record/void now split the write from the refresh, and `load()`
+   returns a boolean so callers can tell a failed refresh from a failed
+   write — if the write succeeded but the refresh failed the page says
+   "Invoice issued, but the list may be out of date — Retry to refresh."
+   (same for record and void) instead of "Failed to…". (A retry after a
+   fake failure could duplicate an invoice.) Role failures surface: a
+   `getMyRole` failure shows "Couldn't verify your role — Void is
+   unavailable." with a "Retry role" button instead of silently hiding
+   Void. After recording a payment, focus lands on the Statement link
+   (was `<body>`). Void focus fallback now targets the active filter chip
+   by its aria-label `Filter: ${chip.label}` (the earlier selector used
+   the lowercase filter id and never matched). The Issue form is disabled
+   while loading/errored with a hint line. Test notes: the mock repo's
+   `createInvoice` generates `INV-2026-0001`-style numbers, not `INV-1001`
+   — assert with the returned invoice's `invoiceNumber`; `toBeDisabled`/
+   `toBeEnabled` are NOT registered in this repo's vitest setup (use the
+   `.disabled` property — and for the disabled fieldset check the
+   `closest('fieldset')`'s `.disabled`, since the button's own property
+   stays false under a disabled ancestor); `load()` swallows its errors
+   internally (catch → `loadError`), so callers must use its boolean
+   return, never try/catch around it.
 - **v1.018** — critique round 4 (Payments, score 30/40, trend
    23→21→28→30): the payment panel closes when its invoice is voided (the
    row's Close toggle unmounts on void, so the panel was previously
@@ -212,7 +234,7 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    Statement link.
 - Migrations: `001`–`013`, `016`, `018`, `019`, `024`–`026` all applied to the
    live project. (`014`, `015`, `017` were deleted + marked reverted.)
-- Full suite: **250/250 (34 files)** including live integration tests. Build:
+- Full suite: **255/255 (34 files)** including live integration tests. Build:
    `tsc -b && vite build` clean. Deployed via Vercel auto-deploy on push to
    main → https://jym-management-system.vercel.app/
 
@@ -254,6 +276,14 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
 3. **B5** — renewal reminders (dashboard alert, deferred).
 4. Deferred features (document as deliberate): receipts, renewal reminders,
    analytics, kiosk mode.
+5. **Critique round 5 — two policy items await user approval (do NOT
+   implement without it):**
+   - Staff Void + paid-invoice void: an owner-only RPC is needed to void
+     invoices from staff accounts (and to undo an accidentally recorded
+     payment) — this is a schema/RPC/RLS change, so it needs explicit
+     approval. Reviewers flagged it P1.
+   - Restrict `paymentMethods` to Cash/GCash only (drop Card/Bank) — product
+     policy decision, flagged P2.
 
 Deploy note for v1.005: before the live create-login path works, set
 `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project env (and confirm

@@ -192,6 +192,10 @@ describe('PaymentsPage', () => {
       expect(screen.getByText('paid')).toBeTruthy();
     });
     expect(screen.getByText('Payment recorded.')).toBeTruthy();
+    const paidInvoices = await mockInvoiceRepository.listInvoices();
+    await waitFor(() => {
+      expect(document.activeElement).toBe(document.getElementById(`invoice-statement-${paidInvoices[0]?.id}`));
+    });
 
     goToTab('Payments');
     expect(screen.getByText(/1,500\.00 · gcash/)).toBeTruthy();
@@ -588,6 +592,120 @@ describe('PaymentsPage', () => {
     expect(screen.queryByRole('menuitem', { name: 'Void' })).toBeNull();
   });
 
+  it('restores focus to the active filter chip when the voided row leaves the filtered list', async () => {
+    const invoice = await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Maria Santos',
+      total: 800,
+      dueAt: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    });
+    const issuedChip = screen.getByRole('button', { name: 'Filter: Issued' });
+    fireEvent.click(issuedChip);
+    await waitFor(() => {
+      expect(screen.getByText(invoice.invoiceNumber)).toBeTruthy();
+    });
+
+    openInvoiceMenu('Maria Santos');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Void' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Void invoice' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Void invoice' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(invoice.invoiceNumber)).toBeNull();
+    });
+    expect(document.activeElement).toBe(issuedChip);
+  });
+
+  it('shows an honest warning when only the refresh fails after recording a payment', async () => {
+    supabaseConfig.hasSupabaseConfig = true;
+    const invoice = {
+      id: 'invoice-1',
+      invoiceNumber: 'INV-1001',
+      memberId: 'member-1',
+      memberName: 'Juan Dela Cruz',
+      planId: null,
+      planName: null,
+      total: 1000,
+      status: 'issued',
+      issuedAt: '2026-08-01T00:00:00+08:00',
+      dueAt: null,
+      paidAt: null
+    };
+    const listInvoices = vi
+      .fn()
+      .mockResolvedValueOnce([invoice])
+      .mockRejectedValueOnce(new Error('Network failure'));
+    const listPlans = vi.fn().mockResolvedValue([]);
+    const listPayments = vi.fn().mockResolvedValue([]);
+    const listMembers = vi.fn().mockResolvedValue([]);
+    const recordPayment = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(SupabaseInvoiceRepository).mockImplementation(
+      () => ({ listInvoices, listPlans }) as unknown as SupabaseInvoiceRepository
+    );
+    vi.mocked(SupabasePaymentRepository).mockImplementation(
+      () => ({ listPayments, recordPayment }) as unknown as SupabasePaymentRepository
+    );
+    vi.mocked(SupabaseMemberRepository).mockImplementation(
+      () => ({ listMembers }) as unknown as SupabaseMemberRepository
+    );
+    vi.mocked(SupabaseStaffRepository).mockImplementation(
+      () => ({ getMyRole: vi.fn(async () => 'owner') }) as unknown as SupabaseStaffRepository
+    );
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('INV-1001')).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm payment' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/out of date/)).toBeTruthy();
+    });
+    expect(screen.queryByText('Payment recorded.')).toBeNull();
+    expect(recordPayment).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a role error with a retry when the role lookup fails', async () => {
+    supabaseConfig.hasSupabaseConfig = true;
+    const listInvoices = vi.fn().mockResolvedValue([]);
+    const listPlans = vi.fn().mockResolvedValue([]);
+    const listPayments = vi.fn().mockResolvedValue([]);
+    const listMembers = vi.fn().mockResolvedValue([]);
+    const getMyRole = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Session expired'))
+      .mockResolvedValueOnce('owner');
+    vi.mocked(SupabaseInvoiceRepository).mockImplementation(
+      () => ({ listInvoices, listPlans }) as unknown as SupabaseInvoiceRepository
+    );
+    vi.mocked(SupabasePaymentRepository).mockImplementation(
+      () => ({ listPayments }) as unknown as SupabasePaymentRepository
+    );
+    vi.mocked(SupabaseMemberRepository).mockImplementation(
+      () => ({ listMembers }) as unknown as SupabaseMemberRepository
+    );
+    vi.mocked(SupabaseStaffRepository).mockImplementation(
+      () => ({ getMyRole }) as unknown as SupabaseStaffRepository
+    );
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Couldn't verify your role/)).toBeTruthy();
+    });
+    expect(screen.queryByRole('menuitem', { name: 'Void' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry role' }));
+    await waitFor(() => {
+      expect(screen.queryByText(/Couldn't verify your role/)).toBeNull();
+    });
+  });
+
   it('shows a load error with Retry instead of mock data when Supabase fails', async () => {
     supabaseConfig.hasSupabaseConfig = true;
     const listInvoices = vi
@@ -630,6 +748,8 @@ describe('PaymentsPage', () => {
     });
     expect(screen.queryByText(/no invoices yet/i)).toBeNull();
     expect(screen.queryByText(/^INV-/)).toBeNull();
+    expect((screen.getByRole('button', { name: 'Issue invoice' }).closest('fieldset') as HTMLFieldSetElement).disabled).toBe(true);
+    expect(screen.getByText(/members and plans are unavailable/i)).toBeTruthy();
     const summaryCard = screen.getByText('Summary').closest('section');
     expect(summaryCard).not.toBeNull();
     expect(within(summaryCard as HTMLElement).getAllByText('—').length).toBe(3);
@@ -640,6 +760,7 @@ describe('PaymentsPage', () => {
       expect(screen.getByText('INV-1001')).toBeTruthy();
     });
     expect(screen.queryByText(/Network failure/)).toBeNull();
+    expect((screen.getByRole('button', { name: 'Issue invoice' }).closest('fieldset') as HTMLFieldSetElement).disabled).toBe(false);
     expect(within(summaryCard as HTMLElement).getAllByText('₱' + '1,000.00').length).toBeGreaterThan(0);
     expect(within(summaryCard as HTMLElement).queryAllByText('—').length).toBe(0);
   });

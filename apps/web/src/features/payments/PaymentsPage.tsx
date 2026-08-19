@@ -107,13 +107,21 @@ export function PaymentsPage() {
   const [voidError, setVoidError] = useState<string | null>(null);
 
   const [myRole, setMyRole] = useState<UserRole | null>(null);
+  const [roleError, setRoleError] = useState(false);
   const [openInvoiceMenu, setOpenInvoiceMenu] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadRole = async () => {
-      const roleRepo = hasSupabaseConfig ? new SupabaseStaffRepository() : mockStaffRepository;
+  const loadRole = async () => {
+    const roleRepo = hasSupabaseConfig ? new SupabaseStaffRepository() : mockStaffRepository;
+    try {
       setMyRole(await roleRepo.getMyRole());
-    };
+      setRoleError(false);
+    } catch {
+      setMyRole(null);
+      setRoleError(true);
+    }
+  };
+
+  useEffect(() => {
     void loadRole();
   }, []);
 
@@ -129,14 +137,14 @@ export function PaymentsPage() {
     setError(null);
   };
 
-  const load = async () => {
+  const load = async (): Promise<boolean> => {
     if (!hasSupabaseConfig) {
       setInvoices(await mockInvoiceRepository.listInvoices());
       setPayments(await mockPaymentRepository.listPayments());
       setMembers(await mockMemberRepository.listMembers());
       setPlans(await mockInvoiceRepository.listPlans());
       setLoading(false);
-      return;
+      return true;
     }
     const invoiceRepo = new SupabaseInvoiceRepository();
     const paymentRepo = new SupabasePaymentRepository();
@@ -154,9 +162,11 @@ export function PaymentsPage() {
       setPayments(loadedPayments);
       setMembers(loadedMembers);
       setPlans(loadedPlans);
+      return true;
     } catch (e) {
       console.warn('Failed to load payment data from Supabase', e);
       setLoadError(e instanceof Error ? e.message : 'Failed to load payments data.');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -204,16 +214,20 @@ export function PaymentsPage() {
         dueAt: dueAt || null,
         planId: planId || null
       });
-      setPlanId('');
+setPlanId('');
       setTotal('');
       setDueAt('');
-      await load();
       showSuccess('Invoice issued.', 'issue');
     } catch (e) {
       showError(e instanceof Error ? e.message : 'Failed to issue invoice.', 'issue');
-    } finally {
       setSaving(false);
+      return;
     }
+    const refreshed = await load();
+    if (!refreshed) {
+      showError('Invoice issued, but the list may be out of date — Retry to refresh.', 'issue');
+    }
+    setSaving(false);
   };
 
   const handleRecordPayment = async (invoice: Invoice) => {
@@ -236,13 +250,20 @@ export function PaymentsPage() {
         reference: payReference || null
       });
       setPaymentFor(null);
-      await load();
+      setPayAmount('');
+      setPayReference('');
       showSuccess('Payment recorded.', 'invoices');
     } catch (e) {
       showError(e instanceof Error ? e.message : 'Failed to record payment.', 'invoices');
-    } finally {
       setPaying(false);
+      return;
     }
+    const refreshed = await load();
+    if (!refreshed) {
+      showError('Payment recorded, but the list may be out of date — Retry to refresh.', 'invoices');
+    }
+    setPaying(false);
+    document.getElementById(`invoice-statement-${invoice.id}`)?.focus();
   };
 
   const handleVoid = (invoice: Invoice) => {
@@ -266,9 +287,24 @@ export function PaymentsPage() {
         setPayAmount('');
         setPayReference('');
       }
-      await load();
-      showSuccess(`Invoice ${invoice.invoiceNumber} voided.`, 'invoices');
-      document.getElementById(`invoice-statement-${invoice.id}`)?.focus();
+      const refreshed = await load();
+      if (refreshed) {
+        showSuccess(`Invoice ${invoice.invoiceNumber} voided.`, 'invoices');
+      } else {
+        showError(
+          `Invoice ${invoice.invoiceNumber} voided, but the list may be out of date — Retry to refresh.`,
+          'invoices'
+        );
+      }
+      const statementLink = document.getElementById(`invoice-statement-${invoice.id}`);
+      if (statementLink) {
+        statementLink.focus();
+      } else {
+        const activeChip = invoiceFilterChips.find((chip) => chip.id === invoiceFilter);
+        if (activeChip) {
+          (document.querySelector(`[aria-label="Filter: ${activeChip.label}"]`) as HTMLElement | null)?.focus();
+        }
+      }
     } catch (e) {
       setVoidError(e instanceof Error ? e.message : 'Failed to void invoice.');
     } finally {
@@ -372,7 +408,8 @@ export function PaymentsPage() {
               success={successHome === 'issue' ? success : null}
             />
             <form className="flex flex-col gap-4" onSubmit={handleCreateInvoice}>
-              <div className="grid gap-4 sm:grid-cols-4">
+              <fieldset className="m-0 flex flex-col gap-4 min-w-0 border-0 p-0" disabled={loading || loadError !== null}>
+                <div className="grid gap-4 sm:grid-cols-4">
                 <label className="flex flex-col gap-2 text-sm">
                   <span>Member</span>
                   <select
@@ -432,6 +469,12 @@ export function PaymentsPage() {
                   {saving ? 'Issuing…' : 'Issue invoice'}
                 </button>
               </div>
+              </fieldset>
+              {loading || loadError ? (
+                <p className="text-sm text-[#A3A3A3]">
+                  {loading ? 'Loading members and plans…' : 'Members and plans are unavailable while the load failed.'}
+                </p>
+              ) : null}
             </form>
           </SectionCard>
 
@@ -440,6 +483,20 @@ export function PaymentsPage() {
               error={errorHome === 'invoices' ? error : null}
               success={successHome === 'invoices' ? success : null}
             />
+            {roleError && myRole === null ? (
+              <div className="mb-4 flex flex-wrap items-center gap-4">
+                <p role="alert" className="text-sm text-[#FF3D00]">
+                  Couldn't verify your role — Void is unavailable.
+                </p>
+                <button
+                  className={ghostButtonClass}
+                  type="button"
+                  onClick={() => void loadRole()}
+                >
+                  Retry role
+                </button>
+              </div>
+            ) : null}
             {loading ? (
               <p className="text-sm text-[#A3A3A3]">Loading…</p>
             ) : loadError ? (
