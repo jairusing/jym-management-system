@@ -532,6 +532,8 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     });
 
     expect(screen.getByText(/3-day grace until/)).toBeTruthy();
+    expect(screen.getByText('Expiring')).toBeTruthy();
+    expect(screen.queryByText('Expired')).toBeNull();
     const button = screen.getByRole('button', { name: 'Check in' });
     expect((button as HTMLButtonElement).disabled).toBe(false);
     expect(graceEndsAt).toBe(phDateInDays(-2));

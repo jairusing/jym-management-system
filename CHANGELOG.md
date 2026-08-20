@@ -5,7 +5,34 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.028 — Critique round 7 (Payments, 30 → 36, Excellent): two remaining P2s closed (2026-08-21)
+## v1.029 — Critique round 12 (Check-ins, 31 → flat, both P1s fixed): visible focus ring app-wide, amber grace semantics (2026-08-21)
+
+- Round 12 re-critique held Check-ins at 31/40: the round-11 PIN-override P1
+  is fully resolved and Help rose 2→3, but the dead-Enter fix shipped with
+  focus styling visually identical to the idle state, re-opening the
+  accidental double-Enter check-in path. Both P1s are fixed here:
+  - **Visible focus ring, app-wide.** Every button class
+    (`primaryButtonClass`, `outlineButtonClass`, `ghostButtonClass`,
+    `dangerButtonClass` in `buttonClasses.ts`) now carries a 2px #FF3D00
+    ring with 2px #0A0A0A offset on `focus-visible`, exactly per
+    `docs/UI_DESIGN.md` ("2px ring in accent, 2px offset"). The keyboard
+    two-step is now perceptible: type to search, Enter focuses the first
+    match's Check in button (visible ring), Enter checks in. The recent
+    members helper copy now teaches that path explicitly.
+  - **Grace is amber, not red.** A member inside the 3-day grace window
+    (expired but still check-in-able) now renders an amber #FFB300
+    "Expiring" badge and amber message instead of a red "Expired" one;
+    red is reserved for truly blocked states (paused, cancelled,
+    past-grace). At most one red badge per row, so staff can trust red to
+    mean "cannot check in." The `StatusBadge` `warning` tone — previously
+    never used — is now in use.
+- PIN override audit flag: kept as-is per user decision (any staff may
+  bypass; a permanent "PIN bypassed" marker needs a schema change —
+  documented in HANDOFF).
+- Verified: full suite 269/269 (201 runnable + 68 skipped live DB), 33
+  Check-ins tests (grace test now asserts "Expiring" and absence of
+  "Expired"), lint/tsc/build clean, detector 0 findings, ring utilities
+  confirmed present in the built CSS.
 
 - Round 7 re-critique scored the Payments page 36/40 (Excellent, up from
   30). The round-6 fixes were verified landed. Two P2s remained and are

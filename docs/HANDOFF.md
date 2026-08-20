@@ -254,6 +254,24 @@ is the button and no check-in was recorded). Verified: full suite
    269/269 (201 runnable + 68 skipped), 27 Payments tests, lint/tsc/build
    clean, detector 0 findings. NEXT: Check-ins round-12 re-critique
    (deferred since v1.026 shipped at 31/40).
+- **v1.029** — critique round 12 (Check-ins, both P1s fixed): (1) P1 — the
+   two-step Enter→focus was invisible because `primaryButtonClass`
+   focus-visible was identical to idle (text vermillion + 10% underline
+   stretch), so a double-Enter could still accidentally check someone in.
+   All four button classes in `buttonClasses.ts` now carry a 2px #FF3D00
+   ring with 2px #0A0A0A offset on `focus-visible` (per UI_DESIGN.md "2px
+   ring in accent, 2px offset"); the recent-members helper copy now teaches
+   "type to search, press Enter to select, then Check in". (2) P1 — a
+   member in the 3-day grace window (expired but check-in-able) was painted
+   red "Expired" + red message; now amber #FFB300 "Expiring" badge + amber
+   message, red reserved for paused/cancelled/past-grace, at most one red
+   badge per row. `StatusBadge` warning tone now used. PIN override audit
+   flag kept as-is per user decision (any staff may bypass; permanent
+   "PIN bypassed" marker needs a schema change on `check_ins` — deferred
+   pending explicit approval). Verified: full suite 269/269 (201 runnable +
+   68 skipped), 33 Check-ins tests, lint/tsc/build clean, detector 0,
+   ring utilities in built CSS. NEXT: re-critique Check-ins (round 13) to
+   confirm the two P1s closed and the score moves past 31.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in

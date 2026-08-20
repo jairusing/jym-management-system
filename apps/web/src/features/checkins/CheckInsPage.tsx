@@ -457,12 +457,14 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                               </StatusBadge>
                             )}
                             {expired ? (
-                              <StatusBadge tone="bad" className="ml-3">
+                              <StatusBadge tone={expired.blocked ? 'bad' : 'warning'} className="ml-3">
                                 {member.membership?.status === 'paused'
                                   ? 'Paused'
                                   : member.membership?.status === 'cancelled'
                                     ? 'Cancelled'
-                                    : 'Expired'}
+                                    : expired.blocked
+                                      ? 'Expired'
+                                      : 'Expiring'}
                               </StatusBadge>
                             ) : null}
                           </p>
@@ -470,7 +472,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                             {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
                           </p>
                           {expired && !expired.blocked ? (
-                            <p className="mt-1 text-xs text-[#FF3D00]">{expired.message}</p>
+                            <p className="mt-1 text-xs text-[#FFB300]">{expired.message}</p>
                           ) : null}
                         </div>
                         {checkedInToday ? null : (
@@ -494,7 +496,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
             ) : (
               <div>
                 <p className="text-sm text-[#A3A3A3]">
-                  Showing the {RECENT_COUNT} most recent members — type to search, then press Check in.
+                  Showing the {RECENT_COUNT} most recent members — type to search, press Enter to select, then Check in.
                 </p>
                 <ul className="mt-2 flex flex-col">
                   {recentMembers.map((member) => {
@@ -519,12 +521,14 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                               </StatusBadge>
                             )}
                             {expired ? (
-                              <StatusBadge tone="bad" className="ml-3">
+                              <StatusBadge tone={expired.blocked ? 'bad' : 'warning'} className="ml-3">
                                 {member.membership?.status === 'paused'
                                   ? 'Paused'
                                   : member.membership?.status === 'cancelled'
                                     ? 'Cancelled'
-                                    : 'Expired'}
+                                    : expired.blocked
+                                      ? 'Expired'
+                                      : 'Expiring'}
                               </StatusBadge>
                             ) : null}
                           </p>
@@ -532,7 +536,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                             {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
                           </p>
                           {expired && !expired.blocked ? (
-                            <p className="mt-1 text-xs text-[#FF3D00]">{expired.message}</p>
+                            <p className="mt-1 text-xs text-[#FFB300]">{expired.message}</p>
                           ) : null}
                         </div>
                         {checkedInToday ? null : (
