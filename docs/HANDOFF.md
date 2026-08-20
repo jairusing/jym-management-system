@@ -193,6 +193,30 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `within(summaryCard)` (the PageShell description also contains an
    em-dash) and use `queryAllByText` to assert the placeholders are gone
    (`getAllByText` throws on zero matches).
+- **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
+   re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
+   and the user approved all 4 P1s): search Enter no longer auto-checks-in
+   the first match; the old "checks in the first matching member when the
+   search form is submitted" test was replaced with one asserting submit
+   does NOT check in and the row button still does. A Supabase load
+   failure no longer silently swaps in mock data: `load()` clears the
+   lists and renders a "Couldn't load check-in data." `LoadError` block
+   with Retry in the Check in and Today tabs (demo mode with no DB config
+   still uses mocks). New test "shows an error and Retry when Supabase
+   load fails, then recovers" uses the hoisted-config pattern from
+   DashboardPage.test with both supabase repos mocked — `listCheckIns`
+   must also resolve, or `loadHistory` throws a spurious alert on mount.
+   `dangerButtonClass` is now a red-bordered chip (fills solid on
+   hover/focus-visible) instead of a red underline identical to the
+   primary button — destructive is visually distinct app-wide
+   (ConfirmModal + Delete rows). The QR overlay is a real dialog:
+   role="dialog", aria-modal, describedby, Escape-close, Tab focus trap,
+   focus restored to the "Scan QR" trigger (mirrors ConfirmModal). New
+   QrScanner tests cover dialog semantics + focus restore; use
+   `getAttribute` not `toHaveAttribute` (jest-dom matchers aren't
+   registered). Verified: full suite 265/265 (197 runnable + 68 skipped),
+   lint/tsc/build clean, detector 0 findings. Next: re-critique
+   Check-ins (round 11) to confirm the score moved.
 - **v1.024** — critique round 9 (Dashboard, final a11y polish): a failed
    refresh moves focus to the banner's Retry (`refreshRetryRef` + effect;
    it previously needed a backward tab). A failed Retry no longer yanks
@@ -374,6 +398,14 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    real "recent check-ins / who's in the building" list to the dashboard —
    that needs a repository extension (the dashboard repo currently only
    returns stats + weekly attendance).
+7. **Critique round 10 (Check-ins) — shipped 2026-08-21 (v1.025):** all 4
+   P1s fixed (safe search Enter, honest load error + Retry, distinct
+   danger style, QR dialog). P2s remaining from the round-9 assessment:
+   focus not restored after a manual check-in, keyboard arrow keys on the
+   tabs, no "opening camera" scanning indicator, duplicated list markup
+   between Check in / Today tabs, sticky status messages, and the
+   monolithic chart aria-label. Next step is the round-11 re-critique of
+   Check-ins to confirm the score moved off 29/40.
 
 Deploy note for v1.005: before the live create-login path works, set
 `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project env (and confirm

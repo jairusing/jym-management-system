@@ -28,6 +28,19 @@ function StatusLine({ error, success }: { error: string | null; success: string 
   );
 }
 
+function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col gap-3 border border-[#262626] bg-[#0F0F0F] p-4">
+      <p role="alert" className="text-sm text-[#FF3D00]">
+        Couldn't load check-in data. {message}
+      </p>
+      <button className={ghostButtonClass} type="button" onClick={onRetry}>
+        Retry
+      </button>
+    </div>
+  );
+}
+
 export function CheckInsPage() {
   const [tab, setTab] = useState<'checkin' | 'today' | 'history'>('checkin');
   const [members, setMembers] = useState<Member[]>([]);
@@ -37,6 +50,7 @@ export function CheckInsPage() {
   const [historyTo, setHistoryTo] = useState(phDateToday());
   const [historyLoading, setHistoryLoading] = useState(false);
   const [loading, setLoading] = useState(hasSupabaseConfig);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -64,6 +78,8 @@ export function CheckInsPage() {
   };
 
   const load = async () => {
+    setLoading(true);
+    setLoadError(null);
     if (!hasSupabaseConfig) {
       setMembers(await mockMemberRepository.listMembers());
       setCheckIns(await mockCheckInRepository.listTodayCheckIns());
@@ -81,8 +97,9 @@ export function CheckInsPage() {
       setCheckIns(loadedCheckIns);
     } catch (e) {
       console.warn('Failed to load check-in data from Supabase', e);
-      setMembers(await mockMemberRepository.listMembers());
-      setCheckIns(await mockCheckInRepository.listTodayCheckIns());
+      setLoadError(e instanceof Error ? e.message : 'Failed to load check-in data.');
+      setMembers([]);
+      setCheckIns([]);
     } finally {
       setLoading(false);
     }
@@ -178,10 +195,6 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const firstMatch = filteredMembers[0];
-    if (firstMatch) {
-      void handleCheckIn(firstMatch);
-    }
   };
 
   const handleQrCheckIn = async (code: string) => {
@@ -343,6 +356,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
         >
           <StatusLine error={error} success={success} />
 
+          {loadError ? (
+            <LoadError message={loadError} onRetry={() => void load()} />
+          ) : (
+            <>
           <form
             aria-label="QR check-in"
             className="flex flex-col gap-4 pb-4"
@@ -452,7 +469,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
             ) : (
               <div>
                 <p className="text-sm text-[#A3A3A3]">
-                  Showing the {RECENT_COUNT} most recent members — type to search.
+                  Showing the {RECENT_COUNT} most recent members — type to search, then press Check in.
                 </p>
                 <ul className="mt-2 flex flex-col">
                   {recentMembers.map((member) => {
@@ -510,6 +527,8 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
               </div>
             )}
           </form>
+            </>
+          )}
 
           {pinFor ? (
             <div id="pin-panel" className="mt-4 flex flex-col gap-4 border border-[#FFB300] bg-[#1A1A1A] p-4">
@@ -567,6 +586,8 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
 
           {loading ? (
             <p className="text-sm text-[#A3A3A3]">Loading…</p>
+          ) : loadError ? (
+            <LoadError message={loadError} onRetry={() => void load()} />
           ) : checkIns.length === 0 ? (
             <p className="text-sm text-[#A3A3A3]">No check-ins yet today.</p>
           ) : (

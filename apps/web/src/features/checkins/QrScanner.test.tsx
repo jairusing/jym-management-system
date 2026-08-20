@@ -85,4 +85,39 @@ describe('QrScanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('renders a labelled modal dialog that closes on Escape', async () => {
+    stubCamera();
+    mockedDecode.mockReturnValue(null);
+
+    const onClose = vi.fn();
+    render(<QrScanner onCode={vi.fn()} onError={vi.fn()} onClose={onClose} />);
+
+    const dialog = screen.getByRole('dialog', { name: 'Scan QR code' });
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(dialog.getAttribute('aria-describedby')).toBe('qr-scanner-description');
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('restores focus to the trigger on close', async () => {
+    stubCamera();
+    mockedDecode.mockReturnValue(null);
+
+    const trigger = document.createElement('button');
+    trigger.setAttribute('type', 'button');
+    trigger.id = 'scan-trigger';
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const { unmount } = render(
+      <QrScanner onCode={vi.fn()} onError={vi.fn()} onClose={vi.fn()} />
+    );
+    expect(screen.getByRole('dialog')).toBeTruthy();
+
+    unmount();
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
 });

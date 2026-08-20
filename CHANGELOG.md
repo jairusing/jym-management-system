@@ -5,6 +5,36 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.025 — Critique round 10 (Check-ins): first P1 fix round — safe search Enter, honest load errors, distinct danger style, QR as a real dialog (2026-08-21)
+
+- Pressing Enter in the member search no longer checks in the first
+  match. Submitting the search form previously recorded a check-in with
+  no confirmation, so mashing Enter after typing a partial name could
+  silently check in the wrong person. Enter now only submits the
+  (already-prevented) form, and recording a visit requires the row's
+  explicit "Check in" button. The recent-members hint now says to press
+  Check in.
+- A Supabase load failure no longer silently swaps in mock data: the
+  page clears the lists and shows "Couldn't load check-in data." with
+  the real reason and a Retry button in both the Check in and Today
+  tabs. Demo mode (no database configured) still uses the seeded mock
+  data and is unchanged — this closes the same honesty gap the Dashboard
+  closed in v1.021 (a screen full of fake members after a DB outage
+  would let staff "check in" people who don't exist).
+- Destructive actions now look destructive. `dangerButtonClass` is no
+  longer a red underline identical to the primary button: it is a
+  red-bordered chip that fills solid on hover/keyboard-focus, so Delete
+  is clearly distinct from Check in everywhere it is used — check-in
+  rows, delete confirmations, and every other confirm modal in the app.
+- The QR scanner is now a real dialog: `role="dialog"`, `aria-modal`,
+  a described-by description, Escape-to-close, a Tab focus trap, and
+  focus returns to the "Scan QR" button when it closes. Cancel
+  auto-focuses and uses the shared outlined button (with a visible
+  keyboard-focus state) instead of a bespoke class; the camera preview
+  has an accessible name.
+- Verified: full suite 265/265 (197 runnable + 68 skipped live DB),
+  lint/tsc/build clean, detector 0 findings.
+
 ## v1.024 — Critique round 9 (Dashboard): final a11y polish — banner focus, no focus yank on failed retry, refresh completion announced (2026-08-20)
 
 - A failed refresh now moves focus to the banner's own Retry button (it

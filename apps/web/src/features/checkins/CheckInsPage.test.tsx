@@ -4,14 +4,32 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CheckInsPage } from './CheckInsPage';
 import { mockCheckInRepository } from './checkInRepository';
+import { SupabaseCheckInRepository } from './supabaseCheckInRepository';
 import { phDateInDays, phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
 import { mockMemberRepository } from '../members/memberRepository';
+import { SupabaseMemberRepository } from '../members/supabaseMemberRepository';
 
-const { scannedCode } = vi.hoisted(() => ({ scannedCode: { current: '' } }));
+const SupabaseCheckInRepositoryMock = vi.mocked(SupabaseCheckInRepository);
+const SupabaseMemberRepositoryMock = vi.mocked(SupabaseMemberRepository);
+
+const { scannedCode, supabaseConfig } = vi.hoisted(() => ({
+  scannedCode: { current: '' },
+  supabaseConfig: { hasSupabaseConfig: false }
+}));
 
 vi.mock('../../lib/supabase', () => ({
-  hasSupabaseConfig: false,
+  get hasSupabaseConfig() {
+    return supabaseConfig.hasSupabaseConfig;
+  },
   supabase: null
+}));
+
+vi.mock('./supabaseCheckInRepository', () => ({
+  SupabaseCheckInRepository: vi.fn()
+}));
+
+vi.mock('../members/supabaseMemberRepository', () => ({
+  SupabaseMemberRepository: vi.fn()
 }));
 
 vi.mock('./qrDecoder', () => ({
@@ -65,6 +83,9 @@ afterEach(() => {
   cleanup();
   mockMemberRepository.reset();
   mockCheckInRepository.reset();
+  supabaseConfig.hasSupabaseConfig = false;
+  SupabaseCheckInRepositoryMock.mockReset();
+  SupabaseMemberRepositoryMock.mockReset();
   vi.restoreAllMocks();
 });
 
@@ -626,7 +647,7 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     expect(saved.length).toBe(1);
   });
 
-  it('checks in the first matching member when the search form is submitted', async () => {
+  it('does not check in anyone when the search form is submitted', async () => {
     await seedMembers();
     renderPage();
 
@@ -634,15 +655,54 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByPlaceholderText('Type a name…'), { target: { value: 'Maria' } });
+    fireEvent.change(screen.getByPlaceholderText(/type a name/i), { target: { value: 'Maria' } });
     fireEvent.submit(screen.getByRole('form', { name: 'Search members' }));
+
+    expect(screen.queryByText(/checked in\./i)).toBeNull();
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check in' }));
 
     await waitFor(() => {
       expect(screen.getByText(/Maria Santos checked in\./i)).toBeTruthy();
     });
-    const saved = await mockCheckInRepository.listTodayCheckIns();
-    expect(saved.length).toBe(1);
-    expect(saved[0]?.memberName).toBe('Maria Santos');
+    expect((await mockCheckInRepository.listTodayCheckIns()).length).toBe(1);
+  });
+
+  it('shows an error and Retry when Supabase load fails, then recovers', async () => {
+    supabaseConfig.hasSupabaseConfig = true;
+    const listMembers = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('db unavailable'))
+      .mockResolvedValueOnce([]);
+    const listTodayCheckIns = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('db unavailable'))
+      .mockResolvedValueOnce([]);
+    const listCheckIns = vi.fn().mockResolvedValue([]);
+    SupabaseMemberRepositoryMock.mockImplementation(
+      () => ({ listMembers }) as unknown as SupabaseMemberRepository
+    );
+    SupabaseCheckInRepositoryMock.mockImplementation(
+      () => ({ listTodayCheckIns, listCheckIns }) as unknown as SupabaseCheckInRepository
+    );
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain("Couldn't load check-in data.");
+    });
+    expect(screen.getByText(/db unavailable/)).toBeTruthy();
+    expect(screen.queryByText(/no members yet/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+    expect(screen.getByText(/no members yet/i)).toBeTruthy();
+    expect(listMembers).toHaveBeenCalledTimes(2);
+    expect(listTodayCheckIns).toHaveBeenCalledTimes(2);
   });
 
   it('checks in via QR when the member ID form is submitted', async () => {
