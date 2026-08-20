@@ -105,6 +105,7 @@ green:  #22C55E    // good: paid, active membership, active member
 amber:  #FFB300    // pending/warning: issued invoice, expiring membership, paused
 red:    #FF3D00    // blocked/bad: expired membership, overdue invoice, inactive member
 gray:   #A3A3A3    // neutral: void invoice, cancelled membership, no membership
+danger: #DC2626    // destructive actions: delete, void, danger button (distinct from accent #FF3D00)
 ```
 
 Deliberate fixes vs pre-Phase-8: "paid" was gray and "issued" was red on Payments — paid is now green (it's the good state), issued is amber (it's pending, not an error).

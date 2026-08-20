@@ -193,6 +193,28 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    `within(summaryCard)` (the PageShell description also contains an
    em-dash) and use `queryAllByText` to assert the placeholders are gone
    (`getAllByText` throws on zero matches).
+- **v1.026** — critique round 11 (Check-ins, re-critique scored 31/40,
+   up from 29; user approved "both P1s" + local danger color, token
+   refactor stays deferred): (1) PIN dead-end escape hatch — the PIN
+   panel now explains why the PIN is asked and adds a "Member forgot PIN"
+   link that opens a staff-confirmed "Check in anyway? This bypasses the
+   PIN verification." override (`handlePinOverride` completes the check-in
+   with the normal method). NOTE: the override records a normal check-in;
+   persisting a "PIN bypassed" flag would require a schema change on
+   `check_ins` (no note column) — deferred pending explicit approval.
+   (2) Search Enter is no longer a dead no-op: `handleSearch` focuses the
+   first match's `checkin-button-<id>` (both the filtered and recent
+   member rows now carry that id) without checking in — Enter is still an
+   explicit two-step. (3) `dangerButtonClass` now uses a dedicated
+   `#DC2626` danger token (documented as a new `danger` color in
+   `docs/UI_DESIGN.md`) so destructive actions stop competing with the
+   #FF3D00 brand/error red; repo-wide hex-to-token extraction remains
+   deferred. New tests: "lets staff override the PIN gate when the member
+   forgot their PIN" and "moves focus to the first match Check in button
+   when the search form is submitted" (asserts `document.activeElement`
+   is the button and no check-in was recorded). Verified: full suite
+   267/267 (199 runnable + 68 skipped), lint/tsc/build clean, detector 0
+   findings.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in
@@ -398,14 +420,18 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    real "recent check-ins / who's in the building" list to the dashboard —
    that needs a repository extension (the dashboard repo currently only
    returns stats + weekly attendance).
-7. **Critique round 10 (Check-ins) — shipped 2026-08-21 (v1.025):** all 4
-   P1s fixed (safe search Enter, honest load error + Retry, distinct
-   danger style, QR dialog). P2s remaining from the round-9 assessment:
-   focus not restored after a manual check-in, keyboard arrow keys on the
-   tabs, no "opening camera" scanning indicator, duplicated list markup
-   between Check in / Today tabs, sticky status messages, and the
-   monolithic chart aria-label. Next step is the round-11 re-critique of
-   Check-ins to confirm the score moved off 29/40.
+7. **Critique rounds 10-11 (Check-ins) — shipped 2026-08-21 (v1.025,
+   v1.026):** round 10 fixed all 4 P1s (safe search Enter, honest load
+   error + Retry, distinct danger style, QR dialog); the round-11
+   re-critique scored 31/40 (+2) and round 11 (v1.026) closed its two P1
+   flow-blockers: the PIN dead-end now has a staff-confirmed "Member
+   forgot PIN" override, and search Enter now focuses the first match's
+   Check in button (still an explicit two-step, no auto-check-in).
+   Remaining P2s: danger/error color is now distinct (#DC2626); still
+   open are keyboard arrow keys on the tabs, no "opening camera" scanning
+   indicator, duplicated list markup, focus restore after manual
+   check-in, sticky status messages, and a persisting "PIN bypassed"
+   flag (needs a schema change — deferred pending approval).
 
 Deploy note for v1.005: before the live create-login path works, set
 `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project env (and confirm

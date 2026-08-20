@@ -275,6 +275,37 @@ describe('CheckInsPage', () => {
     expect(saved[0]?.method).toBe('manual');
   });
 
+  it('lets staff override the PIN gate when the member forgot their PIN', async () => {
+    const member = await mockMemberRepository.createMember({
+      fullName: 'Forgot Pin',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    await mockMemberRepository.setMemberPin(member.id, '4321');
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Forgot Pin')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check in' }));
+    await waitFor(() => {
+      expect(screen.getByText(/Enter the PIN for Forgot Pin/)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Member forgot PIN' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Check in anyway' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Forgot Pin checked in\./i)).toBeTruthy();
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(1);
+    expect(saved[0]?.method).toBe('manual');
+  });
+
   it('blocks check-in on a wrong PIN, then succeeds with the correct one', async () => {
     const member = await mockMemberRepository.createMember({
       fullName: 'Pin Member',
@@ -668,6 +699,23 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByText(/Maria Santos checked in\./i)).toBeTruthy();
     });
     expect((await mockCheckInRepository.listTodayCheckIns()).length).toBe(1);
+  });
+
+  it('moves focus to the first match Check in button when the search form is submitted', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/type a name/i), { target: { value: 'maria' } });
+    fireEvent.submit(screen.getByRole('form', { name: 'Search members' }));
+
+    const members = await mockMemberRepository.listMembers();
+    const maria = members.find((candidate) => candidate.fullName === 'Maria Santos');
+    expect(document.activeElement).toBe(document.getElementById(`checkin-button-${maria?.id}`));
+    expect((await mockCheckInRepository.listTodayCheckIns()).length).toBe(0);
   });
 
   it('shows an error and Retry when Supabase load fails, then recovers', async () => {

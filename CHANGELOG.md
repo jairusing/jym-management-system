@@ -5,6 +5,29 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.026 — Critique round 11 (Check-ins, 29 → 31): PIN dead-end escape hatch, keyboard fast path for search, distinct danger color (2026-08-21)
+
+- The PIN gate no longer strands a member at the counter. The prompt now
+  explains why the PIN is asked, and a "Member forgot PIN" link opens a
+  staff-confirmed override ("Check in anyway? This bypasses the PIN
+  verification.") that completes the check-in instead of silently
+  bypassing the gate. (The override currently records a normal check-in;
+  persisting a "PIN bypassed" flag would need a schema change on
+  `check_ins` — deferred, documented in HANDOFF.)
+- The search form's dead Enter is now a keyboard fast path: submitting
+  the search form focuses the first match's "Check in" button. It does
+  NOT check in — each Enter is still a deliberate, explicit step, so the
+  round-10 safety fix is preserved. Staff processing a line of
+  name-searchers can now type, Enter, Enter instead of reaching for the
+  mouse every time.
+- Destructive actions are now a distinct red. `dangerButtonClass` switches
+  from #FF3D00 to a dedicated #DC2626 danger token, so Delete/void no
+  longer compete with the brand accent, error text, and badges for the
+  same red. Documented as a new `danger` token in `docs/UI_DESIGN.md`;
+  the repo-wide hex-to-token extraction stays deferred.
+- Verified: full suite 267/267 (199 runnable + 68 skipped live DB),
+  lint/tsc/build clean, detector 0 findings.
+
 ## v1.025 — Critique round 10 (Check-ins): first P1 fix round — safe search Enter, honest load errors, distinct danger style, QR as a real dialog (2026-08-21)
 
 - Pressing Enter in the member search no longer checks in the first

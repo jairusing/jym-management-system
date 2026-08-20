@@ -66,6 +66,7 @@ export function CheckInsPage() {
   const [pinValue, setPinValue] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
   const [pinSaving, setPinSaving] = useState(false);
+  const [pinOverride, setPinOverride] = useState(false);
 
   const showError = (message: string) => {
     setSuccess(null);
@@ -195,6 +196,11 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const firstMatch = filteredMembers[0];
+    if (!firstMatch) {
+      return;
+    }
+    document.getElementById(`checkin-button-${firstMatch.id}`)?.focus();
   };
 
   const handleQrCheckIn = async (code: string) => {
@@ -243,6 +249,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       setPinSource(method);
       setPinValue('');
       setPinError(null);
+      setPinOverride(false);
     } catch (e) {
       showError(e instanceof Error ? e.message : 'Failed to check in member.');
     } finally {
@@ -283,6 +290,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
         const method = pinSource;
         setPinFor(null);
         setPinValue('');
+        setPinOverride(false);
         await completeCheckIn(member, method);
       } else {
         setPinError('Incorrect PIN.');
@@ -292,6 +300,22 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
     } finally {
       setPinSaving(false);
     }
+  };
+
+  const handlePinOverride = () => {
+    if (pinFor === null) {
+      return;
+    }
+    const member = members.find((candidate) => candidate.id === pinFor);
+    if (!member) {
+      return;
+    }
+    const method = pinSource;
+    setPinFor(null);
+    setPinValue('');
+    setPinError(null);
+    setPinOverride(false);
+    void completeCheckIn(member, method);
   };
 
   const handleDeleteCheckIn = (checkIn: CheckIn) => {
@@ -450,12 +474,13 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                           ) : null}
                         </div>
                         {checkedInToday ? null : (
-                          <button
-                            className={primaryButtonClass}
-                            type="button"
-                            disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
-                            onClick={() => void handleCheckIn(member)}
-                          >
+<button
+  id={`checkin-button-${member.id}`}
+  className={primaryButtonClass}
+  type="button"
+  disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
+  onClick={() => void handleCheckIn(member)}
+>
                             {checkingInId === member.id ? 'Checking in…' : 'Check in'}
                           </button>
                         )}
@@ -511,12 +536,13 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                           ) : null}
                         </div>
                         {checkedInToday ? null : (
-                          <button
-                            className={primaryButtonClass}
-                            type="button"
-                            disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
-                            onClick={() => void handleCheckIn(member)}
-                          >
+<button
+  id={`checkin-button-${member.id}`}
+  className={primaryButtonClass}
+  type="button"
+  disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
+  onClick={() => void handleCheckIn(member)}
+>
                             {checkingInId === member.id ? 'Checking in…' : 'Check in'}
                           </button>
                         )}
@@ -534,6 +560,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
             <div id="pin-panel" className="mt-4 flex flex-col gap-4 border border-[#FFB300] bg-[#1A1A1A] p-4">
               <p className="text-sm font-medium text-[#FAFAFA]">
                 Enter the PIN for {members.find((candidate) => candidate.id === pinFor)?.fullName ?? 'this member'}
+              </p>
+              <p className="text-xs text-[#A3A3A3]">
+                Members can set a PIN to confirm their identity at check-in. Ask them for it, or use the option below
+                if they've forgotten it.
               </p>
               <div className="grid gap-4 sm:grid-cols-3">
                 <label className="flex flex-col gap-2 text-sm">
@@ -569,11 +599,36 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                     setPinFor(null);
                     setPinValue('');
                     setPinError(null);
+                    setPinOverride(false);
                   }}
                 >
                   Cancel
                 </button>
               </div>
+              <button
+                className={ghostButtonClass}
+                type="button"
+                disabled={pinSaving}
+                onClick={() => setPinOverride(true)}
+              >
+                Member forgot PIN
+              </button>
+              {pinOverride ? (
+                <div className="flex flex-col gap-3 border border-[#FFB300] bg-[#1A1A1A] p-4">
+                  <p className="text-sm text-[#FAFAFA]">
+                    Check in {members.find((candidate) => candidate.id === pinFor)?.fullName ?? 'this member'} anyway?
+                    This bypasses the PIN verification.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button className={primaryButtonClass} type="button" onClick={() => void handlePinOverride()}>
+                      Check in anyway
+                    </button>
+                    <button className={ghostButtonClass} type="button" onClick={() => setPinOverride(false)}>
+                      Never mind
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </SectionCard>
