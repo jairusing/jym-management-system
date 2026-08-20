@@ -77,6 +77,8 @@ function manilaMonthKey(isoDate: string) {
 export function PaymentsPage() {
   const [tab, setTab] = useState<'invoices' | 'payments'>('invoices');
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all');
+  const [invoiceQuery, setInvoiceQuery] = useState('');
+  const [issueOpen, setIssueOpen] = useState(false);
   const [invoicePage, setInvoicePage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -178,7 +180,7 @@ export function PaymentsPage() {
 
   useEffect(() => {
     setInvoicePage(1);
-  }, [invoiceFilter]);
+  }, [invoiceFilter, invoiceQuery]);
 
   const handlePlanChange = (value: string) => {
     setPlanId(value);
@@ -354,8 +356,15 @@ setPlanId('');
 
   const sortedMembers = [...members].sort((a, b) => a.fullName.localeCompare(b.fullName));
 
-  const filteredInvoices =
-    invoiceFilter === 'all' ? invoices : invoices.filter((invoice) => displayStatus(invoice) === invoiceFilter);
+  const normalizedQuery = invoiceQuery.trim().toLowerCase();
+  const filteredInvoices = invoices.filter((invoice) => {
+    const statusMatch = invoiceFilter === 'all' || displayStatus(invoice) === invoiceFilter;
+    const queryMatch =
+      normalizedQuery === '' ||
+      invoice.memberName.toLowerCase().includes(normalizedQuery) ||
+      invoice.invoiceNumber.toLowerCase().includes(normalizedQuery);
+    return statusMatch && queryMatch;
+  });
   const invoiceTotalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
   const invoiceSafePage = Math.min(invoicePage, invoiceTotalPages);
   const visibleInvoices = filteredInvoices.slice((invoiceSafePage - 1) * PAGE_SIZE, invoiceSafePage * PAGE_SIZE);
@@ -379,7 +388,7 @@ setPlanId('');
         <div className="grid gap-6 sm:grid-cols-3">
           <div className="flex flex-col gap-1">
             <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">Outstanding</p>
-            <p className="text-2xl font-semibold tracking-[-0.04em] text-[#FF3D00]">
+            <p className="text-2xl font-semibold tracking-[-0.04em] text-[#FAFAFA]">
               {loading || loadError ? '—' : formatMoney(outstandingTotal)}
             </p>
           </div>
@@ -409,6 +418,7 @@ setPlanId('');
 
       {tab === 'invoices' ? (
         <>
+          {issueOpen ? (
           <SectionCard title="Issue invoice" description="Create a record-only invoice for a member. Select a plan to renew membership on payment.">
             <StatusLine
               error={errorHome === 'issue' ? error : null}
@@ -471,9 +481,12 @@ setPlanId('');
                 </label>
               </div>
 
-              <div>
+              <div className="flex flex-wrap items-center gap-4">
                 <button className={primaryButtonClass} type="submit" disabled={saving}>
                   {saving ? 'Issuing…' : 'Issue invoice'}
+                </button>
+                <button className={ghostButtonClass} type="button" onClick={() => setIssueOpen(false)}>
+                  Cancel
                 </button>
               </div>
               </fieldset>
@@ -484,8 +497,16 @@ setPlanId('');
               ) : null}
             </form>
           </SectionCard>
+          ) : null}
 
           <SectionCard title="Invoices" description={`${invoices.length} invoice${invoices.length === 1 ? '' : 's'}.`}>
+            {!issueOpen ? (
+              <div className="mb-6">
+                <button className={primaryButtonClass} type="button" onClick={() => setIssueOpen(true)}>
+                  New invoice
+                </button>
+              </div>
+            ) : null}
             <StatusLine
               error={errorHome === 'invoices' ? error : null}
               success={successHome === 'invoices' ? success : null}
@@ -515,6 +536,17 @@ setPlanId('');
               </div>
             ) : (
               <>
+                <label className="mb-4 flex flex-col gap-2 text-sm">
+                  <span>Find a member or invoice</span>
+                  <input
+                    className={inputClass}
+                    type="search"
+                    value={invoiceQuery}
+                    onChange={(event) => setInvoiceQuery(event.target.value)}
+                    aria-label="Search invoices"
+                    placeholder="Search by member or invoice number"
+                  />
+                </label>
                 <div className="mb-6 flex flex-wrap items-center gap-2">
                   {invoiceFilterChips.map((chip) => (
                     <button
@@ -532,8 +564,10 @@ setPlanId('');
                 {filteredInvoices.length === 0 ? (
                   <p className="text-sm text-[#A3A3A3]">
                     {invoices.length === 0
-                      ? 'No invoices yet. Issue your first invoice above.'
-                      : 'No invoices match this filter.'}
+                      ? 'No invoices yet. Use New invoice to issue the first one.'
+                      : invoiceQuery.trim() === ''
+                        ? 'No invoices match this filter.'
+                        : 'No invoices match this search.'}
                   </p>
                 ) : (
                   <ul className="flex flex-col">
@@ -544,7 +578,7 @@ setPlanId('');
                           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
                               <p className="text-base font-medium text-[#FAFAFA]">
-                                {invoice.invoiceNumber}
+                                {invoice.memberName}
                                 <StatusBadge
                                   tone={
                                     status === 'paid'
@@ -561,13 +595,18 @@ setPlanId('');
                                 </StatusBadge>
                               </p>
                               <p className="mt-1 text-sm text-[#A3A3A3]">
-                                {invoice.memberName} · {invoice.planName ? `${invoice.planName} · ` : ''}
-                                {formatMoney(invoice.total)} · issued {formatDateTime(invoice.issuedAt)}
+                                {invoice.invoiceNumber}
+                                {invoice.planName ? ` · ${invoice.planName}` : ''}
+                                {` · issued ${formatDate(invoice.issuedAt)}`}
                                 {invoice.dueAt ? ` · due ${formatDate(invoice.dueAt)}` : ''}
-                                {invoice.paidAt ? ` · paid ${formatDateTime(invoice.paidAt)}` : ''}
+                                {invoice.paidAt ? ` · paid ${formatDate(invoice.paidAt)}` : ''}
                               </p>
                             </div>
-                            <div className="flex shrink-0 flex-wrap gap-2 whitespace-nowrap">
+                            <div className="flex shrink-0 flex-wrap items-center gap-4">
+                              <p className="font-mono text-lg tracking-[-0.02em] text-[#FAFAFA]">
+                                {formatMoney(invoice.total)}
+                              </p>
+                              <div className="flex shrink-0 flex-wrap gap-2 whitespace-nowrap">
                               <a
                                 className={ghostButtonClass}
                                 href={`/app/members/${invoice.memberId}`}
@@ -623,6 +662,7 @@ setPlanId('');
                                   ]}
                                 />
                               ) : null}
+                            </div>
                             </div>
                           </div>
 
@@ -742,16 +782,19 @@ setPlanId('');
             <p className="text-sm text-[#A3A3A3]">No payments recorded yet.</p>
           ) : (
             <>
-              <div className="mb-6 border border-[#262626] bg-[#1A1A1A] p-4">
+              <div className="mb-6">
                 <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
                   Collected by staff — today vs this month
                 </p>
-                <ul className="mt-3 flex flex-col gap-2">
+                <ul className="mt-3 flex flex-col">
                   {staffSummary.length === 0 ? (
                     <p className="text-sm text-[#A3A3A3]">No collections yet this month.</p>
                   ) : (
                     staffSummary.map((row) => (
-                      <li key={row.name} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <li
+                        key={row.name}
+                        className="flex flex-wrap items-center justify-between gap-2 border-b border-[#262626] py-2 text-sm last:border-b-0"
+                      >
                         <span className="font-medium text-[#FAFAFA]">{row.name}</span>
                         <span className="text-[#A3A3A3]">
                           {formatMoney(row.today)} today · {formatMoney(row.month)} this month
@@ -767,12 +810,17 @@ setPlanId('');
                   key={payment.id}
                   className="flex flex-col gap-1 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <p className="text-base font-medium text-[#FAFAFA]">{payment.memberName}</p>
-                  <p className="text-sm text-[#A3A3A3]">
-                    {formatMoney(payment.amount)} · {payment.method}
-                    {payment.reference ? ` · ${payment.reference}` : ''} · {payment.invoiceNumber} ·{' '}
-                    {formatDateTime(payment.paidAt)}
-                    {payment.processedBy ? ` · taken by ${payment.processedBy}` : ''}
+                  <div className="min-w-0">
+                    <p className="text-base font-medium text-[#FAFAFA]">{payment.memberName}</p>
+                    <p className="mt-1 text-sm text-[#A3A3A3]">
+                      {payment.method}
+                      {payment.reference ? ` · ${payment.reference}` : ''} · {payment.invoiceNumber} ·{' '}
+                      {formatDateTime(payment.paidAt)}
+                      {payment.processedBy ? ` · taken by ${payment.processedBy}` : ''}
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-mono text-lg tracking-[-0.02em] text-[#FAFAFA]">
+                    {formatMoney(payment.amount)}
                   </p>
                 </li>
               ))}

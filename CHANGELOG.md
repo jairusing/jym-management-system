@@ -5,7 +5,40 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.026 — Critique round 11 (Check-ins, 29 → 31): PIN dead-end escape hatch, keyboard fast path for search, distinct danger color (2026-08-21)
+## v1.027 — Critique round 6 (Payments, 34 → 30, fixed): color-semantics P1s reversed, list-first layout P2s (2026-08-21)
+
+- Round 6 dropped Payments from 34 → 30: v1.026's #DC2626 danger split and
+  the Outstanding figure rendered in error-red were both live on screen.
+  Both P1s are fixed here:
+  - Outstanding is no longer red. A total owed is money, not an error — it
+    now renders in paper #FAFAFA; only the Overdue count keeps vermillion.
+  - The danger split is reverted. `dangerButtonClass` returns to the
+    vermillion ghost anatomy (relative, px-1 py-2, text-[#FF3D00], after
+    underline) so Delete/void no longer have two competing reds. The
+    `#DC2626` token is removed; `docs/UI_DESIGN.md` now documents danger as
+    the same accent — one voice, ghost anatomy, NOT a distinct color. (This
+    reverses the v1.026 "distinct danger color" change; the round-6 finding
+    was that a second off-palette red failed AA contrast and split the
+    voice.)
+- Issue-invoice form now collapses behind a "New invoice" button
+  (list-first): the Invoices list is the default view, the form opens on
+  demand with a Cancel escape, and the empty state points to "New invoice".
+- Invoice and payment rows are restructured into two-line cards: member
+  name is the title (with status badge), the run-on dot-separated meta is
+  now `number · plan · issued · due · paid` (dates, not datetimes, fixing
+  the precision mismatch), and the amount moves to a right-aligned
+  font-mono ₱ figure instead of being embedded mid-sentence.
+- Added a search filter (member name or invoice number) above the status
+  chips; search and filter compose, the page resets on either change, and
+  the empty state distinguishes no-invoices vs no-filter-match vs
+  no-search-match.
+- The "Collected by staff" box drops its filled panel for hairline
+  separators (consistent with the rest of the list anatomy).
+- Partial-payment handling (amount ≠ total) deferred — investigated later,
+  parked in HANDOFF. No schema changes were made this round.
+- Verified: full suite 269/269 (201 runnable + 68 skipped live DB), 27
+  Payments tests incl. 2 new (collapse behavior, search), lint/tsc/build
+  clean, detector 0 findings.
 
 - The PIN gate no longer strands a member at the counter. The prompt now
   explains why the PIN is asked, and a "Member forgot PIN" link opens a

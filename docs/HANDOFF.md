@@ -212,8 +212,34 @@ Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests
    deferred. New tests: "lets staff override the PIN gate when the member
    forgot their PIN" and "moves focus to the first match Check in button
    when the search form is submitted" (asserts `document.activeElement`
-   is the button and no check-in was recorded). Verified: full suite
-   267/267 (199 runnable + 68 skipped), lint/tsc/build clean, detector 0
+is the button and no check-in was recorded). Verified: full suite
+    267/267 (199 runnable + 68 skipped), lint/tsc/build clean, detector 0
+    findings.
+- **v1.027** — critique round 6 (Payments, 30/40; round-6 finding was that
+   the v1.026 danger split + Outstanding-in-error-red were live on screen;
+   user approved "both P1s" + "all three P2s" + partial-payment "investigate
+   later"): (1) P1 — Outstanding no longer red (money owed ≠ error): renders
+   in paper #FAFAFA, only the Overdue count keeps #FF3D00. (2) P1 — the
+   #DC2626 danger split is REVERSED: `dangerButtonClass` returns to the
+   vermillion ghost anatomy and `#DC2626` is removed from the palette;
+   `docs/UI_DESIGN.md` now states danger = same accent, one voice, ghost
+   anatomy with vermillion text/underline, NOT a distinct color. (3) P2 —
+   Issue-invoice form collapses behind a "New invoice" button (list-first),
+   with a Cancel escape; empty state points to "New invoice". (4) P2 —
+   invoice + payment rows restructured: member name is the title, run-on
+   meta is now `number · plan · issued · due · paid` with date-only (fixing
+   the datetime-vs-date precision mismatch), amount is a right-aligned
+   font-mono figure. (5) P2 — search filter by member name or invoice
+   number above the chips; composes with status filter; page resets on
+   either; empty state distinguishes no-invoices / no-filter / no-search.
+   (6) "Collected by staff" box is now hairline-separated, no filled panel.
+   PARTIAL-PAYMENT POLICY PARKED: recording a payment whose amount differs
+   from the invoice total (e.g. member pays ₱1000 of a ₱1500 invoice) is
+   intentionally NOT implemented in the UI — the repo's A1 trigger requires
+   exact match, and a real partial-payment flow needs product + schema
+   decisions (new `invoices.paid_amount` or split lines). Investigate later,
+   needs explicit approval. Verified: full suite 269/269 (201 runnable + 68
+   skipped, 27 Payments tests incl. 2 new), lint/tsc/build clean, detector 0
    findings.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —

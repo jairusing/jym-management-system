@@ -50,6 +50,13 @@ function goToTab(name: string) {
   fireEvent.click(screen.getByRole('tab', { name }));
 }
 
+function openIssueForm() {
+  fireEvent.click(screen.getByRole('button', { name: 'New invoice' }));
+  return waitFor(() => {
+    expect(screen.getByLabelText('Member')).toBeTruthy();
+  });
+}
+
 async function seedMember() {
   await mockMemberRepository.createMember({
     fullName: 'Juan Dela Cruz',
@@ -93,7 +100,7 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/no invoices yet/i)).toBeTruthy();
     });
-    expect(screen.getByRole('button', { name: 'Issue invoice' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'New invoice' })).toBeTruthy();
 
     goToTab('Payments');
     expect(screen.getByText(/no payments recorded yet/i)).toBeTruthy();
@@ -103,9 +110,7 @@ describe('PaymentsPage', () => {
     const member = await seedMember();
     renderPage();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Member')).toBeTruthy();
-    });
+    await openIssueForm();
 
     fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
     fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '1500' } });
@@ -115,8 +120,8 @@ describe('PaymentsPage', () => {
       expect(screen.getByText('issued')).toBeTruthy();
     });
     expect(screen.getByText('Invoice issued.')).toBeTruthy();
-    expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
-    expect(screen.getByText(/· ₱1,500\.00 · issued/)).toBeTruthy();
+    expect(screen.getAllByText('Juan Dela Cruz').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('₱1,500.00').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^INV-/).length).toBe(1);
     expect((screen.getByLabelText('Member') as HTMLSelectElement).value).toBe(member?.id);
 
@@ -130,9 +135,7 @@ describe('PaymentsPage', () => {
     const member = await seedMember();
     renderPage();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Plan (optional)')).toBeTruthy();
-    });
+    await openIssueForm();
     fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
     fireEvent.change(screen.getByLabelText('Plan (optional)'), { target: { value: 'plan-monthly' } });
 
@@ -147,9 +150,7 @@ describe('PaymentsPage', () => {
     const member = await seedMember();
     const { container } = renderPage();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Member')).toBeTruthy();
-    });
+    await openIssueForm();
     fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
     fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '1500' } });
     fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2026-08-01' } });
@@ -166,9 +167,7 @@ describe('PaymentsPage', () => {
     const member = await seedMember();
     renderPage();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Member')).toBeTruthy();
-    });
+    await openIssueForm();
     fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
     fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '1500' } });
     fireEvent.click(screen.getByRole('button', { name: 'Issue invoice' }));
@@ -198,7 +197,8 @@ describe('PaymentsPage', () => {
     });
 
     goToTab('Payments');
-    expect(screen.getByText(/1,500\.00 · gcash/)).toBeTruthy();
+    expect(screen.getAllByText('₱1,500.00').length).toBeGreaterThan(0);
+    expect(screen.getByText(/gcash/)).toBeTruthy();
     expect(screen.getByText(/G-12345/)).toBeTruthy();
     expect(screen.getByText(/taken by Front desk/)).toBeTruthy();
     expect(screen.getByText(/Collected by staff — today vs this month/)).toBeTruthy();
@@ -216,9 +216,7 @@ describe('PaymentsPage', () => {
     const member = await seedMember();
     renderPage();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Member')).toBeTruthy();
-    });
+    await openIssueForm();
     fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
     fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '800' } });
     fireEvent.click(screen.getByRole('button', { name: 'Issue invoice' }));
@@ -250,9 +248,7 @@ describe('PaymentsPage', () => {
     const member = await seedMember();
     renderPage();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Member')).toBeTruthy();
-    });
+    await openIssueForm();
     fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
     fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '800' } });
     fireEvent.click(screen.getByRole('button', { name: 'Issue invoice' }));
@@ -294,9 +290,7 @@ describe('PaymentsPage', () => {
     const member = await seedMember();
     renderPage();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Member')).toBeTruthy();
-    });
+    await openIssueForm();
     fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
     fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '800' } });
     fireEvent.click(screen.getByRole('button', { name: 'Issue invoice' }));
@@ -435,15 +429,13 @@ describe('PaymentsPage', () => {
     const member = await seedMember();
     renderPage();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Member')).toBeTruthy();
-    });
+    await openIssueForm();
     fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
     fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '1000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Issue invoice' }));
 
     await waitFor(() => {
-      expect(screen.getByText('₱1,000.00')).toBeTruthy();
+      expect(screen.getAllByText('₱1,000.00').length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
@@ -455,7 +447,7 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('₱0.00')).toBeTruthy();
     });
-    expect(screen.getByText('₱1,000.00')).toBeTruthy();
+    expect(screen.getAllByText('₱1,000.00').length).toBeGreaterThan(0);
   });
 
   it('filters invoices by status chips with counts', async () => {
@@ -492,6 +484,67 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/no invoices match this filter/i)).toBeTruthy();
     });
+  });
+
+  it('collapses the issue form behind New invoice', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'New invoice' })).toBeTruthy();
+    });
+    expect(screen.queryByLabelText('Member')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'New invoice' }));
+    await waitFor(() => {
+      expect(screen.getByLabelText('Member')).toBeTruthy();
+    });
+    expect(screen.queryByRole('button', { name: 'New invoice' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'New invoice' })).toBeTruthy();
+    });
+    expect(screen.queryByLabelText('Member')).toBeNull();
+  });
+
+  it('searches invoices by member name and invoice number', async () => {
+    const first = await mockInvoiceRepository.createInvoice({
+      memberId: 'member-1',
+      memberName: 'Maria Santos',
+      total: 1000,
+      dueAt: null
+    });
+    await mockInvoiceRepository.createInvoice({
+      memberId: 'member-2',
+      memberName: 'Pedro Reyes',
+      total: 500,
+      dueAt: null
+    });
+    renderPage();
+
+    const search = screen.getByRole('searchbox', { name: 'Search invoices' });
+    await waitFor(() => {
+      expect(screen.getByText(/Showing 1–2 of 2/)).toBeTruthy();
+    });
+
+    fireEvent.change(search, { target: { value: 'Pedro' } });
+    await waitFor(() => {
+      expect(screen.getByText(/Showing 1–1 of 1/)).toBeTruthy();
+    });
+    expect(screen.queryByText(/Maria Santos/)).toBeNull();
+    expect(screen.getByText(/Pedro Reyes/)).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: first.invoiceNumber } });
+    await waitFor(() => {
+      expect(screen.getByText(/Showing 1–1 of 1/)).toBeTruthy();
+    });
+    expect(screen.getByText(/Maria Santos/)).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: 'nobody' } });
+    await waitFor(() => {
+      expect(screen.getByText(/no invoices match this search/i)).toBeTruthy();
+    });
+    expect(screen.queryByText(/Pedro Reyes/)).toBeNull();
   });
 
   it('paginates the invoice list', async () => {
@@ -567,9 +620,7 @@ describe('PaymentsPage', () => {
     const member = await seedMember();
     renderPage();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Member')).toBeTruthy();
-    });
+    await openIssueForm();
     fireEvent.change(screen.getByLabelText('Member'), { target: { value: member?.id } });
     fireEvent.change(screen.getByLabelText('Plan (optional)'), { target: { value: 'plan-monthly' } });
     fireEvent.change(screen.getByLabelText('Total (PHP)'), { target: { value: '1500' } });
@@ -691,7 +742,7 @@ describe('PaymentsPage', () => {
     const issuedChip = screen.getByRole('button', { name: 'Filter: Issued' });
     fireEvent.click(issuedChip);
     await waitFor(() => {
-      expect(screen.getByText(invoice.invoiceNumber)).toBeTruthy();
+      expect(screen.getByText(new RegExp(invoice.invoiceNumber))).toBeTruthy();
     });
 
     openInvoiceMenu('Maria Santos');
@@ -700,7 +751,7 @@ describe('PaymentsPage', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Void invoice' }));
 
     await waitFor(() => {
-      expect(screen.queryByText(invoice.invoiceNumber)).toBeNull();
+      expect(screen.queryByText(new RegExp(invoice.invoiceNumber))).toBeNull();
     });
     expect(document.activeElement).toBe(issuedChip);
   });
@@ -743,7 +794,7 @@ describe('PaymentsPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('INV-1001')).toBeTruthy();
+      expect(screen.getByText(/INV-1001/)).toBeTruthy();
     });
     fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm payment' }));
@@ -832,6 +883,7 @@ describe('PaymentsPage', () => {
     });
     expect(screen.queryByText(/no invoices yet/i)).toBeNull();
     expect(screen.queryByText(/^INV-/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'New invoice' }));
     expect((screen.getByRole('button', { name: 'Issue invoice' }).closest('fieldset') as HTMLFieldSetElement).disabled).toBe(true);
     expect(screen.getByText(/members and plans are unavailable/i)).toBeTruthy();
     const summaryCard = screen.getByText('Summary').closest('section');
@@ -841,7 +893,7 @@ describe('PaymentsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => {
-      expect(screen.getByText('INV-1001')).toBeTruthy();
+      expect(screen.getByText(/INV-1001/)).toBeTruthy();
     });
     expect(screen.queryByText(/Network failure/)).toBeNull();
     expect((screen.getByRole('button', { name: 'Issue invoice' }).closest('fieldset') as HTMLFieldSetElement).disabled).toBe(false);
