@@ -5,7 +5,26 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.027 — Critique round 6 (Payments, 34 → 30, fixed): color-semantics P1s reversed, list-first layout P2s (2026-08-21)
+## v1.028 — Critique round 7 (Payments, 30 → 36, Excellent): two remaining P2s closed (2026-08-21)
+
+- Round 7 re-critique scored the Payments page 36/40 (Excellent, up from
+  30). The round-6 fixes were verified landed. Two P2s remained and are
+  closed here:
+  - The Payments tab still used the run-on dot-separated meta line
+    (`GCash · REF-123 · INV-009 · Aug 21, 10:14 AM · taken by Ana`) that
+    had been excised from the Invoices tab. Rows now mirror the Invoices
+    anatomy: member name title, method · reference · invoice number on
+    line two, paid datetime · taken-by on line three, mono amount
+    right-aligned. Both tabs now speak the same rhythm.
+  - The exact-amount payment rule was a silent wall: the panel disabled
+    Confirm on any mismatch but never stated the policy until the user
+    broke it. The Record payment panel now opens with a calm one-line
+    hint, "Payment must equal the invoice total of ₱…". The hard guard
+    and the red "Must equal ₱X" mismatch hint are unchanged. (Full
+    partial-payment support remains a parked product decision — it needs
+    a schema/RPC change and explicit approval; noted in HANDOFF.)
+- Verified: full suite 269/269 (201 runnable + 68 skipped live DB), 27
+  Payments tests, lint/tsc/build clean, detector 0 findings.
 
 - Round 6 dropped Payments from 34 → 30: v1.026's #DC2626 danger split and
   the Outstanding figure rendered in error-red were both live on screen.

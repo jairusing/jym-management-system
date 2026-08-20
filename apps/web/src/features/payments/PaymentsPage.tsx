@@ -676,6 +676,9 @@ setPlanId('');
                                 void handleRecordPayment(invoice);
                               }}
                             >
+                              <p className="text-sm text-[#A3A3A3]">
+                                Payment must equal the invoice total of {formatMoney(invoice.total)}.
+                              </p>
                               <div className="grid gap-3 sm:grid-cols-3">
                                 <label className="flex flex-col gap-2 text-sm">
                                   <span>Amount</span>
@@ -814,7 +817,9 @@ setPlanId('');
                     <p className="text-base font-medium text-[#FAFAFA]">{payment.memberName}</p>
                     <p className="mt-1 text-sm text-[#A3A3A3]">
                       {payment.method}
-                      {payment.reference ? ` · ${payment.reference}` : ''} · {payment.invoiceNumber} ·{' '}
+                      {payment.reference ? ` · ${payment.reference}` : ''} · {payment.invoiceNumber}
+                    </p>
+                    <p className="mt-1 text-sm text-[#A3A3A3]">
                       {formatDateTime(payment.paidAt)}
                       {payment.processedBy ? ` · taken by ${payment.processedBy}` : ''}
                     </p>

@@ -241,6 +241,19 @@ is the button and no check-in was recorded). Verified: full suite
    needs explicit approval. Verified: full suite 269/269 (201 runnable + 68
    skipped, 27 Payments tests incl. 2 new), lint/tsc/build clean, detector 0
    findings.
+- **v1.028** — critique round 7 (Payments, 36/40, Excellent; user chose
+   "fix the 2 P2s now" + "option 1 — surface the rule"): (1) P2 — the
+   Payments tab's run-on meta line now mirrors the Invoices anatomy
+   (member name title; method · reference · invoice number; paid datetime ·
+   taken-by; mono amount right) so both tabs speak one rhythm. (2) P2 — the
+   exact-amount payment rule was a silent wall; the Record payment panel
+   now opens with a calm one-line hint "Payment must equal the invoice
+   total of ₱…" while the hard guard and red "Must equal ₱X" mismatch hint
+   stay. Full partial-payment support remains parked (needs schema/RPC
+   decision + explicit approval — see deferred list). Verified: full suite
+   269/269 (201 runnable + 68 skipped), 27 Payments tests, lint/tsc/build
+   clean, detector 0 findings. NEXT: Check-ins round-12 re-critique
+   (deferred since v1.026 shipped at 31/40).
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in
@@ -430,7 +443,9 @@ is the button and no check-in was recorded). Verified: full suite
    the price paid; historical totals stay correct).
 3. **B5** — renewal reminders (dashboard alert, deferred).
 4. Deferred features (document as deliberate): receipts, renewal reminders,
-   analytics, kiosk mode.
+   analytics, kiosk mode, **partial payments** (accepting less than the full
+   invoice total — needs product + schema/RPC decision, e.g. `paid_amount`
+   column or split lines; parked after critique round 7, 2026-08-21).
 5. **Critique round 5 — resolved 2026-08-19 (v1.020):** staff Void + paid-
    invoice undo shipped (migration `027`, `rpc_void_invoice`, owner-only for
    the paid undo). Payment methods: user decided to KEEP Cash/GCash/Card/

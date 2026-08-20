@@ -667,16 +667,17 @@ describe('PaymentsPage', () => {
 
     const amount = screen.getByLabelText('Amount') as HTMLInputElement;
     expect(amount.value).toBe('1500');
+    expect(screen.getByText(/Payment must equal the invoice total/)).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Confirm payment' }) as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.change(amount, { target: { value: '100' } });
-    expect(screen.getByText(/must equal/i)).toBeTruthy();
+    expect(screen.getByText(/^Must equal ₱1,500\.00$/)).toBeTruthy();
     expect(amount.getAttribute('aria-invalid')).toBe('true');
     expect(amount.getAttribute('aria-describedby')).toContain('amount-hint');
     expect((screen.getByRole('button', { name: 'Confirm payment' }) as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.change(amount, { target: { value: '1500' } });
-    expect(screen.queryByText(/must equal/i)).toBeNull();
+    expect(screen.queryByText(/^Must equal ₱1,500\.00$/)).toBeNull();
     expect(amount.getAttribute('aria-invalid')).toBe('false');
     expect(amount.getAttribute('aria-describedby')).toBeNull();
     expect((screen.getByRole('button', { name: 'Confirm payment' }) as HTMLButtonElement).disabled).toBe(false);
