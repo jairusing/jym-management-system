@@ -5,7 +5,35 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.038 — Docs housekeeping: HANDOFF and PLAN brought current (no code changes) (2026-08-21)
+## v1.039 — Critique round 1 (Staff, 17/40 → fixed): the access-control page gets the app's standards (2026-08-21)
+
+- The Staff page's first-ever critique scored it 17/40 — the weakest
+  surface in the app — because none of the standards built elsewhere had
+  been ported to it. All five issues closed:
+  - **P0 — no more fictional accounts.** A failed Supabase load used to
+    silently swap in mock profiles; on an access-control page that meant
+    reviewing fake privileges and losing role edits. Load failures now
+    render the amber LoadError panel with Retry; mock data only exists on
+    the no-database dev path.
+  - **P0 — self-lockout is impossible.** The owner can no longer demote
+    their own account while signed in, and demoting the *only* owner is
+    blocked with "This is the only owner account — promote another owner
+    first." (New `getMyProfileId` on the staff repository identifies the
+    acting owner; profiles.id is the auth user id.)
+  - **P1 — human error copy.** Raw e.message replaced with calm fallbacks
+    via a domain whitelist ("Only the owner can change staff roles."
+    passes through); raw errors go to console.warn.
+  - **P2 — E3 pollution tamed.** Member-role signups are hidden by default
+    behind an explicit aria-pressed "Show member accounts" toggle, so the
+    page answers "who works here" at a glance.
+  - **P2 — sibling patterns adopted.** The inline select + native
+    window.confirm are replaced by RowMenu ("Make staff / Make member /
+    Make owner") + ConfirmModal with consequence-stated copy and focus
+    restoration; owner downgrades get danger styling.
+- Verified: full suite 283/283 (214 runnable + 69 skipped live DB), 5
+  Staff tests rewritten for the new flow plus new coverage for the
+  member-account toggle, last-owner guard, and amber load-error recovery;
+  lint/tsc/build clean, detector 0 findings.
 
 - HANDOFF "What's next" §7 no longer claims the #DC2626 danger color is
   current — it documents the v1.027 revert to the vermillion ghost anatomy

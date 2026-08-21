@@ -147,10 +147,11 @@ actual code, schema, and migrations. Severity: 🔴 CRITICAL · 🟠 MAJOR · �
   payment rows are deleted and the invoice returns to `issued` (no direct
   paid→void update is possible, so money can't be written off on the books).
   Staff still cannot deactivate members (owner-only trigger).
-- **E3 🟡 → mostly fixed (v1.007) — Self-signup orphans pollute
-  profiles/staff list.** Staff can now link an orphan account to a member via
-  "Link existing" (api/link-account.ts). Orphans that are never linked still
-  appear in the staff list.
+- **E3 🟡 → mostly fixed (v1.007, list filtered v1.039) — Self-signup
+  orphans pollute profiles/staff list.** Staff can link an orphan account
+  to a member via "Link existing" (api/link-account.ts). The Staff page now
+  hides member-role accounts behind an explicit toggle, so unlinked orphans
+  no longer pollute the default view.
 - **E4 ✅ — RLS is genuinely strong**: staff-gated payment RPC (live-tested),
   members cannot edit own rows, ledger delete-none. Defend this.
 

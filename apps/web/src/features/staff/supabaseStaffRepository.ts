@@ -38,6 +38,14 @@ export class SupabaseStaffRepository {
     return data ? ((data as { role: string }).role as UserRole) : null;
   }
 
+  async getMyProfileId(): Promise<string | null> {
+    // profiles.id is the auth user id (handle_new_user trigger), so the
+    // session user id identifies this owner's own profile row.
+    const client = ensureSupabase();
+    const { data: session } = await client.auth.getSession();
+    return session?.session?.user.id ?? null;
+  }
+
   async listProfiles(): Promise<StaffProfile[]> {
     const client = ensureSupabase();
 

@@ -442,6 +442,28 @@ is the button and no check-in was recorded). Verified: full suite
    lint/tsc/build clean, detector 0. NOTE: migration must be applied to
    the live DB (`supabase db push` or dashboard SQL editor) before the
    constraint is active in production.
+- **v1.038** — docs housekeeping only: HANDOFF "What's next" §7 corrected
+   (the #DC2626 claim was stale since the v1.027 revert; replaced with the
+   accurate post-round-15 Check-ins state), PLAN.md status section now
+   points at CHANGELOG.md as authoritative from v1.002 onward. No code.
+- **v1.039** — critique round 1 (Staff page, FIRST review, scored 17/40 —
+   weakest surface; user approved fixing all five): (1) P0 — silent mock
+   fallback removed; load failures render the amber LoadError panel +
+   Retry, mock only on the no-config dev path. (2) P0 — self-lockout
+   blocked: new `getMyProfileId()` on StaffRepository (interface + mock
+   null + Supabase via session user id = profiles.id) lets the page refuse
+   demoting your own owner account and demoting the LAST owner ("promote
+   another owner first"). (3) P1 — toUserError whitelist + console.warn;
+   raw e.message gone. (4) P2/E3 — member-role accounts hidden by default
+   behind an aria-pressed "Show member accounts" chip toggle. (5) P2 —
+   inline select + window.confirm replaced by RowMenu ("Make staff/member/
+   owner") + ConfirmModal with consequence copy, danger styling for owner
+   downgrades, restoreFocusId to `staff-menu-<id>`. Tests rewritten (RowMenu
+   flow, toggle, last-owner guard, amber load-error recovery with hoisted-
+   config pattern; mocked repo data must use camelCase createdAt since the
+   mapper is bypassed). Verified: full suite 283/283 (214 runnable + 69
+   skipped), lint/tsc/build clean, detector 0. NEXT: Classes critique
+   (never reviewed), then Activity log; B5 renewal reminders after.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in

@@ -10,6 +10,7 @@ export type StaffProfile = {
 
 export interface StaffRepository {
   getMyRole(): Promise<UserRole | null>;
+  getMyProfileId(): Promise<string | null>;
   listProfiles(): Promise<StaffProfile[]>;
   updateRole(profileId: string, role: UserRole): Promise<void>;
 }
@@ -20,6 +21,12 @@ class MockStaffRepository implements StaffRepository {
 
   async getMyRole() {
     return this.myRole;
+  }
+
+  async getMyProfileId() {
+    // The mock has no signed-in identity; the self-demotion guard is a
+    // live-mode concern.
+    return null;
   }
 
   async listProfiles() {
