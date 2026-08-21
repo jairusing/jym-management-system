@@ -5,7 +5,37 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.033 — Critique round 6 (Members, 26/40): both P0s closed by porting the app's own standards (2026-08-21)
+## v1.034 — Critique round 4 (Dashboard, 20/40): standards ported to the landing page, accent economy restored (2026-08-21)
+
+- The Dashboard critique found the page every user sees first was the
+  last holdout against the app's own standards, plus a composition that
+  reports state without enabling decisions. Closed here:
+  - **P0 — the primary CTA finally has a focus ring.** The local
+    `heroButtonClass` duplicated `primaryButtonClass` but omitted every
+    `focus-visible:ring-*` utility; keyboard focus on "Record a check-in"
+    was nearly invisible. The local class is deleted and the link now uses
+    the shared class (+ text-base), so it inherits the 2px #FF3D00 ring
+    with 2px offset like every other button in the app.
+  - **P0 — raw database errors replaced with human copy.** The catch block
+    no longer persists e.message; both failure paths show calm sentences
+    ("We couldn't reach the database. Check your connection and try
+    again." / refresh variant) with the raw error kept in console.warn.
+    This also removes the off-palette #737373 detail text entirely.
+  - **P1 — error panels adopt the amber LoadError pattern**: #FFB300
+    border on raised #1A1A1A with role="alert" + ghost Retry, matching
+    Check-ins/Members/Payments.
+  - **P1 — stats are no longer dead ends**: the Revenue card links to
+    /app/payments ("View payments") and the Membership card to /app/members
+    ("View members"), so the owner can chase Outstanding in one hop.
+  - **P2 — accent economy restored**: the hero numeral scales up to
+    text-6xl/7xl (Type-as-Hero), historical chart bars render muted
+    #262626 fill, and only today's bar keeps the vermillion fill —
+    replacing the 4px dot, so "today" is the loudest bar instead of the
+    least distinguishable.
+- Verified: full suite 278/278 (210 runnable + 68 skipped live DB), 9
+  Dashboard tests incl. new coverage for stat deep-links and the
+  today-bar accent rule; lint/tsc/build clean, detector 0 findings,
+  off-palette hex count 0.
 
 - The Members page critique found it was a behavioral holdout: visually
   on-system but missing the standards Payments and Check-ins already

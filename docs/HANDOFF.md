@@ -352,6 +352,27 @@ is the button and no check-in was recorded). Verified: full suite
    runnable + 68 skipped), 41 Members tests, lint/tsc/build clean,
    detector 0. NEXT: Members re-critique to score the fixes, or Dashboard
    first critique.
+- **v1.034** — critique round 4 (Dashboard, 20/40; user approved P0s+P1s+
+   accent batch): (1) P0 — local `heroButtonClass` deleted; "Record a
+   check-in" now uses shared primaryButtonClass + text-base, inheriting
+   the 2px focus ring (the local class had omitted all ring utilities).
+   (2) P0 — catch block no longer persists e.message; static human copy on
+   both failure paths ("We couldn't reach the database…" / refresh
+   variant), raw error in console.warn; off-palette #737373 detail text
+   removed entirely. (3) P1 — both error panels now amber LoadError
+   anatomy (border-[#FFB300] bg-[#1A1A1A], role="alert", ghost Retry).
+   (4) P1 — Revenue card links "View payments" → /app/payments, Membership
+   card links "View members" → /app/members. (5) P2 — hero numeral
+   text-6xl sm:text-7xl; chart bars: today = bg-[#FF3D00], nonzero history
+   = bg-[#262626], zero = bg-[#1A1A1A]; the rounded-full dot is deleted.
+   Test notes: error tests assert amber panel classes + absence of raw
+   strings ('db unavailable'/'refresh hiccup'); new tests cover deep-link
+   hrefs and the today-bar accent rule via chart role="img" query.
+   Verified: full suite 278/278 (210 runnable + 68 skipped), 9 Dashboard
+   tests, lint/tsc/build clean, detector 0, off-palette hex 0. NEXT:
+   re-critique Dashboard or Members to score fixes; remaining known
+   dashboard items are P3 (loading-skeleton morph, demo-notice prominence,
+   timezone seam INFERENCE in repo date bucketing).
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in

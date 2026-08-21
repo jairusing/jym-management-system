@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
-import { ghostButtonClass } from '../../components/ui/buttonClasses';
+import { ghostButtonClass, primaryButtonClass } from '../../components/ui/buttonClasses';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { phDateToday } from '../../lib/dates';
 import { mockDashboardRepository, type DashboardView } from './dashboardRepository';
@@ -19,9 +19,6 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-const heroButtonClass =
-  'relative inline-flex items-center gap-2 px-1 py-2 text-base font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-colors duration-150 hover:text-[#FF3D00] active:translate-y-px focus-visible:after:scale-x-110 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#FF3D00]';
 
 function updatedAt() {
   return new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
@@ -62,12 +59,11 @@ export function DashboardPage() {
       setLastUpdated(updatedAt());
     } catch (e) {
       console.warn('Failed to load dashboard from Supabase', e);
-      const message = e instanceof Error ? e.message : 'Failed to load dashboard.';
       restoreFocusRef.current = false;
       if (viewRef.current) {
-        setRefreshError(message);
+        setRefreshError("Couldn't refresh the dashboard. Check your connection and try again.");
       } else {
-        setError(message);
+        setError("We couldn't reach the database. Check your connection and try again.");
       }
     } finally {
       setLoading(false);
@@ -127,11 +123,11 @@ export function DashboardPage() {
       ) : null}
 
       {refreshError ? (
-        <div className="flex flex-col gap-3 border border-[#262626] bg-[#0F0F0F] p-4 sm:p-6" role="alert">
-          <p className="text-sm leading-relaxed text-[#A3A3A3]">
-            Couldn't refresh the dashboard — showing data from {lastUpdated ?? 'the last load'}.
+        <div className="flex flex-col gap-3 border border-[#FFB300] bg-[#1A1A1A] p-4">
+          <p role="alert" className="text-sm leading-relaxed text-[#FF3D00]">
+            Couldn't refresh the dashboard — showing data from {lastUpdated ?? 'the last load'}. Check your
+            connection and try again.
           </p>
-          <p className="text-xs leading-relaxed text-[#737373]">{refreshError}</p>
           <button
             type="button"
             ref={refreshRetryRef}
@@ -151,14 +147,13 @@ export function DashboardPage() {
           </p>
         </SectionCard>
       ) : error ? (
-        <section className="border border-[#262626] bg-[#0F0F0F] p-6 sm:p-8">
+        <section className="border border-[#FFB300] bg-[#1A1A1A] p-6 sm:p-8">
           <h2 className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
             Dashboard unavailable
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#A3A3A3]" role="alert">
-            Couldn't load the dashboard.
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#FF3D00]" role="alert">
+            {error}
           </p>
-          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[#737373]">{error}</p>
           <button
             type="button"
             ref={retryRef}
@@ -180,7 +175,7 @@ export function DashboardPage() {
               >
                 Today
               </h2>
-              <p className="text-4xl font-semibold tracking-[-0.04em] text-[#FAFAFA]">
+              <p className="text-6xl font-semibold tracking-[-0.04em] text-[#FAFAFA] sm:text-7xl">
                 {stats?.attendanceToday ?? 0}
               </p>
               <p className="text-sm text-[#A3A3A3]">check-ins so far</p>
@@ -201,7 +196,7 @@ export function DashboardPage() {
                   {loading ? 'Refreshing…' : 'Refresh'}
                 </button>
               ) : null}
-              <a href="/app/checkins" className={heroButtonClass}>
+              <a href="/app/checkins" className={`${primaryButtonClass} text-base`}>
                 Record a check-in
               </a>
             </div>
@@ -235,17 +230,17 @@ export function DashboardPage() {
                         <p className="text-sm text-[#A3A3A3]">{day.count}</p>
                         <div
                           className={`w-full border border-[#262626] ${
-                            day.count > 0 ? 'bg-[#FF3D00]' : 'bg-[#1A1A1A]'
+                            isToday && day.count > 0
+                              ? 'bg-[#FF3D00]'
+                              : day.count > 0
+                                ? 'bg-[#262626]'
+                                : 'bg-[#1A1A1A]'
                           }`}
                           style={{ height: `${Math.max(height, 4)}px` }}
                         />
                         <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
                           {day.label}
                         </p>
-                        <span
-                          className={`h-1 w-1 rounded-full ${isToday ? 'bg-[#FF3D00]' : 'bg-transparent'}`}
-                          aria-hidden="true"
-                        />
                       </div>
                     );
                   })}
@@ -265,11 +260,21 @@ export function DashboardPage() {
               <Stat label="All time" value={formatMoney(stats?.revenueTotal ?? 0)} />
               <Stat label="Outstanding" value={formatMoney(stats?.outstandingTotal ?? 0)} />
             </div>
+            <div className="mt-6">
+              <a className={ghostButtonClass} href="/app/payments">
+                View payments
+              </a>
+            </div>
           </SectionCard>
 
           <SectionCard title="Membership" description="Active registered members." titleAs="h2">
             <div className="flex flex-wrap gap-10">
               <Stat label="Active members" value={String(stats?.activeMembers ?? 0)} />
+            </div>
+            <div className="mt-6">
+              <a className={ghostButtonClass} href="/app/members">
+                View members
+              </a>
             </div>
           </SectionCard>
         </>

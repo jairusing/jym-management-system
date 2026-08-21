@@ -137,9 +137,12 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toContain("Couldn't load the dashboard.");
+      expect(screen.getByRole('alert').textContent).toMatch(/couldn't reach the database/i);
     });
-    expect(screen.getByText('db unavailable')).toBeTruthy();
+    const loadErrorBox = screen.getByRole('alert').closest('section');
+    expect(loadErrorBox?.className).toContain('border-[#FFB300]');
+    expect(loadErrorBox?.className).toContain('bg-[#1A1A1A]');
+    expect(screen.queryByText(/db unavailable/)).toBeNull();
     expect(screen.queryByText(/Demo data/i)).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Retry' }));
 
@@ -178,8 +181,11 @@ describe('DashboardPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain("Couldn't refresh the dashboard");
     });
+    const refreshErrorBox = screen.getByRole('alert').closest('div');
+    expect(refreshErrorBox?.className).toContain('border-[#FFB300]');
+    expect(refreshErrorBox?.className).toContain('bg-[#1A1A1A]');
     expect(screen.getByText('Today')).toBeTruthy();
-    expect(screen.getByText('refresh hiccup')).toBeTruthy();
+    expect(screen.queryByText(/refresh hiccup/)).toBeNull();
     expect(getDashboard).toHaveBeenCalledTimes(2);
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -189,5 +195,37 @@ describe('DashboardPage', () => {
     });
     expect(screen.getByText('Today')).toBeTruthy();
     expect(getDashboard).toHaveBeenCalledTimes(3);
+  });
+
+  it('links the revenue and membership stats to their ledgers', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Today')).toBeTruthy();
+    });
+    const paymentsLink = screen.getByRole('link', { name: 'View payments' }) as HTMLAnchorElement;
+    expect(paymentsLink.getAttribute('href')).toBe('/app/payments');
+    const membersLink = screen.getByRole('link', { name: 'View members' }) as HTMLAnchorElement;
+    expect(membersLink.getAttribute('href')).toBe('/app/members');
+  });
+
+  it('reserves the accent fill for today’s bar and renders history muted', async () => {
+    mockDashboardRepository.seed({
+      checkIns: [{ checkedInAt: new Date().toISOString() }],
+      activeMembers: 3
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Peak/)).toBeTruthy();
+    });
+
+    const chart = screen.getByRole('img', { name: /bar chart of daily check-ins/i });
+    const bars = Array.from(chart.querySelectorAll('div[style]')) as HTMLElement[];
+    const todayIndex = bars.length - 1;
+    expect(bars[todayIndex]?.className).toContain('bg-[#FF3D00]');
+    for (let i = 0; i < todayIndex; i += 1) {
+      expect(bars[i]?.className).not.toContain('bg-[#FF3D00]');
+    }
   });
 });
