@@ -24,7 +24,7 @@ import {
   inputClass,
   primaryButtonClass
 } from '../../components/ui/buttonClasses';
-import { formatDate, formatWhen, phDateToday } from '../../lib/dates';
+import { formatDate, formatWhen, phDateAfter, phDateToday } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { HttpMemberAccountRepository } from '../memberAccounts/httpMemberAccountRepository';
 import { mockMemberAccountRepository } from '../memberAccounts/memberAccountRepository';
@@ -34,12 +34,15 @@ import { mockStaffRepository, type UserRole } from '../staff/staffRepository';
 import { SupabaseStaffRepository } from '../staff/supabaseStaffRepository';
 
 const PAGE_SIZE = 15;
+const GRACE_DAYS = 3;
 
 function today() {
   return phDateToday();
 }
 
-function membershipState(membership: Membership | null): { tone: 'active' | 'expiring' | 'expired' | 'neutral'; label: string } {
+function membershipState(
+  membership: Membership | null
+): { tone: 'active' | 'expiring' | 'grace' | 'expired' | 'neutral'; label: string } {
   if (!membership) {
     return { tone: 'neutral', label: 'No membership' };
   }
@@ -53,12 +56,53 @@ function membershipState(membership: Membership | null): { tone: 'active' | 'exp
     (new Date(`${membership.endsAt}T23:59:59`).getTime() - new Date(`${today()}T23:59:59`).getTime()) / 86400000
   );
   if (expiresIn < 0) {
+    const graceEnd = phDateAfter(membership.endsAt, GRACE_DAYS);
+    if (today() <= graceEnd) {
+      return { tone: 'grace', label: `Grace until ${formatDate(graceEnd)} — expired ${formatDate(membership.endsAt)}` };
+    }
     return { tone: 'expired', label: `Expired ${formatDate(membership.endsAt)}` };
   }
   if (expiresIn <= 7) {
     return { tone: 'expiring', label: `Expires ${formatDate(membership.endsAt)}` };
   }
   return { tone: 'active', label: `${membership.planName} until ${formatDate(membership.endsAt)}` };
+}
+
+const DOMAIN_ERROR_MESSAGES = new Set([
+  'Member name is required.',
+  'A member with this email already exists.',
+  'A member with this phone number already exists.',
+  'Member not found.',
+  'No active membership to update.',
+  'PIN must be 4-6 digits.',
+  'Email is required.',
+  'Enter a valid email address.',
+  'Password must be at least 6 characters.',
+  'Member is required.',
+  'Sign in to continue.',
+  'Only owner or staff can create member logins.',
+  'Only owner or staff can link member logins.',
+  'This member already has a login.',
+  'An account with this email already exists.',
+  'This account is already linked to another member.',
+  'No account with this email was found. Use Create login if they never signed up.',
+  'No account with this email was found.'
+]);
+
+function toUserError(e: unknown, fallback: string): string {
+  console.warn(fallback, e);
+  const message = e instanceof Error ? e.message : String(e);
+  if (DOMAIN_ERROR_MESSAGES.has(message)) {
+    return message;
+  }
+  const separator = message.indexOf(': ');
+  if (separator !== -1) {
+    const detail = message.slice(separator + 2);
+    if (DOMAIN_ERROR_MESSAGES.has(detail)) {
+      return detail;
+    }
+  }
+  return fallback;
 }
 
 type PendingConfirm = {
@@ -127,9 +171,8 @@ export function MembersPage() {
     try {
       setMembers(await repo.listMembers());
     } catch (e) {
-      console.warn('Failed to load members from Supabase', e);
       setMembers([]);
-      setLoadError(e instanceof Error ? e.message : 'Failed to load members.');
+      setLoadError(toUserError(e, "Couldn't load members. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -208,7 +251,7 @@ export function MembersPage() {
       setNotes('');
       await load();
     } catch (e) {
-      setAddError(e instanceof Error ? e.message : 'Failed to add member.');
+      setAddError(toUserError(e, "Couldn't add the member. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -373,7 +416,7 @@ export function MembersPage() {
       setLoginConfirm('');
       await load();
     } catch (e) {
-      setLoginError(e instanceof Error ? e.message : 'Failed to create the login. Try again.');
+      setLoginError(toUserError(e, "Couldn't create the login. Please try again."));
     } finally {
       setLoginSaving(false);
     }
@@ -414,7 +457,7 @@ export function MembersPage() {
       setLinkEmail('');
       await load();
     } catch (e) {
-      setLinkError(e instanceof Error ? e.message : 'Failed to link the account. Try again.');
+      setLinkError(toUserError(e, "Couldn't link the account. Please try again."));
     } finally {
       setLinkSaving(false);
     }
@@ -450,7 +493,7 @@ export function MembersPage() {
       setPinError(null);
       setPinValue('');
     } catch (e) {
-      setPinError(e instanceof Error ? e.message : 'Failed to save PIN.');
+      setPinError(toUserError(e, "Couldn't save the PIN. Please try again."));
     } finally {
       setPinSaving(false);
     }
@@ -496,7 +539,7 @@ export function MembersPage() {
       setPendingConfirm(null);
       restoreConfirmFocus();
     } catch (e) {
-      setConfirmError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+      setConfirmError(toUserError(e, "The action couldn't be completed. Please try again."));
     } finally {
       setConfirmPending(false);
     }
@@ -573,9 +616,11 @@ export function MembersPage() {
 
       <SectionCard title="All members" description={`${members.length} registered member${members.length === 1 ? '' : 's'}.`}>
         {loadError ? (
-          <div className="flex flex-col items-start gap-4">
-            <p className="text-sm text-[#FF3D00]">{loadError}</p>
-            <button className={primaryButtonClass} type="button" onClick={() => void load()}>
+          <div className="flex flex-col gap-3 border border-[#FFB300] bg-[#1A1A1A] p-4">
+            <p role="alert" className="text-sm text-[#FF3D00]">
+              {loadError}
+            </p>
+            <button className={ghostButtonClass} type="button" onClick={() => void load()}>
               Retry
             </button>
           </div>
@@ -596,6 +641,7 @@ export function MembersPage() {
                   className={chipClass(statusFilter === 'all')}
                   type="button"
                   aria-label="Filter: All"
+                  aria-pressed={statusFilter === 'all'}
                   onClick={() => setStatusFilter('all')}
                 >
                   All
@@ -604,6 +650,7 @@ export function MembersPage() {
                   className={chipClass(statusFilter === 'active')}
                   type="button"
                   aria-label="Filter: Active"
+                  aria-pressed={statusFilter === 'active'}
                   onClick={() => setStatusFilter('active')}
                 >
                   Active
@@ -612,6 +659,7 @@ export function MembersPage() {
                   className={chipClass(statusFilter === 'inactive')}
                   type="button"
                   aria-label="Filter: Inactive"
+                  aria-pressed={statusFilter === 'inactive'}
                   onClick={() => setStatusFilter('inactive')}
                 >
                   Inactive
@@ -669,7 +717,8 @@ export function MembersPage() {
                         className={`mt-1 text-sm ${
                           membershipState(member.membership).tone === 'expired'
                             ? 'font-semibold text-[#FF3D00]'
-                            : membershipState(member.membership).tone === 'expiring'
+                            : membershipState(member.membership).tone === 'expiring' ||
+                                membershipState(member.membership).tone === 'grace'
                               ? 'text-[#FFB300]'
                               : 'text-[#A3A3A3]'
                         }`}

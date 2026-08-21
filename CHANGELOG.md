@@ -5,7 +5,33 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.032 — Critique round 15 (Check-ins final fix round): human write-error copy, honest refresh warnings, range validation, Grace badge (2026-08-21)
+## v1.033 — Critique round 6 (Members, 26/40): both P0s closed by porting the app's own standards (2026-08-21)
+
+- The Members page critique found it was a behavioral holdout: visually
+  on-system but missing the standards Payments and Check-ins already
+  shipped. Both P0s and both P1s are closed here:
+  - **P0 — the roster no longer lies about grace.** membershipState() now
+    ports Check-ins' 3-day grace: a member whose plan ended within the
+    window shows an amber "Grace until {date} — expired {date}" line
+    instead of bold-red "Expired", and counts under the "Active
+    membership" filter (they can check in). Red "Expired" is reserved for
+    past-grace. The roster and the front door finally agree.
+  - **P0 — raw database errors replaced with human copy at all six catch
+    sites** (load, add member, create login, link account, save PIN,
+    confirm actions). A whitelist passes through deliberate domain/server
+    messages ("A member with this email already exists.", "No account with
+    this email was found."); everything else shows calm fallback copy with
+    the raw error demoted to console.warn.
+  - **P1 — load failures use the amber LoadError panel**: #FFB300 border
+    on raised #1A1A1A with role="alert" and a ghost Retry — same pattern
+    as Check-ins and Payments.
+  - **P1 — filter chips are accessible and touch-sized**: aria-pressed on
+    all three status chips, and the shared chipClass now enforces the
+    44px minimum touch target (Members and Payments chips both benefit).
+- Verified: full suite 276/276 (208 runnable + 68 skipped live DB), 41
+  Members tests incl. new coverage for grace display + filter behavior,
+  error-copy mapping, and the amber load panel; lint/tsc/build clean,
+  detector 0 findings.
 
 - Round 15 verified all v1.031 fixes landed with explicit praise ("Enter
   honors its own promise", "rare care at this level") but surfaced one

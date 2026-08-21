@@ -606,7 +606,7 @@ describe('MembersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Activate' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Network failure')).toBeTruthy();
+      expect(screen.getByText("The action couldn't be completed. Please try again.")).toBeTruthy();
     });
     expect(screen.queryByRole('dialog')).toBeTruthy();
 
@@ -638,7 +638,7 @@ describe('MembersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Network failure')).toBeTruthy();
+      expect(screen.getByText("The action couldn't be completed. Please try again.")).toBeTruthy();
     });
     expect(screen.queryByRole('dialog')).toBeTruthy();
     expect(screen.queryByText(/no members yet/i)).toBeNull();
@@ -693,6 +693,40 @@ describe('MembersPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Expired Jul 31, 2026/)).toBeTruthy();
+    });
+  });
+
+  it('shows an amber grace window for a recently expired membership and counts it as active', async () => {
+    await mockMemberRepository.createMember({
+      fullName: 'Grace Member',
+      email: null,
+      phone: null,
+      joinedAt: '2026-08-01',
+      notes: null
+    });
+    const members = await mockMemberRepository.listMembers();
+    const endedTwoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+    mockMemberRepository.setMembership(members[0]?.id as string, {
+      planName: 'Monthly Pass',
+      startsAt: '2026-07-01',
+      endsAt: endedTwoDaysAgo,
+      status: 'expired'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Grace until/)).toBeTruthy();
+    });
+    expect(screen.queryByText(/Expired [A-Z][a-z]+ \d{1,2}, \d{4}/)).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Filter by membership'), { target: { value: 'active' } });
+    await waitFor(() => {
+      expect(screen.getByText('Grace Member')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText('Filter by membership'), { target: { value: 'expired' } });
+    await waitFor(() => {
+      expect(screen.queryByText('Grace Member')).toBeNull();
     });
   });
 
@@ -1233,14 +1267,18 @@ describe('MembersPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/Network failure/)).toBeTruthy();
+      expect(screen.getByRole('alert').textContent).toMatch(/Couldn't load members/i);
     });
+    const loadErrorBox = screen.getByRole('alert').closest('div');
+    expect(loadErrorBox?.className).toContain('border-[#FFB300]');
+    expect(loadErrorBox?.className).toContain('bg-[#1A1A1A]');
+    expect(screen.queryByText(/Network failure/)).toBeNull();
     expect(screen.queryByText(/no members yet/i)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => {
       expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
     });
-    expect(screen.queryByText(/Network failure/)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

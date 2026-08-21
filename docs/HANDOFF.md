@@ -332,6 +332,26 @@ is the button and no check-in was recorded). Verified: full suite
    (touch targets, MemberRow extraction, autofocus, PIN digit clearing,
    last-row delete focus, Tabs arrow-roving). Candidate next surfaces:
    MembersPage or DashboardPage critiques.
+- **v1.033** — critique round 6 (Members, 26/40; user approved fixing the
+   2 P0s + 2 P1s — all were ports of patterns already built on other
+   pages): (1) P0 — membershipState() now has a 'grace' tone using the
+   same 3-day window as Check-ins: amber "Grace until {date} — expired
+   {date}" instead of bold-red "Expired", and grace members count under
+   the "Active membership" filter; red stays past-grace only. (2) P0 —
+   `toUserError()` helper + DOMAIN_ERROR_MESSAGES whitelist at all six
+   catch sites (load/add/login/link/PIN/confirm); deliberate server
+   messages pass through (incl. create-login/link-account API strings),
+   supabase-wrapped composites are prefix-stripped, everything else gets
+   calm fallback copy + console.warn. (3) P1 — load failures render the
+   amber LoadError panel (border-[#FFB300] bg-[#1A1A1A], role="alert",
+   ghost Retry). (4) P1 — status chips got aria-pressed and shared
+   chipClass now enforces min-h-[44px] touch targets (Payments chips
+   inherit this too). Test notes: load-failure test asserts amber panel
+   classes + absence of raw text; new grace test covers display +
+   active/expired filter membership. Verified: full suite 276/276 (208
+   runnable + 68 skipped), 41 Members tests, lint/tsc/build clean,
+   detector 0. NEXT: Members re-critique to score the fixes, or Dashboard
+   first critique.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in
