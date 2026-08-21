@@ -1,7 +1,7 @@
 {
   "name": "@jym-management/web",
   "private": true,
-  "version": "1.041",
+  "version": "1.042",
   "type": "module",
   "scripts": {
     "dev": "vite",

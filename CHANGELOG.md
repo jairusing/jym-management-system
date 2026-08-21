@@ -5,7 +5,23 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.041 — Critique round 1 (Activity log, 17/40 → fixed): the audit trail stops lying (2026-08-21)
+## v1.042 — Audit B5 shipped: renewal reminders on the Dashboard (3-day window) (2026-08-21)
+
+- The last MAJOR-priority audit feature gap is closed. When any active
+  membership ends within the next 3 days (user-chosen window), the
+  Dashboard shows an amber "Renewal reminders" banner between the hero and
+  the Attendance card: each member's name and expiry date, plus a
+  "View members" shortcut so staff can act immediately.
+- Implementation: `DashboardView` gains `expiringMembers` (id, fullName,
+  endsAt). The Supabase repository queries active memberships with
+  `ended_at` between today and today+3 (Manila dates), embedding member
+  names; the mock repository accepts the list via `seed()`. Members whose
+  plans already expired are excluded — grace handling stays on the
+  Check-ins page where the check-in decision happens.
+- AUDIT.md B5 updated: renewal reminders no longer deferred.
+- Verified: full suite 287/287 (218 runnable + 69 skipped live DB), 11
+  Dashboard tests incl. banner shown/hidden cases; lint/tsc/build clean,
+  detector 0 findings.
 
 - The Activity log's first-ever critique found the most serious single
   issue of any review this cycle: on a failed load, the page rendered

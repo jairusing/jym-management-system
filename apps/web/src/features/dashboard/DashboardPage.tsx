@@ -3,7 +3,7 @@ import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { ghostButtonClass, primaryButtonClass } from '../../components/ui/buttonClasses';
 import { hasSupabaseConfig } from '../../lib/supabase';
-import { phDateToday } from '../../lib/dates';
+import { formatDate, phDateToday } from '../../lib/dates';
 import { mockDashboardRepository, type DashboardView } from './dashboardRepository';
 import { SupabaseDashboardRepository } from './supabaseDashboardRepository';
 
@@ -200,6 +200,29 @@ export function DashboardPage() {
               </a>
             </div>
           </section>
+
+          {view.expiringMembers.length > 0 ? (
+            <div className="flex flex-col gap-3 border border-[#FFB300] bg-[#1A1A1A] p-4" role="status">
+              <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#FFB300]">Renewal reminders</p>
+              <p className="text-sm text-[#FAFAFA]">
+                {view.expiringMembers.length} membership{view.expiringMembers.length === 1 ? '' : 's'}{' '}
+                expire{view.expiringMembers.length === 1 ? 's' : ''} within 3 days:
+              </p>
+              <ul className="flex flex-col">
+                {view.expiringMembers.map((member) => (
+                  <li key={member.id} className="text-sm text-[#A3A3A3]">
+                    <span className="font-medium text-[#FAFAFA]">{member.fullName}</span> · ends{' '}
+                    {formatDate(member.endsAt)}
+                  </li>
+                ))}
+              </ul>
+              <div>
+                <a className={ghostButtonClass} href="/app/members">
+                  View members
+                </a>
+              </div>
+            </div>
+          ) : null}
 
           <SectionCard
             title="Attendance"

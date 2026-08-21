@@ -486,6 +486,19 @@ is the button and no check-in was recorded). Verified: full suite
    viously-unreviewed surfaces have now had first critiques + fixes:
    Staff 17→fixed v1.039, Classes 19→fixed v1.040, Activity log 17→fixed
    v1.041.
+- **v1.042** — audit B5 SHIPPED (user decisions: 3-day window, Dashboard
+   banner): DashboardView gains expiringMembers (id/fullName/endsAt);
+   SupabaseDashboardRepository queries memberships status='active' with
+   ended_at between phDateInDays(0) and phDateInDays(3), embedding members
+   (full_name) with the Array.isArray normalization; mock accepts the list
+   via seed(). DashboardPage renders an amber #FFB300/#1A1A1A banner
+   (role=status) between hero and Attendance card: names + ends dates + a
+   View members link (duplicate link name with Membership card is expected
+   — tests use getAllByRole). Already-expired members excluded; grace stays
+   on Check-ins. AUDIT.md B5 → SHIPPED. Verified: full suite 287/287 (218
+   runnable + 69 skipped), 11 Dashboard tests incl. banner shown/hidden,
+   lint/tsc/build clean, detector 0. NEXT: item 4 of the agreed plan — F2
+   (auto-dismiss messages) + check-ins P3 polish batch.
 - **v1.040** — critique round 1 (Classes page, FIRST review, 19/40; user
    approved fixing all five): (1) P0 — silent mock fallback removed;
    loadError state gates ALL page content behind one amber LoadError panel

@@ -1,6 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import { phDateInDays, phDateOf, phDayStartUtc } from '../../lib/dates';
-import { type AttendanceDay, type DashboardView } from './dashboardRepository';
+import { type AttendanceDay, type DashboardView, type ExpiringMember } from './dashboardRepository';
 
 function ensureSupabase() {
   if (!supabase) {
@@ -21,7 +21,7 @@ export class SupabaseDashboardRepository {
     const todayStart = phDayStartUtc(phDateInDays(0));
     const weekStart = phDayStartUtc(phDateInDays(-6));
 
-    const [todayResult, weekResult, weekRows, monthPayments, allPayments, invoices, members] =
+    const [todayResult, weekResult, weekRows, monthPayments, allPayments, invoices, members, expiring] =
       await Promise.all([
         client
           .from('check_ins')
@@ -38,10 +38,16 @@ export class SupabaseDashboardRepository {
         client
           .from('members')
           .select('id', { count: 'exact', head: true })
-          .eq('is_active', true)
+          .eq('is_active', true),
+        client
+          .from('memberships')
+          .select('member_id, ended_at, members(full_name)')
+          .eq('status', 'active')
+          .gte('ended_at', phDateInDays(0))
+          .lte('ended_at', phDateInDays(3))
       ]);
 
-    const failed = [todayResult, weekResult, weekRows, monthPayments, allPayments, invoices, members].find(
+    const failed = [todayResult, weekResult, weekRows, monthPayments, allPayments, invoices, members, expiring].find(
       (result) => result.error
     );
     if (failed?.error) {
@@ -75,6 +81,16 @@ export class SupabaseDashboardRepository {
       .filter((invoice) => invoice.status !== 'paid' && invoice.status !== 'void')
       .reduce((sum, invoice) => sum + Number(invoice.total), 0);
 
+    const expiringMembers: ExpiringMember[] = (expiring.data ?? []).map((row) => {
+      const typed = row as { member_id: string; ended_at: string; members: { full_name: string } | { full_name: string }[] | null };
+      const memberEmbed = Array.isArray(typed.members) ? typed.members[0] : typed.members;
+      return {
+        id: typed.member_id,
+        fullName: memberEmbed?.full_name ?? 'Unknown member',
+        endsAt: typed.ended_at
+      };
+    });
+
     return {
       stats: {
         attendanceToday: todayResult.count ?? 0,
@@ -84,7 +100,8 @@ export class SupabaseDashboardRepository {
         outstandingTotal,
         activeMembers: members.count ?? 0
       },
-      weeklyAttendance
+      weeklyAttendance,
+      expiringMembers
     };
   }
 }

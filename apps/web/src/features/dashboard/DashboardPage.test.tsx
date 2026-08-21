@@ -45,7 +45,8 @@ const sampleView: DashboardView = {
       return { date, label: date.slice(5), count: 0 };
     }),
     { date: phDateToday(), label: 'today', count: 4 }
-  ]
+  ],
+  expiringMembers: []
 };
 
 afterEach(() => {
@@ -209,6 +210,34 @@ describe('DashboardPage', () => {
     expect(paymentsLink.getAttribute('href')).toBe('/app/payments');
     const membersLink = screen.getByRole('link', { name: 'View members' }) as HTMLAnchorElement;
     expect(membersLink.getAttribute('href')).toBe('/app/members');
+  });
+
+  it('shows a renewal-reminder banner for memberships expiring within 3 days', async () => {
+    const twoDaysFromNow = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+    mockDashboardRepository.seed({
+      activeMembers: 1,
+      expiringMembers: [{ id: 'member-9', fullName: 'Maria Santos', endsAt: twoDaysFromNow }]
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Renewal reminders')).toBeTruthy();
+    });
+    expect(screen.getByText(/1 membership expires within 3 days/i)).toBeTruthy();
+    expect(screen.getByText('Maria Santos')).toBeTruthy();
+    const membersLinks = screen.getAllByRole('link', { name: 'View members' }) as HTMLAnchorElement[];
+    expect(membersLinks.length).toBeGreaterThanOrEqual(1);
+    expect(membersLinks[0]?.getAttribute('href')).toBe('/app/members');
+  });
+
+  it('hides the renewal banner when nothing expires soon', async () => {
+    mockDashboardRepository.seed({ activeMembers: 2 });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Today')).toBeTruthy();
+    });
+    expect(screen.queryByText('Renewal reminders')).toBeNull();
   });
 
   it('reserves the accent fill for today’s bar and renders history muted', async () => {

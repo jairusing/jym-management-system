@@ -13,9 +13,17 @@ export type AttendanceDay = {
   count: number;
 };
 
+export type ExpiringMember = {
+  id: string;
+  fullName: string;
+  endsAt: string;
+};
+
 export type DashboardView = {
   stats: DashboardStats;
   weeklyAttendance: AttendanceDay[];
+  // Active memberships ending within the next 3 days (not yet expired).
+  expiringMembers: ExpiringMember[];
 };
 
 export interface DashboardRepository {
@@ -67,6 +75,7 @@ class MockDashboardRepository implements DashboardRepository {
   private payments: { amount: number; paidAt: string }[] = [];
   private invoices: { total: number; status: string }[] = [];
   private activeMembers = 0;
+  private expiringMembers: ExpiringMember[] = [];
 
   async getDashboard(): Promise<DashboardView> {
     const todayKey = toDateKey(startOfToday());
@@ -98,7 +107,8 @@ class MockDashboardRepository implements DashboardRepository {
         outstandingTotal,
         activeMembers: this.activeMembers
       },
-      weeklyAttendance: buildWeekly(this.checkIns)
+      weeklyAttendance: buildWeekly(this.checkIns),
+      expiringMembers: this.expiringMembers
     };
   }
 
@@ -107,11 +117,13 @@ class MockDashboardRepository implements DashboardRepository {
     payments?: { amount: number; paidAt: string }[];
     invoices?: { total: number; status: string }[];
     activeMembers?: number;
+    expiringMembers?: ExpiringMember[];
   }) {
     this.checkIns = data.checkIns ?? [];
     this.payments = data.payments ?? [];
     this.invoices = data.invoices ?? [];
     this.activeMembers = data.activeMembers ?? 0;
+    this.expiringMembers = data.expiringMembers ?? [];
   }
 
   reset() {
@@ -119,6 +131,7 @@ class MockDashboardRepository implements DashboardRepository {
     this.payments = [];
     this.invoices = [];
     this.activeMembers = 0;
+    this.expiringMembers = [];
   }
 }
 

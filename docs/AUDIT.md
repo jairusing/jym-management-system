@@ -65,7 +65,11 @@ actual code, schema, and migrations. Severity: 🔴 CRITICAL · 🟠 MAJOR · �
 - **B4 ✅ FIXED (v1.008) — No grace period after membership expiry.** A
   3-day grace allows check-ins after expiry, with the row showing "in 3-day
   grace until …"; the hard block resumes after grace.
-- **B5 🟡 — No renewal reminders anywhere** (dashboard alert deferred).
+- **B5 ✅ SHIPPED (v1.042) — Renewal reminders.** The Dashboard shows an
+  amber "Renewal reminders" banner when any active membership ends within
+  the next 3 days (user-chosen window): member names, expiry dates, and a
+  View members shortcut. Members already past expiry are excluded — grace
+  is handled on Check-ins where the check-in decision happens.
 
 ## C. Check-ins & attendance
 
