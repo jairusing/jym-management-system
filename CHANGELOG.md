@@ -5,7 +5,34 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.034 — Critique round 4 (Dashboard, 20/40): standards ported to the landing page, accent economy restored (2026-08-21)
+## v1.035 — Critique round 5 (Dashboard, 20 → 30): chart legibility restored, fold economics, one error voice (2026-08-21)
+
+- The round-5 re-critique confirmed all five v1.034 fixes landed (score
+  20 → 30, zero P0s) and caught one regression the accent fix introduced:
+  history bars at #262626 on the #0F0F0F card were ~1.26:1 contrast —
+  effectively invisible, leaving today's bar as the only legible pixel.
+  Fixed here, with the rest of the batch:
+  - **Chart legibility restored.** Nonzero history bars now render in the
+    muted-gray token #A3A3A3 (~4.6:1 on the card), zero bars stay #1A1A1A,
+    and only today's bar keeps vermillion — the week's shape is visible
+    again while "today" remains the loudest element.
+  - **Fold economics.** The Attendance card compresses (chart h-32; the
+    redundant "Last 7 days" stat that merely summed the visible bars is
+    removed), so Revenue and Membership sit higher on standard laptops —
+    closer to the page's "at a glance" promise.
+  - **One error voice, at full volume.** The full-load failure headline
+    "Dashboard unavailable" scales up from footnote-size 0.7rem to a
+    text-xl semibold heading. (The amber-frame + red-text pairing stays:
+    it is the deliberate app-wide convention across all four pages.)
+  - **Attendance drill-down added** — "View check-ins" ghost link to
+    /app/checkins, so all three stat cards now route to their ledgers.
+  - **Dead copy de-drifted** — the refresh banner renders the stored
+    refreshError string plus the staleness timestamp instead of a second
+    hardcoded copy.
+- Verified: full suite 278/278 (210 runnable + 68 skipped live DB), 9
+  Dashboard tests incl. updated coverage for the muted history fill,
+  removed stat, and the check-ins drill-down; lint/tsc/build clean,
+  detector 0 findings.
 
 - The Dashboard critique found the page every user sees first was the
   last holdout against the app's own standards, plus a composition that

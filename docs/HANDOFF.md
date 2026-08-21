@@ -373,6 +373,26 @@ is the button and no check-in was recorded). Verified: full suite
    re-critique Dashboard or Members to score fixes; remaining known
    dashboard items are P3 (loading-skeleton morph, demo-notice prominence,
    timezone seam INFERENCE in repo date bucketing).
+- **v1.035** — critique round 5 (Dashboard, 30/40; all five v1.034 fixes
+   verified landed; reviewer caught a regression the accent fix introduced
+   — history bars #262626 on #0F0F0F ≈ 1.26:1 contrast, invisible; user
+   approved the batch): (1) nonzero history bars now bg-[#A3A3A3] (~4.6:1,
+   on-palette), zero stays #1A1A1A, today keeps #FF3D00. (2) Attendance
+   card compressed: chart h-40 → h-32, redundant "Last 7 days" Stat
+   removed (it summed the visible bars). (3) "Dashboard unavailable"
+   headline scaled from 0.7rem eyebrow to text-xl font-semibold; amber-
+   frame + red-text kept as the deliberate app-wide convention. (4)
+   Attendance card gained "View check-ins" ghost link → /app/checkins (all
+   three stat cards now drill down). (5) refresh banner renders the stored
+   {refreshError} string + staleness timestamp — single source of truth.
+   Test notes: 'renders attendance numbers' updated (Last 7 days gone,
+   count ≥2, drill-down href asserted); accent test seeds a past-day
+   check-in and asserts a muted #A3A3A3 history bar exists. Verified: full
+   suite 278/278 (210 runnable + 68 skipped), 9 Dashboard tests,
+   lint/tsc/build clean, detector 0. NEXT: remaining Dashboard items are
+   P3 (skeleton morph, demo notice, confirmed timezone seam in mock repo
+   bucketing); Members re-critique still pending; other surfaces never
+   critiqued: Staff, Classes, Audit, MemberStatement, MyMembership.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in

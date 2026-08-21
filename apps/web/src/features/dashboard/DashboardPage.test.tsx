@@ -75,12 +75,14 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Last 7 days')).toBeTruthy();
+      expect(screen.getByText('Peak: 1 check-in in a day')).toBeTruthy();
     });
-    expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(3);
+    expect(screen.queryByText('Last 7 days')).toBeNull();
+    expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('3')).toBeTruthy();
     expect(screen.getByLabelText(/daily check-ins/i)).toBeTruthy();
-    expect(screen.getByText('Peak: 1 check-in in a day')).toBeTruthy();
+    const checkInsLink = screen.getByRole('link', { name: 'View check-ins' }) as HTMLAnchorElement;
+    expect(checkInsLink.getAttribute('href')).toBe('/app/checkins');
   });
 
   it('renders revenue and outstanding totals', async () => {
@@ -210,8 +212,9 @@ describe('DashboardPage', () => {
   });
 
   it('reserves the accent fill for today’s bar and renders history muted', async () => {
+    const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
     mockDashboardRepository.seed({
-      checkIns: [{ checkedInAt: new Date().toISOString() }],
+      checkIns: [{ checkedInAt: new Date().toISOString() }, { checkedInAt: twoDaysAgo }],
       activeMembers: 3
     });
     renderPage();
@@ -224,8 +227,13 @@ describe('DashboardPage', () => {
     const bars = Array.from(chart.querySelectorAll('div[style]')) as HTMLElement[];
     const todayIndex = bars.length - 1;
     expect(bars[todayIndex]?.className).toContain('bg-[#FF3D00]');
+    let sawMutedHistoryBar = false;
     for (let i = 0; i < todayIndex; i += 1) {
       expect(bars[i]?.className).not.toContain('bg-[#FF3D00]');
+      if (bars[i]?.className.includes('bg-[#A3A3A3]')) {
+        sawMutedHistoryBar = true;
+      }
     }
+    expect(sawMutedHistoryBar).toBe(true);
   });
 });

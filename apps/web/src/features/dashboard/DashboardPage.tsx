@@ -125,8 +125,7 @@ export function DashboardPage() {
       {refreshError ? (
         <div className="flex flex-col gap-3 border border-[#FFB300] bg-[#1A1A1A] p-4">
           <p role="alert" className="text-sm leading-relaxed text-[#FF3D00]">
-            Couldn't refresh the dashboard — showing data from {lastUpdated ?? 'the last load'}. Check your
-            connection and try again.
+            {refreshError} Showing data from {lastUpdated ?? 'the last load'}.
           </p>
           <button
             type="button"
@@ -148,7 +147,7 @@ export function DashboardPage() {
         </SectionCard>
       ) : error ? (
         <section className="border border-[#FFB300] bg-[#1A1A1A] p-6 sm:p-8">
-          <h2 className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
+          <h2 className="text-xl font-semibold tracking-[-0.04em] text-[#FAFAFA]">
             Dashboard unavailable
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#FF3D00]" role="alert">
@@ -207,50 +206,50 @@ export function DashboardPage() {
             description="Check-ins over the last 7 days."
             titleAs="h2"
           >
-            <div className="flex flex-col gap-8">
-              <div className="flex flex-wrap gap-10">
-                <Stat label="Last 7 days" value={String(stats?.attendanceWeek ?? 0)} />
-              </div>
-              <div>
-                <div
-                  className="flex h-40 items-end gap-2 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#FF3D00]"
-                  role="img"
-                  aria-label={chartLabel}
-                  tabIndex={0}
-                >
-                  {weeklyAttendance.map((day) => {
-                    const height = peak > 0 ? Math.round((day.count / peak) * 100) : 0;
-                    const isToday = day.date === todayKey;
-                    return (
+            <div>
+              <div
+                className="flex h-32 items-end gap-2 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#FF3D00]"
+                role="img"
+                aria-label={chartLabel}
+                tabIndex={0}
+              >
+                {weeklyAttendance.map((day) => {
+                  const height = peak > 0 ? Math.round((day.count / peak) * 100) : 0;
+                  const isToday = day.date === todayKey;
+                  return (
+                    <div
+                      key={day.date}
+                      className="flex flex-1 flex-col items-center gap-2"
+                      title={`${day.label}: ${day.count}${isToday ? ' so far' : ''}`}
+                    >
+                      <p className="text-sm text-[#A3A3A3]">{day.count}</p>
                       <div
-                        key={day.date}
-                        className="flex flex-1 flex-col items-center gap-2"
-                        title={`${day.label}: ${day.count}${isToday ? ' so far' : ''}`}
-                      >
-                        <p className="text-sm text-[#A3A3A3]">{day.count}</p>
-                        <div
-                          className={`w-full border border-[#262626] ${
-                            isToday && day.count > 0
-                              ? 'bg-[#FF3D00]'
-                              : day.count > 0
-                                ? 'bg-[#262626]'
-                                : 'bg-[#1A1A1A]'
-                          }`}
-                          style={{ height: `${Math.max(height, 4)}px` }}
-                        />
-                        <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
-                          {day.label}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-                {peak > 0 ? (
-                  <p className="mt-2 text-xs text-[#A3A3A3]">
-                    Peak: {peak} check-in{peak === 1 ? '' : 's'} in a day
-                  </p>
-                ) : null}
+                        className={`w-full border border-[#262626] ${
+                          isToday && day.count > 0
+                            ? 'bg-[#FF3D00]'
+                            : day.count > 0
+                              ? 'bg-[#A3A3A3]'
+                              : 'bg-[#1A1A1A]'
+                        }`}
+                        style={{ height: `${Math.max(height, 4)}px` }}
+                      />
+                      <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
+                        {day.label}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
+              {peak > 0 ? (
+                <p className="mt-2 text-xs text-[#A3A3A3]">
+                  Peak: {peak} check-in{peak === 1 ? '' : 's'} in a day
+                </p>
+              ) : null}
+            </div>
+            <div className="mt-6">
+              <a className={ghostButtonClass} href="/app/checkins">
+                View check-ins
+              </a>
             </div>
           </SectionCard>
 
