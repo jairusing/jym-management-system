@@ -115,4 +115,16 @@ describe('MemberStatementPage', () => {
     expect(screen.getByText('No payments recorded.')).toBeTruthy();
     expect(screen.getAllByText(/₱0/).length).toBeGreaterThan(0);
   });
+
+  it('shows an honest not-found state instead of a blank page for an unknown member', async () => {
+    renderPage('member-does-not-exist');
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toMatch(/No statement was found for this member/i);
+    });
+    const noticeBox = screen.getByRole('alert').closest('div');
+    expect(noticeBox?.className).toContain('border-[#FFB300]');
+    expect(noticeBox?.className).toContain('bg-[#1A1A1A]');
+    expect(screen.queryByText(/Outstanding balance/)).toBeNull();
+  });
 });

@@ -179,7 +179,6 @@ export function PageShell({ title, eyebrow, description, children, hideNav = fal
             {eyebrow ? <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[#FF3D00]">{eyebrow}</p> : null}
             <div className="flex flex-wrap items-center gap-4">
               <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl lg:text-5xl">{title}</h1>
-              <span className="border border-[#FF3D00] px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#FF3D00]">Beta</span>
             </div>
             {description ? (
               <p className="max-w-3xl text-base leading-relaxed text-[#A3A3A3] sm:text-lg">{description}</p>

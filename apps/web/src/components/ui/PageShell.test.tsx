@@ -22,14 +22,14 @@ describe('PageShell', () => {
     expect(screen.getByRole('link', { name: 'Profile' })).toBeTruthy();
   });
 
-  it('shows the beta badge next to the page title', () => {
+  it('renders no beta badge next to the page title', () => {
     render(
       <PageShell title="Test page">
         <p>Body content</p>
       </PageShell>
     );
 
-    expect(screen.getByText('Beta')).toBeTruthy();
+    expect(screen.queryByText('Beta')).toBeNull();
   });
 
   it('marks the active page link', () => {

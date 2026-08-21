@@ -28,22 +28,30 @@ export function MemberStatementPage() {
   const { memberId } = useParams<{ memberId: string }>();
   const [statement, setStatement] = useState<MemberStatement | null>(null);
   const [loading, setLoading] = useState(hasSupabaseConfig);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!memberId) {
       return;
     }
     const load = async () => {
-      if (!hasSupabaseConfig) {
-        setStatement(await mockLedgerRepository.getMemberStatement(memberId));
-        setLoading(false);
-        return;
-      }
+      setLoading(true);
+      setLoadError(null);
       try {
+        if (!hasSupabaseConfig) {
+          setStatement(await mockLedgerRepository.getMemberStatement(memberId));
+          return;
+        }
         setStatement(await new SupabaseLedgerRepository().getMemberStatement(memberId));
       } catch (e) {
-        console.warn('Failed to load member statement from Supabase', e);
-        setStatement(await mockLedgerRepository.getMemberStatement(memberId));
+        console.warn('Failed to load member statement', e);
+        const message = e instanceof Error ? e.message : '';
+        setStatement(null);
+        setLoadError(
+          message === 'Member not found.'
+            ? 'No statement was found for this member. They may have been removed, or you may not have access to their record.'
+            : "Couldn't load the statement. Check your connection and try again."
+        );
       } finally {
         setLoading(false);
       }
@@ -60,6 +68,12 @@ export function MemberStatementPage() {
 
       {loading ? (
         <p className="text-sm text-[#A3A3A3]">Loading…</p>
+      ) : loadError ? (
+        <div className="flex flex-col gap-3 border border-[#FFB300] bg-[#1A1A1A] p-4">
+          <p role="alert" className="text-sm text-[#FF3D00]">
+            {loadError}
+          </p>
+        </div>
       ) : statement && member ? (
         <>
           <SectionCard
@@ -176,7 +190,9 @@ export function MemberStatementPage() {
             )}
           </SectionCard>
         </>
-      ) : null}
+      ) : (
+        <p className="text-sm text-[#A3A3A3]">No statement was found for this member.</p>
+      )}
     </PageShell>
   );
 }

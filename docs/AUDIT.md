@@ -86,11 +86,17 @@ actual code, schema, and migrations. Severity: 🔴 CRITICAL · 🟠 MAJOR · �
   `020` adds a DELETE policy on `check_ins` for owner/staff; the Today and
   History lists have a confirmed Delete button (members remain delete-blocked
   by RLS).
-- **C4 🟡 — The "5 most recent" quick list is most recently registered, not
-  most frequent** — regulars disappear after registering new walk-ins.
-- **C5 🟡 — Same-name members are indistinguishable** (no uniqueness, no
-  photo, no disambiguation).
-- **C6 🟡 — Seeded rows display "12:00 AM" times** after the 018 migration.
+- **C4 🟡 → copy fixed (v1.036) — The "5 most recent" quick list is most
+  recently registered, not most frequent** — regulars disappear after
+  registering new walk-ins. The helper copy now truthfully says "newest
+  members"; sorting by visit frequency remains future work.
+- **C5 🟡 → largely addressed by display — Same-name members are
+  indistinguishable** (no uniqueness, no photo). Check-in and member rows
+  now show phone/email, which disambiguates same names in practice.
+- **C6 🟡 → stale (seed rewritten) — Seeded rows displayed "12:00 AM"
+  times** after the 018 migration. The current `006_demo_seed.sql` uses
+  relative `now() - interval` timestamps; only pre-rewrite rows in an old
+  live DB could still show midnight times.
 
 ## D. Data integrity
 
@@ -99,18 +105,24 @@ actual code, schema, and migrations. Severity: 🔴 CRITICAL · 🟠 MAJOR · �
   per key and re-parenting billing history; the live DB went 159 → 43
   members) and added partial unique indexes on email/phone (NULL/empty
   ignored). The UI shows friendly "already exists" messages.
-- **D2 🟠 → mostly fixed (v1.007) — Delete is a trap.** Member delete now
-  pre-checks invoices/payments and explains why the member cannot be deleted
-  (FK RESTRICT), suggesting deactivation instead. Remaining: deactivation is
-  owner-only (E2), and CASCADE on check-ins/memberships is still silent.
+- **D2 ✅ FIXED (v1.007, CASCADE disclosed v1.036) — Delete is a trap.**
+  Member delete now pre-checks invoices/payments and explains why the member
+  cannot be deleted (FK RESTRICT), suggesting deactivation instead; the
+  delete confirmation states that record, membership, AND check-in history
+  are removed permanently (the CASCADE is no longer silent). Deactivation is
+  owner-only (E2).
 - **D3 ✅ FIXED (v1.007) — No audit trail** for destructive actions. Migration
   `022` adds `audit_log` (RLS: owner/staff select-only) and DB triggers that
   record who/when/what for invoice voids, member deletes, and check-in deletes;
   the trigger runs `SECURITY DEFINER` (migration `023`) so no client can bypass
   or block it. A read-only Activity log page (owner/staff) displays the trail.
   Role changes and password changes are not logged (documented scope).
-- **D4 🟡 — Statement page has no "not found/not allowed" state** for RLS-
-  filtered queries.
+- **D4 ✅ FIXED (v1.036) — Statement page has no "not found/not allowed" state** for
+  RLS-filtered queries. The page now renders an amber not-found notice
+  ("They may have been removed, or you may not have access to their
+  record") driven by the repos' 'Member not found.' throw, and load
+  failures show the amber LoadError panel with human copy — the previous
+  silent mock-data fallback is removed.
 - **D5 🟡 — All lists fetched client-side in full**; pagination is client-side
   only (scalability boundary at scale).
 
@@ -138,7 +150,8 @@ actual code, schema, and migrations. Severity: 🔴 CRITICAL · 🟠 MAJOR · �
 - **F1 🟡 → mostly fixed (v1.006)** — Void and Deactivate now confirm first;
   the shared error/success state with no auto-dismiss remains (F2).
 - **F2 🟡 — Single shared error/success state; no auto-dismiss.**
-- **F3 🟡 — Header still says "Beta" while profile says v1.003.**
+- **F3 ✅ FIXED (v1.036) — Header no longer says "Beta"**; the Profile page
+  version indicator is the single source of truth for release status.
 - **F4 🟡 — Version format 1.001 is not semver.**
 
 ## G. Feature-level gaps (document as deliberate "future work")

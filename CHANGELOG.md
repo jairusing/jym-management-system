@@ -5,7 +5,32 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.035 — Critique round 5 (Dashboard, 20 → 30): chart legibility restored, fold economics, one error voice (2026-08-21)
+## v1.036 — Audit sweep (F3/D4/C4): Beta badge removed, statement page honest states, truthful "newest members" copy (2026-08-21)
+
+- A verification pass over `docs/AUDIT.md` found three open items that are
+  code-only (no schema), plus several already-fixed or stale entries
+  (D2's CASCADE is now disclosed in the delete confirm; C5 is largely
+  addressed by contact info on rows; C6's midnight timestamps no longer
+  exist in the seed). The three real ones ship here:
+  - **F3 — the "Beta" badge is gone.** Every page header carried a
+    vermillion Beta chip while the Profile page reports v1.036; the app is
+    well past beta and the badge contradicted the version indicator.
+  - **D4 — the member statement page now tells the truth in every state.**
+    Previously a not-found/RLS-blocked member rendered a blank page below
+    the back link, and any Supabase failure silently swapped in mock demo
+    data — the exact anti-pattern eradicated elsewhere. Now: load failures
+    render the amber LoadError panel with human copy, and "Member not
+    found." renders a distinct not-found notice ("They may have been
+    removed, or you may not have access to their record."). The silent
+    mock fallback is removed; both repos' identical 'Member not found.'
+    throw drives the distinction.
+  - **C4 (copy half) — the Check-ins quick list now says what it is.** The
+    helper line claimed "the 5 most recent members" while the query returns
+    the newest *registrations*; it now reads "Showing the 5 newest members".
+    Sorting by visit frequency remains future work.
+- AUDIT.md statuses updated to match verified reality.
+- Verified: full suite 279/279 (211 runnable + 68 skipped live DB),
+  lint/tsc/build clean, detector 0 findings.
 
 - The round-5 re-critique confirmed all five v1.034 fixes landed (score
   20 → 30, zero P0s) and caught one regression the accent fix introduced:

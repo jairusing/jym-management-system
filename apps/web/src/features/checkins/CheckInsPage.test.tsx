@@ -119,7 +119,7 @@ describe('CheckInsPage', () => {
     expect(screen.getByText('Maria Santos')).toBeTruthy();
   });
 
-  it('shows the most recent members with an empty search query', async () => {
+  it('shows the newest members with an empty search query', async () => {
     for (let i = 1; i <= 6; i += 1) {
       await mockMemberRepository.createMember({
         fullName: `Member ${i}`,
@@ -132,7 +132,7 @@ describe('CheckInsPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/most recent members — type to search/i)).toBeTruthy();
+      expect(screen.getByText(/newest members — type to search/i)).toBeTruthy();
     });
     expect(screen.getByText('Member 6')).toBeTruthy();
     expect(screen.queryByText('Member 1')).toBeNull();

@@ -393,6 +393,27 @@ is the button and no check-in was recorded). Verified: full suite
    P3 (skeleton morph, demo notice, confirmed timezone seam in mock repo
    bucketing); Members re-critique still pending; other surfaces never
    critiqued: Staff, Classes, Audit, MemberStatement, MyMembership.
+- **v1.036** — audit sweep (user asked to check AUDIT.md before more
+   critiques; verification found D2-residual fixed, C5 largely addressed
+   by contact-info display, C6 stale after seed rewrite — AUDIT.md updated
+   accordingly): (1) F3 — "Beta" badge removed from PageShell (contradicted
+   the Profile version indicator); test inverted to assert absence. (2)
+   D4 — MemberStatementPage rewritten: single try/catch over both mock and
+   Supabase paths, silent mock-data fallback REMOVED, 'Member not found.'
+   renders a distinct amber not-found notice ("They may have been removed,
+   or you may not have access to their record"), other failures render the
+   amber LoadError panel with connection copy; new test asserts the amber
+   not-found state for an unknown member id. NOTE: both ledger repos throw
+   'Member not found.' for missing/RLS-blocked members — the page
+   distinguishes on that exact message. (3) C4 copy half — Check-ins quick
+   list now says "Showing the 5 newest members" (listMembers sorts
+   created_at DESC in both repos); frequency sorting stays future work.
+   Verified: full suite 279/279 (211 runnable + 68 skipped), lint/tsc/
+   build clean, detector 0. OPEN AUDIT ITEMS: A5 void_reason column, C1
+   duplicate-check-in DB unique index, B5 renewal reminders, D5 server-side
+   pagination, E1 password policy scope decision, E3 orphan profiles in
+   staff list, F2 shared-state auto-dismiss, G1-G5 feature gaps — all need
+   product/schema decisions or explicit approval.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in

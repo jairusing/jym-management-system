@@ -515,7 +515,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
             ) : (
               <div>
                 <p className="text-sm text-[#A3A3A3]">
-                  Showing the {RECENT_COUNT} most recent members — type to search, press Enter to select, then Check in.
+                  Showing the {RECENT_COUNT} newest members — type to search, press Enter to select, then Check in.
                 </p>
                 <ul className="mt-2 flex flex-col">
                   {recentMembers.map((member) => {
