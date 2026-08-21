@@ -5,7 +5,35 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.029 — Critique round 12 (Check-ins, 31 → flat, both P1s fixed): visible focus ring app-wide, amber grace semantics (2026-08-21)
+## v1.030 — Critique round 13 (Check-ins, 31 → 32): the four two-round survivors closed as a batch (2026-08-21)
+
+- Round 13 verified both v1.029 P1 fixes landed (focus ring per spec,
+  amber grace semantics) and moved Check-ins to 32/40. The same four
+  issues had survived rounds 12 and 13 unchanged; all are closed here:
+  - **Success is now green.** The StatusLine success message renders in
+    the good token #22C55E instead of white body text, so "checked in"
+    registers as a success signal at a fast counter; errors stay
+    vermillion.
+  - **The Delete wall is gone.** Per-row vermillion DELETE buttons on the
+    Today and History tabs (up to 210 visible at once) are replaced by the
+    app's standard RowMenu overflow pattern with a danger Delete item,
+    matching Payments. The confirm modal restores focus to the row's menu
+    trigger on cancel.
+  - **One entry field instead of two.** The stacked QR form and search
+    form (visually identical inputs with opposite Enter behaviors) are
+    merged into a single "Search or member ID" field: an exact member-ID
+    match routes to QR check-in (PIN gate included), anything else filters
+    the list and Enter focuses the first match's Check in button. "Scan
+    QR" remains the camera path. Empty-state copy now says "No members
+    match that search." since phone and email also match.
+  - **LoadError is no longer camouflage.** The failure block now uses an
+    amber #FFB300 border on the raised #1A1A1A surface — the same
+    attention pattern as the PIN override panel — so it cannot be mistaken
+    for empty card padding.
+- Verified: full suite 269/269 (201 runnable + 68 skipped live DB), 33
+  Check-ins tests incl. new assertions for green success text, amber
+  LoadError surface, RowMenu delete flow with focus restoration, and
+  unified-field routing; lint/tsc/build clean, detector 0 findings.
 
 - Round 12 re-critique held Check-ins at 31/40: the round-11 PIN-override P1
   is fully resolved and Help rose 2→3, but the dead-Enter fix shipped with

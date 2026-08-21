@@ -1,11 +1,13 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { RowMenu } from '../../components/ui/RowMenu';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Tabs } from '../../components/ui/Tabs';
-import { dangerButtonClass, ghostButtonClass, inputClass, primaryButtonClass } from '../../components/ui/buttonClasses';
+import { ghostButtonClass, inputClass, primaryButtonClass } from '../../components/ui/buttonClasses';
 import { formatDate, formatDateTime, phDateAfter, phDateInDays, phDateToday, phDayEndUtc, phDayStartUtc } from '../../lib/dates';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { toAttendanceCsv } from './attendanceCsv';
@@ -23,14 +25,14 @@ function StatusLine({ error, success }: { error: string | null; success: string 
   return (
     <>
       {error ? <p role="alert" className="mb-4 text-sm text-[#FF3D00]">{error}</p> : null}
-      {success ? <p role="status" className="mb-4 text-sm text-[#FAFAFA]">{success}</p> : null}
+      {success ? <p role="status" className="mb-4 text-sm text-[#22C55E]">{success}</p> : null}
     </>
   );
 }
 
 function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex flex-col gap-3 border border-[#262626] bg-[#0F0F0F] p-4">
+    <div className="flex flex-col gap-3 border border-[#FFB300] bg-[#1A1A1A] p-4">
       <p role="alert" className="text-sm text-[#FF3D00]">
         Couldn't load check-in data. {message}
       </p>
@@ -54,9 +56,7 @@ export function CheckInsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [qrCode, setQrCode] = useState('');
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
-  const [qrCheckingIn, setQrCheckingIn] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<CheckIn | null>(null);
   const [deletePending, setDeletePending] = useState(false);
@@ -194,8 +194,14 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
     await beginCheckIn(member, 'manual');
   };
 
-  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+  const handleEntrySubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const trimmed = query.trim();
+    const exactMember = members.find((candidate) => candidate.id === trimmed);
+    if (exactMember) {
+      void handleQrCheckIn(trimmed);
+      return;
+    }
     const firstMatch = filteredMembers[0];
     if (!firstMatch) {
       return;
@@ -235,8 +241,6 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
     setSuccess(null);
     if (method === 'manual') {
       setCheckingInId(member.id);
-    } else {
-      setQrCheckingIn(true);
     }
     const memberRepo = hasSupabaseConfig ? new SupabaseMemberRepository() : mockMemberRepository;
     try {
@@ -254,7 +258,6 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       showError(e instanceof Error ? e.message : 'Failed to check in member.');
     } finally {
       setCheckingInId(null);
-      setQrCheckingIn(false);
     }
   };
 
@@ -264,7 +267,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       await repo.recordCheckIn({ memberId: member.id, memberName: member.fullName, method });
       showSuccess(method === 'qr' ? `${member.fullName} checked in via QR.` : `${member.fullName} checked in.`);
       if (method === 'qr') {
-        setQrCode('');
+        setQuery('');
       }
       await refreshTodayCheckIns();
     } catch (e) {
@@ -376,7 +379,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       {tab === 'checkin' ? (
         <SectionCard
           title="Check in a member"
-          description="Find the member by name, scan their QR, or enter the QR member ID."
+          description="Search by name, paste a member ID, or scan their QR."
         >
           <StatusLine error={error} success={success} />
 
@@ -385,54 +388,33 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
           ) : (
             <>
           <form
-            aria-label="QR check-in"
+            aria-label="Check in a member"
             className="flex flex-col gap-4 pb-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleQrCheckIn(qrCode);
-            }}
+            onSubmit={handleEntrySubmit}
           >
-            <label className="flex flex-col gap-2 text-sm">
-              <span>QR code or member ID</span>
-              <input
-                className={inputClass}
-                type="text"
-                placeholder="Scan or paste the member ID…"
-                value={qrCode}
-                onChange={(event) => setQrCode(event.target.value)}
-              />
-            </label>
-            <div className="flex flex-col gap-4 sm:flex-row">
-              <button className={primaryButtonClass} type="button" onClick={() => setScanning(true)}>
-                Scan QR
-              </button>
-              <button className={ghostButtonClass} type="button" disabled={qrCheckingIn} onClick={() => void handleQrCheckIn(qrCode)}>
-                {qrCheckingIn ? 'Checking in…' : 'Check in via QR'}
-              </button>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <label className="flex flex-1 flex-col gap-2 text-sm">
+                <span>Search or member ID</span>
+                <input
+                  className={inputClass}
+                  type="search"
+                  placeholder="Type a name or paste a member ID…"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </label>
+              <div>
+                <button className={primaryButtonClass} type="button" onClick={() => setScanning(true)}>
+                  Scan QR
+                </button>
+              </div>
             </div>
-          </form>
-
-          <form
-            aria-label="Search members"
-            className="flex flex-col gap-4 border-t border-[#262626] pt-4"
-            onSubmit={handleSearch}
-          >
-            <label className="flex flex-col gap-2 text-sm">
-              <span>Search members</span>
-              <input
-                className={inputClass}
-                type="search"
-                placeholder="Type a name…"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </label>
 
             {loading ? (
               <p className="text-sm text-[#A3A3A3]">Loading…</p>
             ) : normalizedQuery ? (
               filteredMembers.length === 0 ? (
-                <p className="text-sm text-[#A3A3A3]">No members match that name.</p>
+                <p className="text-sm text-[#A3A3A3]">No members match that search.</p>
               ) : (
                 <ul className="flex flex-col">
                   {filteredMembers.map((member) => {
@@ -664,9 +646,18 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                         {checkIn.method}
                       </span>
                     </p>
-                    <button className={dangerButtonClass} type="button" onClick={() => handleDeleteCheckIn(checkIn)}>
-                      Delete
-                    </button>
+                    <RowMenu
+                      id={`checkin-menu-${checkIn.id}`}
+                      label="More"
+                      items={[
+                        {
+                          label: 'Delete',
+                          icon: Trash2,
+                          danger: true,
+                          onClick: () => handleDeleteCheckIn(checkIn)
+                        }
+                      ]}
+                    />
                   </div>
                 </li>
               ))}
@@ -736,9 +727,18 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                         {checkIn.method}
                       </span>
                     </p>
-                    <button className={dangerButtonClass} type="button" onClick={() => handleDeleteCheckIn(checkIn)}>
-                      Delete
-                    </button>
+                    <RowMenu
+                      id={`checkin-menu-${checkIn.id}`}
+                      label="More"
+                      items={[
+                        {
+                          label: 'Delete',
+                          icon: Trash2,
+                          danger: true,
+                          onClick: () => handleDeleteCheckIn(checkIn)
+                        }
+                      ]}
+                    />
                   </div>
                 </li>
               ))}
@@ -761,6 +761,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
           danger
           pending={deletePending}
           error={deleteError}
+          restoreFocusId={pendingDelete ? `checkin-menu-${pendingDelete.id}` : undefined}
           onConfirm={() => void handleConfirmDelete()}
           onCancel={() => {
             if (!deletePending) {

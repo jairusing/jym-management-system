@@ -358,10 +358,10 @@ describe('CheckInsPage', () => {
       expect(screen.getByText('Pin Member')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+    fireEvent.change(screen.getByLabelText(/Search or member ID/), {
       target: { value: member.id }
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Check in via QR' }));
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
 
     await waitFor(() => {
       expect(screen.getByText(/Enter the PIN for Pin Member/)).toBeTruthy();
@@ -388,10 +388,10 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     });
 
     const members = await mockMemberRepository.listMembers();
-    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+    fireEvent.change(screen.getByLabelText(/Search or member ID/), {
       target: { value: members[0]?.id }
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Check in via QR' }));
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
 
     await waitFor(() => {
       expect(screen.getByText(/checked in via QR/i)).toBeTruthy();
@@ -433,13 +433,13 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+    fireEvent.change(screen.getByLabelText(/Search or member ID/), {
       target: { value: 'no-such-member' }
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Check in via QR' }));
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
 
     await waitFor(() => {
-      expect(screen.getByText('No member matches that ID.')).toBeTruthy();
+      expect(screen.getByText('No members match that search.')).toBeTruthy();
     });
 
     const saved = await mockCheckInRepository.listTodayCheckIns();
@@ -496,10 +496,10 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByText('Ana Lim')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+    fireEvent.change(screen.getByLabelText(/Search or member ID/), {
       target: { value: members[0]?.id }
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Check in via QR' }));
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
 
     await waitFor(() => {
       expect(screen.getByText(/membership expired/i)).toBeTruthy();
@@ -689,7 +689,7 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     });
 
     fireEvent.change(screen.getByPlaceholderText(/type a name/i), { target: { value: 'Maria' } });
-    fireEvent.submit(screen.getByRole('form', { name: 'Search members' }));
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
 
     expect(screen.queryByText(/checked in\./i)).toBeNull();
     const saved = await mockCheckInRepository.listTodayCheckIns();
@@ -712,7 +712,7 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     });
 
     fireEvent.change(screen.getByPlaceholderText(/type a name/i), { target: { value: 'maria' } });
-    fireEvent.submit(screen.getByRole('form', { name: 'Search members' }));
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
 
     const members = await mockMemberRepository.listMembers();
     const maria = members.find((candidate) => candidate.fullName === 'Maria Santos');
@@ -743,6 +743,9 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByRole('alert').textContent).toContain("Couldn't load check-in data.");
     });
     expect(screen.getByText(/db unavailable/)).toBeTruthy();
+    const loadErrorBox = screen.getByRole('alert').closest('div');
+    expect(loadErrorBox?.className).toContain('border-[#FFB300]');
+    expect(loadErrorBox?.className).toContain('bg-[#1A1A1A]');
     expect(screen.queryByText(/no members yet/i)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -764,10 +767,10 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     });
 
     const members = await mockMemberRepository.listMembers();
-    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+    fireEvent.change(screen.getByLabelText(/Search or member ID/), {
       target: { value: members[0]?.id }
     });
-    fireEvent.submit(screen.getByRole('form', { name: 'QR check-in' }));
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
 
     await waitFor(() => {
       expect(screen.getByText(/checked in via QR/i)).toBeTruthy();
@@ -809,10 +812,10 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     });
 
     const members = await mockMemberRepository.listMembers();
-    fireEvent.change(screen.getByLabelText(/QR code or member ID/), {
+    fireEvent.change(screen.getByLabelText(/Search or member ID/), {
       target: { value: members[0]?.id }
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Check in via QR' }));
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
 
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain('already checked in today');
@@ -835,6 +838,7 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     await waitFor(() => {
       expect(screen.getByRole('status').textContent).toMatch(/checked in\./i);
     });
+    expect(screen.getByRole('status').className).toContain('text-[#22C55E]');
   });
 
   it('deletes a check-in from the today list after confirming in the modal', async () => {
@@ -849,7 +853,8 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
@@ -873,16 +878,17 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
     });
 
-    const deleteButton = screen.getByRole('button', { name: 'Delete' });
-    deleteButton.focus();
-    fireEvent.click(deleteButton);
+    const moreButton = screen.getByRole('button', { name: 'More' });
+    moreButton.focus();
+    fireEvent.click(moreButton);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() => {
       expect(screen.getByText(/1 check-in today/i)).toBeTruthy();
     });
-    expect(document.activeElement).toBe(deleteButton);
+    expect(document.activeElement).toBe(moreButton);
     const saved = await mockCheckInRepository.listTodayCheckIns();
     expect(saved.length).toBe(1);
   });
@@ -899,7 +905,8 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByText(/1 check-in in the selected range/i)).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 

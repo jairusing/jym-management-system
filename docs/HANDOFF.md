@@ -272,6 +272,24 @@ is the button and no check-in was recorded). Verified: full suite
    68 skipped), 33 Check-ins tests, lint/tsc/build clean, detector 0,
    ring utilities in built CSS. NEXT: re-critique Check-ins (round 13) to
    confirm the two P1s closed and the score moves past 31.
+- **v1.030** — critique round 13 (Check-ins, 32/40; both v1.029 P1 fixes
+   verified landed; user approved closing the four two-round survivors as
+   one batch): (1) success StatusLine now #22C55E green (was white body
+   text). (2) per-row vermillion Delete buttons on Today/History replaced
+   with RowMenu (danger item, Trash2 icon) + ConfirmModal restoreFocusId
+   back to the row's `checkin-menu-<id>` trigger. (3) the QR form and
+   search form merged into ONE "Search or member ID" field: exact member-ID
+   match routes to handleQrCheckIn (PIN gate intact), otherwise Enter
+   focuses the first match's Check in button; qrCode/qrCheckingIn state
+   removed; empty-state copy now "No members match that search." (4)
+   LoadError now amber #FFB300 border on raised #1A1A1A (matches the PIN
+   override attention pattern). Test notes: delete tests open the RowMenu
+   ("More" button → "Delete" menuitem); QR-paste tests submit the unified
+   form (`getByRole('form', { name: 'Check in a member' })`); unknown-ID
+   test now expects the search empty state instead of the ID error.
+   Verified: full suite 269/269 (201 runnable + 68 skipped), 33 Check-ins
+   tests, lint/tsc/build clean, detector 0. NEXT: re-critique Check-ins
+   (round 14) to score the batch.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in
