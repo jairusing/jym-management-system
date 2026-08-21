@@ -656,11 +656,19 @@ is the button and no check-in was recorded). Verified: full suite
    flow-blockers: the PIN dead-end now has a staff-confirmed "Member
    forgot PIN" override, and search Enter now focuses the first match's
    Check in button (still an explicit two-step, no auto-check-in).
-   Remaining P2s: danger/error color is now distinct (#DC2626); still
-   open are keyboard arrow keys on the tabs, no "opening camera" scanning
-   indicator, duplicated list markup, focus restore after manual
-   check-in, sticky status messages, and a persisting "PIN bypassed"
-   flag (needs a schema change — deferred pending approval).
+   Status after rounds 12-15 (v1.027-v1.032, v1.035): the v1.026 danger
+   split (#DC2626) was REVERTED app-wide to the vermillion ghost anatomy
+   in v1.027; Enter got a visible 2px focus ring and can no longer
+   dead-end; grace members render amber "Grace"; success copy is green;
+   per-row Delete moved into RowMenu; the twin entry forms merged into
+   one "Search or member ID" field; History got LoadError parity; write
+   errors speak human copy; a recorded-but-unrefreshed check-in warns
+   honestly. Still open (P3): keyboard arrow keys on Tabs, an "opening
+   camera" scanning indicator, duplicated member-row JSX (extract a
+   MemberRow component), autofocus on mount, PIN digit clearing after a
+   wrong attempt, focus fallback when deleting the last row, sticky
+   status messages, and the persisting "PIN bypassed" flag (schema
+   change — deferred pending approval).
 
 Deploy note for v1.005: before the live create-login path works, set
 `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project env (and confirm

@@ -92,3 +92,8 @@ Clone `web-starter` → `jym-management-system`. Create a **fresh Supabase proje
   - 6) Tests for search/filter/tabs/pagination/single-row payment; full harness; commit + push (Vercel auto-deploy).
   - Deferred (flagged, not approved): printable receipts, expiring-this-week dashboard alert, kiosk/member-facing mode.
 - Phase 8.5 (versioning convention): SHIPPED as v1.001 (commit `7a53bc4`). Every shipped change bumps `apps/web/package.json` version (1.001 → 1.002 → …), adds an entry at the top of `CHANGELOG.md` (repo root of jym-management-system), and the Profile page shows "Version {version}" at the bottom (imported from package.json — single source of truth). Before any commit: check the changelog + version bump are included.
+- Phase 9+ (post-plan iterations): all releases from v1.002 onward are tracked in
+  `CHANGELOG.md` (authoritative — currently v1.038) and summarized per-version in
+  `docs/HANDOFF.md` "Progress so far". Work since v1.010 has been critique-driven
+  (impeccable design reviews per surface) plus adviser-audit sweeps; open items live
+  in `docs/AUDIT.md` and the HANDOFF "What's next" section.

@@ -5,7 +5,18 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.037 — Audit C1 closed: duplicate check-ins now impossible at the database level (migration 028) (2026-08-21)
+## v1.038 — Docs housekeeping: HANDOFF and PLAN brought current (no code changes) (2026-08-21)
+
+- HANDOFF "What's next" §7 no longer claims the #DC2626 danger color is
+  current — it documents the v1.027 revert to the vermillion ghost anatomy
+  and gives an accurate open-items list for Check-ins after critique
+  rounds 12-15 (arrow keys on Tabs, MemberRow extraction, autofocus, PIN
+  digit clearing, last-row focus fallback, scanning indicator, sticky
+  statuses, deferred PIN-bypassed flag).
+- PLAN.md status section now points at CHANGELOG.md as the authoritative
+  release record from v1.002 onward instead of stopping at Phase 8.5 /
+  v1.001.
+- No application code changed; version bumped per the release convention.
 
 - The last data-integrity hole from the adviser audit is closed. The
   duplicate check-in guard used to live only in application code — two
