@@ -532,7 +532,7 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     });
 
     expect(screen.getByText(/3-day grace until/)).toBeTruthy();
-    expect(screen.getByText('Expiring')).toBeTruthy();
+    expect(screen.getByText('Grace')).toBeTruthy();
     expect(screen.queryByText('Expired')).toBeNull();
     const button = screen.getByRole('button', { name: 'Check in' });
     expect((button as HTMLButtonElement).disabled).toBe(false);
@@ -792,6 +792,41 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     expect(listCheckIns).toHaveBeenCalledTimes(2);
   });
 
+  it('maps write-path failures to human copy instead of raw repository errors', async () => {
+    const members = await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    vi.spyOn(mockCheckInRepository, 'recordCheckIn').mockRejectedValueOnce(
+      new Error('Failed to record check-in: new row violates row-level security policy')
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Check in' })[0] as HTMLButtonElement);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toMatch(/Couldn't record the check-in/i);
+    });
+    expect(screen.queryByText(/row-level security/i)).toBeNull();
+    expect(members.length).toBe(2);
+  });
+
+  it('warns inline when the history range is inverted instead of silently doing nothing', async () => {
+    renderPage();
+
+    goToTab('History');
+    await waitFor(() => {
+      expect(screen.getByText('From')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-08-10' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-08-01' } });
+
+    expect(screen.getByRole('alert').textContent).toMatch(/From must be on or before To/i);
+  });
+
   it('checks in via QR when the member ID form is submitted', async () => {
     await seedMembers();
     renderPage();
@@ -824,9 +859,10 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     fireEvent.click(checkInButtons[0] as HTMLButtonElement);
 
     await waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toMatch(/Network failure/i);
+      expect(screen.getByRole('alert').textContent).toMatch(/checked in, but the list may be out of date/i);
       expect(screen.queryByRole('status')).toBeNull();
     });
+    expect(screen.queryByText(/Network failure/)).toBeNull();
     const saved = await mockCheckInRepository.listTodayCheckIns();
     expect(saved.length).toBe(1);
   });

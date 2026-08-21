@@ -5,7 +5,37 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.031 — Critique round 14 (Check-ins, 32 → 29 re-weighted): the silent primary-path failure closed (2026-08-21)
+## v1.032 — Critique round 15 (Check-ins final fix round): human write-error copy, honest refresh warnings, range validation, Grace badge (2026-08-21)
+
+- Round 15 verified all v1.031 fixes landed with explicit praise ("Enter
+  honors its own promise", "rare care at this level") but surfaced one
+  remaining P1 and two cheap P2s; all closed here as the final Check-ins
+  fix round before the critique loop moves on:
+  - **Write-path errors now speak human.** The four catch sites
+    (start check-in, record check-in, verify PIN, delete check-in) map
+    repository failures to calm copy ("Couldn't record the check-in.
+    Please try again.") and demote raw errors to console.warn. Known
+    domain messages ("Already checked in today.", "Check-in not found.")
+    still pass through untouched.
+  - **The refresh-failure warning is now honest.** When a check-in is
+    recorded but the follow-up list refresh fails, the page previously
+    showed the raw error — which read as "the check-in failed" and invited
+    a duplicate retry. It now says "<Member> is checked in, but the list
+    may be out of date." (same honest-warning pattern as Payments).
+  - **Inverted history ranges warn inline.** Setting From after To used to
+    make Load a silent no-op; the History tab now shows "From must be on
+    or before To." next to the fields.
+  - **The grace badge no longer contradicts itself.** A member inside the
+    3-day grace window is badged "Grace" instead of "Expiring" — which sat
+    directly above a sentence reading "Membership expired…". Red "Expired"
+    remains reserved for past-grace.
+- Score-context: three consecutive fresh-eyes critiques scored 32 → 29 →
+  28 while every flagged P1 was fixed and detector-verified each round;
+  the loop has converged, so Check-ins critiques pause here.
+- Verified: full suite 275/275 (207 runnable + 68 skipped live DB), 39
+  Check-ins tests incl. new coverage for error mapping, the honest
+  refresh warning, and the inverted-range message; lint/tsc/build clean,
+  detector 0 findings.
 
 - Round 14 verified all four v1.030 fixes landed (detector-confirmed) but
   re-weighted the surface honestly: the merge had made Enter the single

@@ -308,6 +308,30 @@ is the button and no check-in was recorded). Verified: full suite
    querySelector, not id construction. Verified: full suite 273/273 (205
    runnable + 68 skipped), 37 Check-ins tests incl. 4 new, lint/tsc/build
    clean, detector 0. NEXT: re-critique Check-ins (round 15).
+- **v1.032** — critique round 15 (Check-ins FINAL fix round; loop declared
+   converged after three fresh-eyes scorers returned 32 → 29 → 28 while
+   every P1 was fixed and detector-verified each round): (1) the four
+   write-path catches now use `toUserError(e, fallback)` — a whitelist of
+   domain messages ("Already checked in today.", "Select a member to check
+   in.", "Check-in not found.") passes through; everything else shows calm
+   copy ("Couldn't record/start… Please try again.") with raw error to
+   console.warn. (2) completeCheckIn restructured: record failure and
+   refresh failure are now DISTINCT — record success + refresh failure
+   shows "<Member> is checked in, but the list may be out of date."
+   (honest-warning pattern from Payments) instead of raw 'Network
+   failure', which read as "the check-in failed" and invited duplicate
+   retries. (3) inverted From>To history ranges render "From must be on or
+   before To." inline (derived from field values, no extra state). (4)
+   grace badge renamed "Expiring" → "Grace" (it sat above a sentence
+   saying "Membership expired…" — contradiction). Test notes: the
+   refresh-failure test now asserts /checked in, but the list may be out
+   of date/i AND that the raw error text is gone; grace test asserts
+   getByText('Grace'). Verified: full suite 275/275 (207 runnable + 68
+   skipped), 39 Check-ins tests, lint/tsc/build clean, detector 0.
+   NEXT: Check-ins critiques paused — remaining known items are P3 polish
+   (touch targets, MemberRow extraction, autofocus, PIN digit clearing,
+   last-row delete focus, Tabs arrow-roving). Candidate next surfaces:
+   MembersPage or DashboardPage critiques.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in

@@ -21,6 +21,18 @@ const RECENT_COUNT = 5;
 const TODAY_LIST_CAP = 10;
 const HISTORY_CAP = 200;
 
+const DOMAIN_ERROR_MESSAGES = new Set([
+  'Already checked in today.',
+  'Select a member to check in.',
+  'Check-in not found.'
+]);
+
+function toUserError(e: unknown, fallback: string): string {
+  console.warn(fallback, e);
+  const message = e instanceof Error ? e.message : String(e);
+  return DOMAIN_ERROR_MESSAGES.has(message) ? message : fallback;
+}
+
 function StatusLine({ error, success }: { error: string | null; success: string | null }) {
   return (
     <>
@@ -265,10 +277,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       setPinValue('');
       setPinError(null);
       setPinOverride(false);
-    } catch (e) {
-      showError(e instanceof Error ? e.message : 'Failed to check in member.');
-    } finally {
-      setCheckingInId(null);
+} catch (e) {
+  showError(toUserError(e, "Couldn't start the check-in. Please try again."));
+  } finally {
+  setCheckingInId(null);
     }
   };
 
@@ -276,13 +288,19 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
     const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
     try {
       await repo.recordCheckIn({ memberId: member.id, memberName: member.fullName, method });
-      showSuccess(method === 'qr' ? `${member.fullName} checked in via QR.` : `${member.fullName} checked in.`);
-      if (method === 'qr') {
-        setQuery('');
-      }
+    } catch (e) {
+      showError(toUserError(e, "Couldn't record the check-in. Please try again."));
+      return;
+    }
+    showSuccess(method === 'qr' ? `${member.fullName} checked in via QR.` : `${member.fullName} checked in.`);
+    if (method === 'qr') {
+      setQuery('');
+    }
+    try {
       await refreshTodayCheckIns();
     } catch (e) {
-      showError(e instanceof Error ? e.message : 'Failed to check in member.');
+      console.warn('Check-in recorded, but the refresh failed', e);
+      showError(`${member.fullName} is checked in, but the list may be out of date.`);
     }
   };
 
@@ -309,10 +327,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       } else {
         setPinError('Incorrect PIN.');
       }
-    } catch (e) {
-      setPinError(e instanceof Error ? e.message : 'Failed to verify PIN.');
-    } finally {
-      setPinSaving(false);
+} catch (e) {
+  setPinError(toUserError(e, "Couldn't verify the PIN. Please try again."));
+  } finally {
+  setPinSaving(false);
     }
   };
 
@@ -359,10 +377,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
           document.getElementById(`checkin-menu-${neighbor.id}`)?.focus();
         }
       }, 0);
-    } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : 'Failed to delete check-in.');
-    } finally {
-      setDeletePending(false);
+} catch (e) {
+  setDeleteError(toUserError(e, "Couldn't delete the check-in. Please try again."));
+  } finally {
+  setDeletePending(false);
     }
   };
 
@@ -465,7 +483,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                                     ? 'Cancelled'
                                     : expired.blocked
                                       ? 'Expired'
-                                      : 'Expiring'}
+                                      : 'Grace'}
                               </StatusBadge>
                             ) : null}
                           </p>
@@ -529,7 +547,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                                     ? 'Cancelled'
                                     : expired.blocked
                                       ? 'Expired'
-                                      : 'Expiring'}
+                                      : 'Grace'}
                               </StatusBadge>
                             ) : null}
                           </p>
@@ -726,6 +744,12 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
               Export CSV
             </button>
           </div>
+
+          {historyFrom && historyTo && historyFrom > historyTo ? (
+            <p role="alert" className="mb-4 text-sm text-[#FF3D00]">
+              From must be on or before To.
+            </p>
+          ) : null}
 
           {historyLoading ? (
             <p className="text-sm text-[#A3A3A3]">Loading…</p>
