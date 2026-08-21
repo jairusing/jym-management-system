@@ -5,7 +5,32 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.040 — Critique round 1 (Classes, 19/40 → fixed): honest schedule, gated destruction, working feedback (2026-08-21)
+## v1.041 — Critique round 1 (Activity log, 17/40 → fixed): the audit trail stops lying (2026-08-21)
+
+- The Activity log's first-ever critique found the most serious single
+  issue of any review this cycle: on a failed load, the page rendered
+  FABRICATED audit history — invented voids and deletes — with a
+  whisper-thin red footnote. On an immutable-audit page whose sole product
+  is trustworthy fact, that is a trust-termination event that could fuel
+  false accusations against real staff. All five issues closed:
+  - **P0 — fabricated history is gone.** A failed Supabase load now clears
+    the list and renders the amber LoadError panel with human copy and a
+    working Retry. Demo mode (no database configured) keeps mock entries
+    but labels itself "Demo data — no live database connected." like the
+    Dashboard.
+  - **P1 — error presentation fixed**: role="alert", amber #FFB300 frame,
+    ghost Retry, raw e.message demoted to console.warn.
+  - **P2 — action labels are exhaustive-safe**: label/tone maps keyed to
+    the repository's exact 'delete' | 'void' union, with unknown actions
+    rendering verbatim instead of inventing a verb ("deleted role_changes"
+    can never appear again).
+  - **P2 — void entries are gray**, matching UI_DESIGN.md's colour table;
+    deletes keep red as a documented severity choice for destructive facts.
+  - **Count added** — the card shows "N recorded actions" so the window's
+    scope is explicit. (Full filters/pagination remain scoped out with D5.)
+- Verified: full suite 285/285 (216 runnable + 69 skipped live DB), 4
+  AuditPage tests incl. demo-label and amber-error-recovery coverage;
+  lint/tsc/build clean, detector 0 findings.
 
 - The Classes page's first-ever critique scored 19/40. All five issues
   closed with the app's established patterns:

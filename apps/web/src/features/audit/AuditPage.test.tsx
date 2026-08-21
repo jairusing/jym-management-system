@@ -1,14 +1,25 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuditPage } from './AuditPage';
-import { mockAuditRepository } from './auditRepository';
+import { mockAuditRepository, type AuditEntry } from './auditRepository';
+import { SupabaseAuditRepository } from './supabaseAuditRepository';
+
+const supabaseConfig = vi.hoisted(() => ({ hasSupabaseConfig: false }));
 
 vi.mock('../../lib/supabase', () => ({
-  hasSupabaseConfig: false,
+  get hasSupabaseConfig() {
+    return supabaseConfig.hasSupabaseConfig;
+  },
   supabase: null
 }));
+
+vi.mock('./supabaseAuditRepository', () => ({
+  SupabaseAuditRepository: vi.fn()
+}));
+
+const SupabaseAuditRepositoryMock = vi.mocked(SupabaseAuditRepository);
 
 function renderPage() {
   return render(
@@ -21,6 +32,8 @@ function renderPage() {
 afterEach(() => {
   cleanup();
   mockAuditRepository.reset();
+  supabaseConfig.hasSupabaseConfig = false;
+  SupabaseAuditRepositoryMock.mockReset();
 });
 
 describe('AuditPage', () => {
@@ -29,6 +42,14 @@ describe('AuditPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/no destructive actions have been recorded yet/i)).toBeTruthy();
+    });
+  });
+
+  it('labels the demo dataset when no database is connected', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toMatch(/demo data/i);
     });
   });
 
@@ -65,5 +86,42 @@ describe('AuditPage', () => {
     expect(screen.getByText(/Maria Santos/)).toBeTruthy();
     expect(screen.getAllByText(/deleted check-in/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Unknown account/)).toBeTruthy();
+  });
+
+  it('shows an amber load error instead of mock data when the live load fails, then recovers', async () => {
+    supabaseConfig.hasSupabaseConfig = true;
+    const sampleEntry: AuditEntry = {
+      id: 'entry-1',
+      action: 'void',
+      targetType: 'invoice',
+      targetId: 'invoice-1',
+      details: 'INV-1001',
+      performedByName: 'Owner',
+      createdAt: '2026-08-21T00:00:00.000Z'
+    };
+    const listAuditEntries = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Network failure'))
+      .mockResolvedValueOnce([sampleEntry]);
+    SupabaseAuditRepositoryMock.mockImplementation(
+      () => ({ listAuditEntries }) as unknown as SupabaseAuditRepository
+    );
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toMatch(/Couldn't load activity/i);
+    });
+    const noticeBox = screen.getByRole('alert').closest('div');
+    expect(noticeBox?.className).toContain('border-[#FFB300]');
+    expect(noticeBox?.className).toContain('bg-[#1A1A1A]');
+    expect(screen.queryByText(/voided invoice \(INV-/)).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/voided invoice \(INV-1001\)/)).toBeTruthy();
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

@@ -464,6 +464,28 @@ is the button and no check-in was recorded). Verified: full suite
    mapper is bypassed). Verified: full suite 283/283 (214 runnable + 69
    skipped), lint/tsc/build clean, detector 0. NEXT: Classes critique
    (never reviewed), then Activity log; B5 renewal reminders after.
+- **v1.041** — critique round 1 (Activity log page, FIRST review, 17/40;
+   user approved fixing all five, investigative tools scoped out with D5):
+   (1) P0 — the mock fallback on the configured path is GONE: failed loads
+   clear entries + render amber LoadError panel ("Couldn't load activity.
+   Check your connection and try again.") with Retry; no-config demo mode
+   keeps mock entries but now labels itself "Demo data — no live database
+   connected." (role="status") like Dashboard. (2) P1 — raw e.message →
+   console.warn only. (3) P2 — actionTone/actionLabel are exhaustive Records
+   keyed to AuditEntry['action'] ('delete' | 'void' — verified via audit
+   Repository.ts) with a verbatim fallback branch so unknown actions can
+   never render invented verbs. (4) P2 — void tone neutral per UI_DESIGN.md
+   colour table (delete stays red = documented severity choice). (5) Card
+   description shows "N recorded actions." Test notes: new tests for demo
+   label + amber-error-recovery (hoisted-config pattern); a loose /voided
+   invoice/ regex matched the PageShell DESCRIPTION — anchor such regexes
+   when page copy shares vocabulary. Verified: full suite 285/285 (216
+   runnable + 69 skipped), lint/tsc/build clean, detector 0. NEXT: item 3
+   of the agreed plan — B5 renewal reminders (needs two product decisions:
+   warn window + placement), then item 4 F2+polish batch. ALL FOUR pre-
+   viously-unreviewed surfaces have now had first critiques + fixes:
+   Staff 17→fixed v1.039, Classes 19→fixed v1.040, Activity log 17→fixed
+   v1.041.
 - **v1.040** — critique round 1 (Classes page, FIRST review, 19/40; user
    approved fixing all five): (1) P0 — silent mock fallback removed;
    loadError state gates ALL page content behind one amber LoadError panel
