@@ -290,6 +290,24 @@ is the button and no check-in was recorded). Verified: full suite
    Verified: full suite 269/269 (201 runnable + 68 skipped), 33 Check-ins
    tests, lint/tsc/build clean, detector 0. NEXT: re-critique Check-ins
    (round 14) to score the batch.
+- **v1.031** — critique round 14 (Check-ins; all four v1.030 fixes
+   detector-verified landed, but fresh-eyes re-weighting surfaced that the
+   merged field's Enter could still fail silently — focus() on a
+   nonexistent/disabled button — dropping the score 32 → 29; user approved
+   fixing the P1 + two hard P2s): (1) handleEntrySubmit now skips
+   checked-in/inactive/expiry-blocked matches and focuses the first
+   ACTIONABLE match's button; when nobody can check in it shows "Everyone
+   matching is already checked in or blocked from checking in." instead of
+   a silent no-op. (2) after a successful delete, focus moves to the
+   neighboring row's `checkin-menu-<id>` trigger via setTimeout(0) after
+   refresh (the ConfirmModal restore target unmounts with the row). (3)
+   history load failures now set `historyLoadError` and render the amber
+   LoadError + Retry (parity with Check-in/Today); raw error demoted to
+   console.warn. Test notes: record check-ins BEFORE renderPage or
+   component state won't see them; focus assertions use row-scoped
+   querySelector, not id construction. Verified: full suite 273/273 (205
+   runnable + 68 skipped), 37 Check-ins tests incl. 4 new, lint/tsc/build
+   clean, detector 0. NEXT: re-critique Check-ins (round 15).
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in

@@ -51,6 +51,7 @@ export function CheckInsPage() {
   const [historyFrom, setHistoryFrom] = useState(phDateInDays(-7));
   const [historyTo, setHistoryTo] = useState(phDateToday());
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoadError, setHistoryLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasSupabaseConfig);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,12 +112,14 @@ export function CheckInsPage() {
       return;
     }
     setHistoryLoading(true);
+    setHistoryLoadError(null);
     try {
       const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
       setHistory(await repo.listCheckIns(phDayStartUtc(historyFrom), phDayEndUtc(historyTo)));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load attendance history.');
-      setSuccess(null);
+      console.warn('Failed to load attendance history', e);
+      setHistoryLoadError(e instanceof Error ? e.message : 'Failed to load attendance history.');
+      setHistory([]);
     } finally {
       setHistoryLoading(false);
     }
@@ -202,11 +205,19 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       void handleQrCheckIn(trimmed);
       return;
     }
-    const firstMatch = filteredMembers[0];
-    if (!firstMatch) {
+    const actionableMatch = filteredMembers.find((member) => {
+      const expired = membershipExpiry(member);
+      return (
+        !checkIns.some((checkIn) => checkIn.memberId === member.id) &&
+        member.isActive &&
+        !expired?.blocked
+      );
+    });
+    if (!actionableMatch) {
+      showError('Everyone matching is already checked in or blocked from checking in.');
       return;
     }
-    document.getElementById(`checkin-button-${firstMatch.id}`)?.focus();
+    document.getElementById(`checkin-button-${actionableMatch.id}`)?.focus();
   };
 
   const handleQrCheckIn = async (code: string) => {
@@ -331,6 +342,9 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
     if (!checkIn) {
       return;
     }
+    const list = tab === 'today' ? shownCheckIns : shownHistory;
+    const index = list.findIndex((item) => item.id === checkIn.id);
+    const neighbor = list[index + 1] ?? list[index - 1] ?? null;
     setDeletePending(true);
     setDeleteError(null);
     const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
@@ -340,6 +354,11 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       showSuccess('Check-in deleted.');
       await refreshTodayCheckIns();
       await loadHistory();
+      window.setTimeout(() => {
+        if (neighbor) {
+          document.getElementById(`checkin-menu-${neighbor.id}`)?.focus();
+        }
+      }, 0);
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : 'Failed to delete check-in.');
     } finally {
@@ -710,6 +729,8 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
 
           {historyLoading ? (
             <p className="text-sm text-[#A3A3A3]">Loading…</p>
+          ) : historyLoadError ? (
+            <LoadError message={historyLoadError} onRetry={() => void loadHistory()} />
           ) : history.length === 0 ? (
             <p className="text-sm text-[#A3A3A3]">No check-ins in this range.</p>
           ) : (

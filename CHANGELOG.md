@@ -5,7 +5,33 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.030 — Critique round 13 (Check-ins, 31 → 32): the four two-round survivors closed as a batch (2026-08-21)
+## v1.031 — Critique round 14 (Check-ins, 32 → 29 re-weighted): the silent primary-path failure closed (2026-08-21)
+
+- Round 14 verified all four v1.030 fixes landed (detector-confirmed) but
+  re-weighted the surface honestly: the merge had made Enter the single
+  primary contract while the interaction could still fail in silence —
+  pressing Enter focused `checkin-button-<id>`, which does not exist when
+  the first match is already checked in and cannot take focus when
+  blocked. The score moved 32 → 29 because silent failures cost more at a
+  front desk than loud ones; the same no-op had existed since v1.025 but
+  was buried under louder issues. Three fixes shipped:
+  - **Enter never dead-ends.** Submit now skips past matches that are
+    already checked in, inactive, or expiry-blocked and focuses the first
+    actionable match's Check in button. When nobody matching can check
+    in, it says so inline ("Everyone matching is already checked in or
+    blocked from checking in.") instead of doing nothing.
+  - **Focus survives a successful delete.** Deleting a row used to drop
+    keyboard focus to <body> (the restore target unmounts with the row).
+    Focus now moves to the neighboring row's menu trigger after the list
+    refreshes.
+  - **History gets the same error treatment.** A failed history load now
+    renders the amber #FFB300 LoadError panel with Retry — the same
+    pattern as Check-in and Today — instead of a bare red sentence with
+    no lever. Technical detail is demoted to console.warn.
+- Verified: full suite 273/273 (205 runnable + 68 skipped live DB), 37
+  Check-ins tests incl. 4 new (Enter fallback, no-actionable explanation,
+  focus-after-delete, History amber LoadError), lint/tsc/build clean,
+  detector 0 findings.
 
 - Round 13 verified both v1.029 P1 fixes landed (focus ring per spec,
   amber grace semantics) and moved Check-ins to 32/40. The same four

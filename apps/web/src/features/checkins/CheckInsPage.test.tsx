@@ -758,6 +758,40 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     expect(listTodayCheckIns).toHaveBeenCalledTimes(2);
   });
 
+  it('shows the amber LoadError with Retry when the history load fails', async () => {
+    supabaseConfig.hasSupabaseConfig = true;
+    const listMembers = vi.fn().mockResolvedValue([]);
+    const listTodayCheckIns = vi.fn().mockResolvedValue([]);
+    const listCheckIns = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('history db down'))
+      .mockResolvedValueOnce([]);
+    SupabaseMemberRepositoryMock.mockImplementation(
+      () => ({ listMembers }) as unknown as SupabaseMemberRepository
+    );
+    SupabaseCheckInRepositoryMock.mockImplementation(
+      () => ({ listTodayCheckIns, listCheckIns }) as unknown as SupabaseCheckInRepository
+    );
+    renderPage();
+
+    goToTab('History');
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain("Couldn't load check-in data.");
+    });
+    expect(screen.getByText(/history db down/)).toBeTruthy();
+    const loadErrorBox = screen.getByRole('alert').closest('div');
+    expect(loadErrorBox?.className).toContain('border-[#FFB300]');
+    expect(loadErrorBox?.className).toContain('bg-[#1A1A1A]');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+    expect(screen.getByText(/no check-ins in this range/i)).toBeTruthy();
+    expect(listCheckIns).toHaveBeenCalledTimes(2);
+  });
+
   it('checks in via QR when the member ID form is submitted', async () => {
     await seedMembers();
     renderPage();
@@ -839,6 +873,74 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByRole('status').textContent).toMatch(/checked in\./i);
     });
     expect(screen.getByRole('status').className).toContain('text-[#22C55E]');
+  });
+
+  it('moves Enter focus to the next actionable match when the first is already checked in', async () => {
+    const members = await seedMembers();
+    await mockCheckInRepository.recordCheckIn({ memberId: members[0]?.id ?? '', memberName: 'Juan Dela Cruz' });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+      expect(screen.getAllByText(/checked in today/i).length).toBeGreaterThan(0);
+    });
+
+    fireEvent.change(screen.getByLabelText(/Search or member ID/), { target: { value: 'a' } });
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
+
+    await waitFor(() => {
+      const mariaRow = screen.getByText('Maria Santos').closest('li');
+      const mariaButton = mariaRow?.querySelector('button');
+      expect(mariaButton).not.toBeNull();
+      expect(document.activeElement).toBe(mariaButton);
+    });
+  });
+
+  it('explains when no matching member can check in instead of silently doing nothing', async () => {
+    const members = await seedMembers();
+    for (const member of members) {
+      await mockCheckInRepository.recordCheckIn({ memberId: member.id, memberName: member.fullName });
+    }
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText(/Search or member ID/), { target: { value: 'a' } });
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toMatch(/already checked in or blocked/i);
+    });
+  });
+
+  it('moves focus to a surviving row after a successful delete', async () => {
+    const members = await seedMembers();
+    await mockCheckInRepository.recordCheckIn({ memberId: members[0]?.id ?? '', memberName: 'Juan Dela Cruz' });
+    await mockCheckInRepository.recordCheckIn({ memberId: members[1]?.id ?? '', memberName: 'Maria Santos' });
+    renderPage();
+
+    goToTab('Today');
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+      expect(screen.getByText('Maria Santos')).toBeTruthy();
+    });
+
+    const firstRow = screen.getByText('Juan Dela Cruz').closest('li');
+    const firstTrigger = firstRow?.querySelector<HTMLButtonElement>('button[id^="checkin-menu-"]');
+    fireEvent.click(firstTrigger as HTMLButtonElement);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Check-in deleted.')).toBeTruthy();
+    });
+    await waitFor(() => {
+      const remaining = screen.getByText('Maria Santos').closest('li');
+      const trigger = remaining?.querySelector<HTMLButtonElement>('button[id^="checkin-menu-"]');
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 
   it('deletes a check-in from the today list after confirming in the modal', async () => {
