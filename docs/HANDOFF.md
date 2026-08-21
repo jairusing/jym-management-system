@@ -499,6 +499,22 @@ is the button and no check-in was recorded). Verified: full suite
    runnable + 69 skipped), 11 Dashboard tests incl. banner shown/hidden,
    lint/tsc/build clean, detector 0. NEXT: item 4 of the agreed plan — F2
    (auto-dismiss messages) + check-ins P3 polish batch.
+- **v1.043** — item 4, FINAL batch of the agreed plan: (1) F2 — success
+   StatusLine auto-dismisses after 5s on Check-ins and Payments via a
+   cleanup-timer effect; errors intentionally persist. (2) Tabs.tsx: full
+   ARIA tabs keyboard pattern — ArrowLeft/Right move selection with wrap,
+   focus follows, roving tabindex (inactive = -1); new Tabs.test.tsx (3
+   tests incl. controlled-rerender focus-follow). (3) Check-ins MemberRow
+   component extracted — the duplicated row JSX is gone. (4) unified search
+   input autoFocuses on tab mount. (5) wrong PIN clears pinValue. (6)
+   deleting the LAST remaining row focuses the page h1 (tabindex set
+   dynamically) instead of <body>. Verified: full suite 292/292 (223
+   runnable + 69 skipped), lint/tsc/build clean, detector 0. ALL FOUR
+   AGREED ITEMS COMPLETE (docs housekeeping v1.038; four surface critiques
+   + fixes v1.039-v1.041; B5 renewal reminders v1.042; this batch).
+   Remaining open items all need explicit product/schema approval: A5
+   void_reason, partial payments, PIN-bypassed flag, D5 server-side
+   pagination, E1 password policy scope, G-series features.
 - **v1.040** — critique round 1 (Classes page, FIRST review, 19/40; user
    approved fixing all five): (1) P0 — silent mock fallback removed;
    loadError state gates ALL page content behind one amber LoadError panel

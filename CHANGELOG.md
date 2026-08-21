@@ -5,7 +5,29 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.042 — Audit B5 shipped: renewal reminders on the Dashboard (3-day window) (2026-08-21)
+## v1.043 — F2 + polish batch: auto-dismiss success, Tabs arrow keys, Check-ins cleanup (2026-08-21)
+
+- The final batch from the agreed plan closes F2 and the accumulated
+  check-ins polish items:
+  - **F2 — success messages auto-dismiss after five seconds** on Check-ins
+    and Payments (green role="status" confirmations fade; errors stay until
+    replaced, since they demand action).
+  - **Tabs are keyboard-complete**: ArrowLeft/ArrowRight move selection with
+    wrap-around, focus follows selection, and inactive tabs drop out of the
+    tab order (proper roving tabindex per the ARIA tabs pattern). New
+    Tabs component test file covers click/keyboard/focus-follow.
+  - **Check-ins: MemberRow extracted.** The two duplicated ~40-line member
+    row blocks are now one component — future fixes can no longer land
+    twice.
+  - **Check-ins: search field autofocuses** when the tab mounts, removing
+    the mouse trip before every session.
+  - **Check-ins: wrong PINs clear the field**, so the retry starts clean.
+  - **Check-ins: deleting the LAST remaining row** now moves focus to the
+    page heading instead of dropping it to <body>.
+- Verified: full suite 292/292 (223 runnable + 69 skipped live DB), new
+  tests for Tabs keyboard behavior, PIN clearing, auto-dismiss (fake
+  timers), and last-row focus fallback; lint/tsc/build clean, detector 0
+  findings.
 
 - The last MAJOR-priority audit feature gap is closed. When any active
   membership ends within the next 3 days (user-chosen window), the

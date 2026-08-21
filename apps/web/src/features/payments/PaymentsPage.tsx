@@ -139,6 +139,15 @@ export function PaymentsPage() {
     setError(null);
   };
 
+  // F2: success confirmations auto-dismiss; errors stay until replaced.
+  useEffect(() => {
+    if (!success) {
+      return;
+    }
+    const timer = window.setTimeout(() => setSuccess(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
+
   const load = async (): Promise<boolean> => {
     if (!hasSupabaseConfig) {
       setInvoices(await mockInvoiceRepository.listInvoices());

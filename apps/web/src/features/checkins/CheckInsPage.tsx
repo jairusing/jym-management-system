@@ -55,6 +55,70 @@ function LoadError({ message, onRetry }: { message: string; onRetry: () => void 
   );
 }
 
+type MembershipExpiry = { blocked: boolean; message: string } | null;
+
+function MemberRow({
+  member,
+  expired,
+  checkedInToday,
+  checkingIn,
+  onCheckIn
+}: {
+  member: Member;
+  expired: MembershipExpiry;
+  checkedInToday: boolean;
+  checkingIn: boolean;
+  onCheckIn: (member: Member) => void;
+}) {
+  return (
+    <li className="flex flex-col gap-4 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-base font-medium text-[#FAFAFA]">
+          {member.fullName}
+          {checkedInToday ? (
+            <StatusBadge tone="good" className="ml-3">
+              Checked in today
+            </StatusBadge>
+          ) : null}
+          {member.isActive ? null : (
+            <StatusBadge tone="bad" className="ml-3">
+              Inactive
+            </StatusBadge>
+          )}
+          {expired ? (
+            <StatusBadge tone={expired.blocked ? 'bad' : 'warning'} className="ml-3">
+              {member.membership?.status === 'paused'
+                ? 'Paused'
+                : member.membership?.status === 'cancelled'
+                  ? 'Cancelled'
+                  : expired.blocked
+                    ? 'Expired'
+                    : 'Grace'}
+            </StatusBadge>
+          ) : null}
+        </p>
+        <p className="mt-1 text-sm text-[#A3A3A3]">
+          {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
+        </p>
+        {expired && !expired.blocked ? (
+          <p className="mt-1 text-xs text-[#FFB300]">{expired.message}</p>
+        ) : null}
+      </div>
+      {checkedInToday ? null : (
+        <button
+          id={`checkin-button-${member.id}`}
+          className={primaryButtonClass}
+          type="button"
+          disabled={!member.isActive || expired?.blocked || checkingIn}
+          onClick={() => onCheckIn(member)}
+        >
+          {checkingIn ? 'Checking in…' : 'Check in'}
+        </button>
+      )}
+    </li>
+  );
+}
+
 export function CheckInsPage() {
   const [tab, setTab] = useState<'checkin' | 'today' | 'history'>('checkin');
   const [members, setMembers] = useState<Member[]>([]);
@@ -90,6 +154,15 @@ export function CheckInsPage() {
     setError(null);
     setSuccess(message);
   };
+
+  // F2: success confirmations auto-dismiss; errors stay until replaced.
+  useEffect(() => {
+    if (!success) {
+      return;
+    }
+    const timer = window.setTimeout(() => setSuccess(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
 
   const load = async () => {
     setLoading(true);
@@ -325,6 +398,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
         setPinOverride(false);
         await completeCheckIn(member, method);
       } else {
+        setPinValue('');
         setPinError('Incorrect PIN.');
       }
 } catch (e) {
@@ -375,6 +449,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       window.setTimeout(() => {
         if (neighbor) {
           document.getElementById(`checkin-menu-${neighbor.id}`)?.focus();
+        } else {
+          const heading = document.querySelector<HTMLElement>('h1');
+          heading?.setAttribute('tabindex', '-1');
+          heading?.focus();
         }
       }, 0);
 } catch (e) {
@@ -435,6 +513,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                 <input
                   className={inputClass}
                   type="search"
+                  autoFocus
                   placeholder="Type a name or paste a member ID…"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -458,54 +537,14 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                     const expired = membershipExpiry(member);
                     const checkedInToday = checkIns.some((checkIn) => checkIn.memberId === member.id);
                     return (
-                      <li
+                      <MemberRow
                         key={member.id}
-                        className="flex flex-col gap-4 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div>
-                          <p className="text-base font-medium text-[#FAFAFA]">
-                            {member.fullName}
-                            {checkedInToday ? (
-                              <StatusBadge tone="good" className="ml-3">
-                                Checked in today
-                              </StatusBadge>
-                            ) : null}
-                            {member.isActive ? null : (
-                              <StatusBadge tone="bad" className="ml-3">
-                                Inactive
-                              </StatusBadge>
-                            )}
-                            {expired ? (
-                              <StatusBadge tone={expired.blocked ? 'bad' : 'warning'} className="ml-3">
-                                {member.membership?.status === 'paused'
-                                  ? 'Paused'
-                                  : member.membership?.status === 'cancelled'
-                                    ? 'Cancelled'
-                                    : expired.blocked
-                                      ? 'Expired'
-                                      : 'Grace'}
-                              </StatusBadge>
-                            ) : null}
-                          </p>
-                          <p className="mt-1 text-sm text-[#A3A3A3]">
-                            {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
-                          </p>
-                          {expired && !expired.blocked ? (
-                            <p className="mt-1 text-xs text-[#FFB300]">{expired.message}</p>
-                          ) : null}
-                        </div>
-                        {checkedInToday ? null : (
-<button
-  id={`checkin-button-${member.id}`}
-  className={primaryButtonClass}
-  type="button"
-  disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
-  onClick={() => void handleCheckIn(member)}
->
-                            {checkingInId === member.id ? 'Checking in…' : 'Check in'}
-                          </button>
-                        )}
-                      </li>
+                        member={member}
+                        expired={expired}
+                        checkedInToday={checkedInToday}
+                        checkingIn={checkingInId === member.id}
+                        onCheckIn={(candidate) => void handleCheckIn(candidate)}
+                      />
                     );
                   })}
                 </ul>
@@ -522,54 +561,14 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                     const expired = membershipExpiry(member);
                     const checkedInToday = checkIns.some((checkIn) => checkIn.memberId === member.id);
                     return (
-                      <li
+                      <MemberRow
                         key={member.id}
-                        className="flex flex-col gap-4 border-b border-[#262626] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div>
-                          <p className="text-base font-medium text-[#FAFAFA]">
-                            {member.fullName}
-                            {checkedInToday ? (
-                              <StatusBadge tone="good" className="ml-3">
-                                Checked in today
-                              </StatusBadge>
-                            ) : null}
-                            {member.isActive ? null : (
-                              <StatusBadge tone="bad" className="ml-3">
-                                Inactive
-                              </StatusBadge>
-                            )}
-                            {expired ? (
-                              <StatusBadge tone={expired.blocked ? 'bad' : 'warning'} className="ml-3">
-                                {member.membership?.status === 'paused'
-                                  ? 'Paused'
-                                  : member.membership?.status === 'cancelled'
-                                    ? 'Cancelled'
-                                    : expired.blocked
-                                      ? 'Expired'
-                                      : 'Grace'}
-                              </StatusBadge>
-                            ) : null}
-                          </p>
-                          <p className="mt-1 text-sm text-[#A3A3A3]">
-                            {member.phone ? member.phone : member.email ? member.email : 'No contact on file'}
-                          </p>
-                          {expired && !expired.blocked ? (
-                            <p className="mt-1 text-xs text-[#FFB300]">{expired.message}</p>
-                          ) : null}
-                        </div>
-                        {checkedInToday ? null : (
-<button
-  id={`checkin-button-${member.id}`}
-  className={primaryButtonClass}
-  type="button"
-  disabled={!member.isActive || expired?.blocked || checkingInId === member.id}
-  onClick={() => void handleCheckIn(member)}
->
-                            {checkingInId === member.id ? 'Checking in…' : 'Check in'}
-                          </button>
-                        )}
-                      </li>
+                        member={member}
+                        expired={expired}
+                        checkedInToday={checkedInToday}
+                        checkingIn={checkingInId === member.id}
+                        onCheckIn={(candidate) => void handleCheckIn(candidate)}
+                      />
                     );
                   })}
                 </ul>

@@ -331,6 +331,7 @@ describe('CheckInsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Incorrect PIN.')).toBeTruthy();
+      expect((screen.getByLabelText('PIN') as HTMLInputElement).value).toBe('');
     });
     expect((await mockCheckInRepository.listTodayCheckIns()).length).toBe(0);
 
@@ -909,6 +910,50 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       expect(screen.getByRole('status').textContent).toMatch(/checked in\./i);
     });
     expect(screen.getByRole('status').className).toContain('text-[#22C55E]');
+  });
+
+  it('auto-dismisses the success message after five seconds', async () => {
+    vi.useFakeTimers();
+    try {
+      await seedMembers();
+      renderPage();
+
+      await vi.advanceTimersByTimeAsync(0);
+      const checkInButtons = screen.getAllByRole('button', { name: 'Check in' });
+      fireEvent.click(checkInButtons[0] as HTMLButtonElement);
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(screen.getByRole('status').textContent).toMatch(/checked in\./i);
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(screen.queryByRole('status')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('moves focus to the page heading when the last remaining row is deleted', async () => {
+    const members = await seedMembers();
+    await mockCheckInRepository.recordCheckIn({ memberId: members[0]?.id ?? '', memberName: 'Juan Dela Cruz' });
+    renderPage();
+
+    goToTab('Today');
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    const row = screen.getByText('Juan Dela Cruz').closest('li');
+    const trigger = row?.querySelector<HTMLButtonElement>('button[id^="checkin-menu-"]');
+    fireEvent.click(trigger as HTMLButtonElement);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Check-in deleted.')).toBeTruthy();
+    });
+    await waitFor(() => {
+      expect(document.activeElement?.tagName).toBe('H1');
+    });
   });
 
   it('moves Enter focus to the next actionable match when the first is already checked in', async () => {
