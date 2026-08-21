@@ -464,6 +464,25 @@ is the button and no check-in was recorded). Verified: full suite
    mapper is bypassed). Verified: full suite 283/283 (214 runnable + 69
    skipped), lint/tsc/build clean, detector 0. NEXT: Classes critique
    (never reviewed), then Activity log; B5 renewal reminders after.
+- **v1.040** — critique round 1 (Classes page, FIRST review, 19/40; user
+   approved fixing all five): (1) P0 — silent mock fallback removed;
+   loadError state gates ALL page content behind one amber LoadError panel
+   + Retry (Retry clears loadError then reloads current weekStart). (2)
+   P0 — Delete class and Cancel booking now route through ConfirmModal
+   (pendingConfirm {title,body,confirmLabel,danger,run} pattern);
+   delete is danger-styled. (3) P1 — toUserError with BOOKING_DOMAIN_
+   MESSAGES whitelist ('Session is at full capacity.' passes through) +
+   console.warn. (4) P1 — success strings finally populated ('Class
+   added.', '<Class> scheduled for this week.', '<Member> booked.',
+   'Booking cancelled.'); success = green role="status", error =
+   red role="alert". (5) P2 — cancelled bookings tone neutral (was bad),
+   Book toggle aria-expanded. Test notes: cancel test walks the modal
+   ("Cancel booking" confirm); a double-ternary JSX slip (`? A : (B) :
+   null`) broke compile mid-edit — fixed to `? A : (B)` + separate null
+   branch. Verified: full suite 283/283 (214 runnable + 69 skipped),
+   lint/tsc/build clean, detector 0. NEXT: Activity log critique (last
+   never-reviewed surface), then B5 renewal reminders, then F2+polish
+   batch.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in

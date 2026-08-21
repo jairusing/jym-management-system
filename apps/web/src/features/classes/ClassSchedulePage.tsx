@@ -3,7 +3,8 @@ import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { dangerButtonClass, inputClass, primaryButtonClass } from '../../components/ui/buttonClasses';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { dangerButtonClass, ghostButtonClass, inputClass, primaryButtonClass } from '../../components/ui/buttonClasses';
 import { hasSupabaseConfig } from '../../lib/supabase';
 import { formatDateTime, PH_TIME_ZONE } from '../../lib/dates';
 import { dayOfWeekLabels, mockClassRepository, type ClassItem, type ClassSession } from './classRepository';
@@ -12,6 +13,25 @@ import { mockBookingRepository, type Booking } from './bookingRepository';
 import { SupabaseBookingRepository } from './supabaseBookingRepository';
 import { mockMemberRepository, type Member } from '../members/memberRepository';
 import { SupabaseMemberRepository } from '../members/supabaseMemberRepository';
+
+const BOOKING_DOMAIN_MESSAGES = new Set(['Session is at full capacity.']);
+
+function toUserError(e: unknown, fallback: string): string {
+  console.warn(fallback, e);
+  const message = e instanceof Error ? e.message : String(e);
+  if (BOOKING_DOMAIN_MESSAGES.has(message)) {
+    return message;
+  }
+  return fallback;
+}
+
+type PendingConfirmAction = {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  danger?: boolean;
+  run: () => Promise<void>;
+};
 
 function pad(value: number) {
   return String(value).padStart(2, '0');
@@ -76,9 +96,12 @@ export function ClassSchedulePage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(hasSupabaseConfig);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()));
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirmAction | null>(null);
+  const [confirmPending, setConfirmPending] = useState(false);
 
   const [name, setName] = useState('');
   const [dayOfWeek, setDayOfWeek] = useState(0);
@@ -114,11 +137,12 @@ export function ClassSchedulePage() {
       setBookings(loadedBookings);
       setMembers(loadedMembers);
     } catch (e) {
-      console.warn('Failed to load schedule from Supabase', e);
-      setClasses(await mockClassRepository.listClasses());
-      setSessions(await mockClassRepository.listSessions(targetWeek.toISOString(), addDays(targetWeek, 7).toISOString()));
-      setBookings(await mockBookingRepository.listBookings());
-      setMembers(await mockMemberRepository.listMembers());
+      console.warn("Couldn't load the schedule. Check your connection and try again.", e);
+      setClasses([]);
+      setSessions([]);
+      setBookings([]);
+      setMembers([]);
+      setLoadError("Couldn't load the schedule. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -143,7 +167,7 @@ export function ClassSchedulePage() {
       setEndTime('10:00');
       await load(weekStart);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to add class.');
+      setError(toUserError(e, "Couldn't add the class. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -155,9 +179,10 @@ export function ClassSchedulePage() {
     setSuccess(null);
     try {
       await repo.deleteClass(gymClass.id);
+      setSuccess(`${gymClass.name} deleted.`);
       await load(weekStart);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete class.');
+      setError(toUserError(e, "Couldn't delete the class. Please try again."));
     }
   };
 
@@ -167,9 +192,10 @@ export function ClassSchedulePage() {
     setSuccess(null);
     try {
       await repo.createSession(gymClass.id, toDateInput(addDays(weekStart, gymClass.dayOfWeek)));
+      setSuccess(`${gymClass.name} scheduled for this week.`);
       await load(weekStart);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to schedule session.');
+      setError(toUserError(e, "Couldn't schedule the session. Please try again."));
     }
   };
 
@@ -184,11 +210,12 @@ export function ClassSchedulePage() {
     const member = members.find((candidate) => candidate.id === bookMemberId);
     try {
       await repo.bookSession(sessionId, bookMemberId, member?.fullName);
+      setSuccess(`${member?.fullName ?? 'Member'} booked.`);
       setBookMemberId('');
       setBookingFor(null);
       await load(weekStart);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to book session.');
+      setError(toUserError(e, "Couldn't book the session. Please try again."));
     }
   };
 
@@ -198,9 +225,10 @@ export function ClassSchedulePage() {
     setSuccess(null);
     try {
       await repo.cancelBooking(booking.id);
+      setSuccess(`${booking.memberName}'s booking cancelled.`);
       await load(weekStart);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to cancel booking.');
+      setError(toUserError(e, "Couldn't cancel the booking. Please try again."));
     }
   };
 
@@ -225,8 +253,27 @@ export function ClassSchedulePage() {
     >
       <BackLink to="/app" label="Back to dashboard" />
 
-      {error ? <p className="text-sm text-[#FF3D00]">{error}</p> : null}
-      {success ? <p className="text-sm text-[#FAFAFA]">{success}</p> : null}
+      {loadError ? (
+        <div className="flex flex-col gap-3 border border-[#FFB300] bg-[#1A1A1A] p-4">
+          <p role="alert" className="text-sm text-[#FF3D00]">
+            {loadError}
+          </p>
+          <button
+            className={ghostButtonClass}
+            type="button"
+            onClick={() => {
+              setLoadError(null);
+              setLoading(true);
+              void load(weekStart);
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      ) : (
+        <>
+      {error ? <p role="alert" className="text-sm text-[#FF3D00]">{error}</p> : null}
+      {success ? <p role="status" className="text-sm text-[#22C55E]">{success}</p> : null}
 
       <SectionCard title="Add class" description="A class repeats weekly on one day of the week.">
         <form className="flex flex-col gap-4" onSubmit={handleCreateClass}>
@@ -328,7 +375,17 @@ export function ClassSchedulePage() {
                     <button
                       className={dangerButtonClass}
                       type="button"
-                      onClick={() => void handleDeleteClass(gymClass)}
+                      onClick={() =>
+                        setPendingConfirm({
+                          title: `Delete ${gymClass.name}?`,
+                          body: 'This removes the recurring class and its scheduled sessions. This cannot be undone.',
+                          confirmLabel: 'Delete',
+                          danger: true,
+                          run: async () => {
+                            await handleDeleteClass(gymClass);
+                          }
+                        })
+                      }
                     >
                       Delete
                     </button>
@@ -378,6 +435,7 @@ export function ClassSchedulePage() {
                     <button
                       className={primaryButtonClass}
                       type="button"
+                      aria-expanded={bookingFor === session.id}
                       disabled={isFull}
                       onClick={() => {
                         setBookingFor(bookingFor === session.id ? null : session.id);
@@ -421,7 +479,7 @@ export function ClassSchedulePage() {
                           <p className="text-[#FAFAFA]">
                             {booking.memberName}
                             <span className="ml-3 text-[#A3A3A3]">{formatDateTime(booking.bookedAt)}</span>
-                            <StatusBadge tone={booking.status === 'cancelled' ? 'bad' : 'good'} className="ml-3">
+                            <StatusBadge tone={booking.status === 'cancelled' ? 'neutral' : 'good'} className="ml-3">
                               {booking.status}
                             </StatusBadge>
                           </p>
@@ -429,7 +487,16 @@ export function ClassSchedulePage() {
                             <button
                               className={dangerButtonClass}
                               type="button"
-                              onClick={() => void handleCancelBooking(booking)}
+                              onClick={() =>
+                                setPendingConfirm({
+                                  title: `Cancel ${booking.memberName}'s booking?`,
+                                  body: 'Their spot frees up and can be booked by another member.',
+                                  confirmLabel: 'Cancel booking',
+                                  run: async () => {
+                                    await handleCancelBooking(booking);
+                                  }
+                                })
+                              }
                             >
                               Cancel
                             </button>
@@ -444,6 +511,28 @@ export function ClassSchedulePage() {
           </ul>
         )}
       </SectionCard>
+        </>
+      )}
+
+      {pendingConfirm ? (
+        <ConfirmModal
+          title={pendingConfirm.title}
+          body={pendingConfirm.body}
+          confirmLabel={pendingConfirm.confirmLabel}
+          pendingLabel="Working…"
+          danger={pendingConfirm.danger}
+          pending={confirmPending}
+          onConfirm={() => {
+            setConfirmPending(true);
+            void Promise.resolve(pendingConfirm.run()).finally(() => setConfirmPending(false));
+          }}
+          onCancel={() => {
+            if (!confirmPending) {
+              setPendingConfirm(null);
+            }
+          }}
+        />
+      ) : null}
     </PageShell>
   );
 }

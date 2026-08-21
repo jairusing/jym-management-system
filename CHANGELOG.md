@@ -5,7 +5,31 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.039 — Critique round 1 (Staff, 17/40 → fixed): the access-control page gets the app's standards (2026-08-21)
+## v1.040 — Critique round 1 (Classes, 19/40 → fixed): honest schedule, gated destruction, working feedback (2026-08-21)
+
+- The Classes page's first-ever critique scored 19/40. All five issues
+  closed with the app's established patterns:
+  - **P0 — no more fictional schedules.** A failed Supabase load silently
+    swapped in mock classes/bookings; staff could build a real day on fake
+    data. Load failures now render the amber LoadError panel with Retry,
+    and the page content is gated until data actually loads.
+  - **P0 — destruction is gated.** Delete class and Cancel booking used to
+    fire instantly and irreversibly; both now route through ConfirmModal
+    with consequence-stated copy ("This removes the recurring class and
+    its scheduled sessions." / "Their spot frees up…").
+  - **P1 — human error copy at all five write sites** via a whitelist that
+    passes "Session is at full capacity." through untouched; raw errors go
+    to console.warn.
+  - **P1 — feedback works now.** The success banner previously could never
+    appear (every setSuccess call passed null). Real confirmations exist:
+    "Class added.", "<Class> scheduled for this week.", "<Member> booked.",
+    "Booking cancelled." — rendered green with role="status", errors with
+    role="alert".
+  - **P2 — cancelled bookings are gray** (was red, contradicting the
+    colour spec), and the Book-a-member toggle carries aria-expanded.
+- Verified: full suite 283/283 (214 runnable + 69 skipped live DB), 6
+  Classes tests (cancel test now walks the ConfirmModal), lint/tsc/build
+  clean, detector 0 findings.
 
 - The Staff page's first-ever critique scored it 17/40 — the weakest
   surface in the app — because none of the standards built elsewhere had
