@@ -69,10 +69,14 @@ actual code, schema, and migrations. Severity: 🔴 CRITICAL · 🟠 MAJOR · �
 
 ## C. Check-ins & attendance
 
-- **C1 ✅ FIXED (v1.006) — Duplicate check-ins possible.** A member can only
-  check in once per Manila day; enforced in the repository (manual + QR paths)
-  with "Already checked in today." App-level guard — a tiny race window remains
-  between the check and the insert (a DB-level unique index would close it).
+- **C1 ✅ FIXED (v1.006) → DB-enforced (v1.037) — Duplicate check-ins possible.** A member can only
+  check in once per Manila day; the repository guard (manual + QR paths)
+  remains, and migration `028` closes the race window: an IMMUTABLE
+  `manila_day()` helper plus a UNIQUE index on `(member_id, manila_day(checked_in_at))`
+  makes the database reject concurrent duplicates (code `23505`, translated
+  back to "Already checked in today." by the repository). Historical
+  duplicates were collapsed keeping the earliest check-in per day.
+  Live-verified by a direct-insert test that bypasses app guards.
 - **C2 ✅ FIXED (v1.010) — QR is just the member ID**; a screenshot lets
   anyone check in as the member. Members can now have a 4-6 digit PIN
   (optional) set by staff; check-in (manual and QR paths) asks for it and
@@ -128,8 +132,13 @@ actual code, schema, and migrations. Severity: 🔴 CRITICAL · 🟠 MAJOR · �
 
 ## E. Security & auth
 
-- **E1 🟠 — Password policy is Supabase's 6-char minimum**; no rotation, no
-  2FA. Document as scope decision.
+- **E1 🟠 → documented scope decision (clarified 2026-08-21) — Password
+  policy is Supabase's 6-char minimum**; no rotation, no true 2FA. What DOES
+  exist: an email-confirmation flow on signup ("Check your email") — a
+  one-time verification, not per-login second-factor; there is no MFA/factor
+  code in the app. Any additional email step would come from Supabase
+  dashboard settings. Accepted for thesis scope; revisit if a real gym
+  onboards (Supabase supports phone/email OTP factors if ever needed).
 - **E2 ✅ FIXED (v1.007) → refined (v1.020) — Control matrix too permissive
   / too strict: staff can void, and no way to undo a wrong payment.** Migration
   `022` made void owner-only via DB triggers; migration `027` (v1.020) relaxes

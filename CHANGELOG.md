@@ -5,7 +5,31 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.036 — Audit sweep (F3/D4/C4): Beta badge removed, statement page honest states, truthful "newest members" copy (2026-08-21)
+## v1.037 — Audit C1 closed: duplicate check-ins now impossible at the database level (migration 028) (2026-08-21)
+
+- The last data-integrity hole from the adviser audit is closed. The
+  duplicate check-in guard used to live only in application code — two
+  front-desk requests arriving at the same moment could both pass the
+  "already checked in?" pre-check and both insert. Migration `028` moves
+  the rule into the database:
+  - An IMMUTABLE `manila_day(timestamptz)` helper converts any timestamp
+    to its Manila calendar day (safe as immutable because the Philippines
+    has no DST).
+  - Historical duplicates are collapsed, keeping the earliest check-in of
+    each member/day pair.
+  - A UNIQUE index on `(member_id, manila_day(checked_in_at))` now rejects
+    any racing second insert with Postgres code `23505`; the repository
+    translates that back to the friendly "Already checked in today." so
+    staff never see a raw constraint error.
+  - Live proof: a new integration test inserts twice directly through the
+    database client — bypassing every app-level guard — and asserts the
+    second insert fails with `23505`.
+- Also recorded: project context note in HANDOFF (thesis-first, real-gym
+  possible), and AUDIT.md E1 clarified — an email-confirmation flow exists
+  on signup, but there is no per-login 2FA/MFA in code; documented as scope.
+- Verified: full suite 279/279 (211 runnable + 68 skipped live DB),
+  lint/tsc/build clean, detector 0 findings. The new live constraint test
+  runs only when JYM_TEST_* env vars are present.
 
 - A verification pass over `docs/AUDIT.md` found three open items that are
   code-only (no schema), plus several already-fixed or stale entries

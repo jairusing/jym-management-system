@@ -67,6 +67,33 @@ describeLive('SupabaseCheckInRepository (live)', () => {
     expect(member.id).toBeTruthy();
   });
 
+  it('rejects a same-Manila-day duplicate at the database level (C1 unique index)', async () => {
+    if (!supabase) return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    expect(userId).toBeTruthy();
+
+    const first = await supabase
+      .from('check_ins')
+      .insert({ member_id: memberId, method: 'manual', processed_by: userId })
+      .select('id')
+      .single();
+    expect(first.error).toBeNull();
+
+    const second = await supabase
+      .from('check_ins')
+      .insert({ member_id: memberId, method: 'manual', processed_by: userId })
+      .select('id')
+      .single();
+    expect(second.error).not.toBeNull();
+    expect(second.error?.code).toBe('23505');
+
+    // Clean up so the repo-path tests below start from an empty day.
+    if (first.data?.id) {
+      await supabase.from('check_ins').delete().eq('id', (first.data as { id: string }).id);
+    }
+  });
+
   it('records a manual check-in', async () => {
     const checkIn = await checkInRepo.recordCheckIn({
       memberId: memberId as string,

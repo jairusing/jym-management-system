@@ -106,6 +106,11 @@ export class SupabaseCheckInRepository {
       .single();
 
     if (error || !data) {
+      if (error?.code === '23505') {
+        // Unique index check_ins_member_manila_day_unique: the app-level
+        // duplicate pre-check can race; the database has the final say.
+        throw new Error('Already checked in today.');
+      }
       throw new Error(`Failed to record check-in: ${error?.message ?? 'unknown'}`);
     }
 

@@ -25,6 +25,15 @@ membership plans, check-ins (QR + search), invoices/payments (record-only, no
 payment processor), member statements, class bookings, staff roles, dashboard.
 Roles: owner / staff / member — enforced by Supabase RLS, proven by live tests.
 
+**Project context (recorded 2026-08-21):** deployed at
+`jym-management-system.vercel.app` (Vercel auto-deploys `main`). The project is
+primarily a **thesis** deliverable but has a real possibility of being used in
+an **actual gym** — treat data-integrity and security items accordingly, and
+prefer honest states over demo conveniences in anything user-facing.
+Auth today: Supabase email+password with an email-confirmation flow on signup
+("Check your email"); there is NO per-login 2FA/MFA in code — any email step
+beyond that would be a Supabase dashboard setting, not app behavior.
+
 ## Progress so far
 
 - **Phase 8 (list-UX overhaul)** — StatusBadge + contrast pass (#A3A3A3),
@@ -414,6 +423,25 @@ is the button and no check-in was recorded). Verified: full suite
    pagination, E1 password policy scope decision, E3 orphan profiles in
    staff list, F2 shared-state auto-dismiss, G1-G5 feature gaps — all need
    product/schema decisions or explicit approval.
+- **v1.037** — audit C1 CLOSED with explicit user approval (schema change):
+   migration `028_check_in_daily_unique.sql` adds an IMMUTABLE
+   `public.manila_day(timestamptz)` helper (PH has no DST) and a UNIQUE
+   index `check_ins_member_manila_day_unique` on `(member_id,
+   manila_day(checked_in_at))`; pre-index dedupe keeps the earliest
+   check-in per member/Manila-day (audit_log will record each removed
+   duplicate via the delete trigger). `supabaseCheckInRepository`
+   translates Postgres 23505 on insert back to "Already checked in today."
+   New live integration test inserts twice DIRECTLY via the DB client
+   (bypassing app guards) and asserts the second fails with code 23505;
+   runs only with JYM_TEST_* env vars. Also: HANDOFF Product section now
+   records project context (thesis-first, real-gym possible; deployed at
+   jym-management-system.vercel.app; auth = Supabase email+password +
+   signup email confirmation, NO per-login MFA in code), and AUDIT.md E1
+   clarified accordingly. D5 (server-side pagination) explicitly deferred
+   by user. Verified: full suite 279/279 (211 runnable + 68 skipped),
+   lint/tsc/build clean, detector 0. NOTE: migration must be applied to
+   the live DB (`supabase db push` or dashboard SQL editor) before the
+   constraint is active in production.
 - **v1.025** — critique round 10 (Check-ins, first fix round; the fresh
    re-critique scored 29/40 — converging with the round-6 rerun's 29/40 —
    and the user approved all 4 P1s): search Enter no longer auto-checks-in
