@@ -529,6 +529,18 @@ is the button and no check-in was recorded). Verified: full suite
    has no test coupling. SESSION CLOSE: v1.027→v1.044, every surface ≥30,
    audit C1+B5 closed, four previously-unreviewed surfaces brought up to
    standard.
+- **v1.046** — systems-integration review items A2/A3/D2 shipped (review
+   doc: docs/SYSTEMS_INTEGRATION_REVIEW.md): (A2) GitHub Actions CI at
+   .github/workflows/ci.yml — lint + unit tests + build on push/PR; live
+   integration tests still skip without secrets. (A3) docs/API_CONTRACTS.md
+   — full ICDs for /api/create-login and /api/link-account (payloads, status
+   matrices, side effects, rollback guarantee). (D2) docs/ARCHITECTURE.md
+   rewritten: system-context + deployment mermaid diagrams and three
+   sequence diagrams (sign-in→RLS, rpc_record_payment transaction,
+   create-login service-role flow), cross-cutting decisions named. Also B2
+   remediation shipped in v1.045 (credential scrub). REMAINING from the
+   review: A1 contract tests for mock/live parity, A5/D5 capacity notes now
+   documented in ARCHITECTURE.md, B3 rate-limit scope note, B5 observability.
 - **v1.040** — critique round 1 (Classes page, FIRST review, 19/40; user
    approved fixing all five): (1) P0 — silent mock fallback removed;
    loadError state gates ALL page content behind one amber LoadError panel

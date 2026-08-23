@@ -5,7 +5,26 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.045 — Security scrub: all credentials removed from the repository (2026-08-21)
+## v1.046 — Systems-integration review items A2/A3/D2 shipped (2026-08-21)
+
+- **A2 — CI exists now.** `.github/workflows/ci.yml` runs lint, the unit
+  suite (live-database tests skip without secrets), and the production build
+  on every push to `main` and every pull request. Broken code can no longer
+  reach Vercel unchallenged.
+- **A3 — endpoint contracts documented.** `docs/API_CONTRACTS.md` gives full
+  interface control documents for `/api/create-login` and `/api/link-account`:
+  payload tables, complete status-code × condition × body matrices, side
+  effects, and the create-user rollback guarantee.
+- **D2 — architecture diagrams added.** `docs/ARCHITECTURE.md` rewritten from
+  stale starter content into the real reference: system-context diagram,
+  deployment topology (GitHub → Vercel → Supabase), and three mermaid
+  sequence diagrams crossing the trust boundaries — sign-in→RLS, the atomic
+  record-payment RPC transaction, and the service-role create-login flow —
+  plus named cross-cutting decisions (write-then-refresh consistency, Manila
+  timezone rules, error-copy standard, capacity assumptions, known mock/live
+  divergence).
+- Verified: tsc + production build clean. Docs/CI only; no application code
+  changed beyond version.
 
 - Removed every plaintext credential from files pushed to GitHub
   (SYSTEMS_INTEGRATION_REVIEW finding B2):
