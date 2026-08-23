@@ -12,7 +12,7 @@ declare const process: { env: Record<string, string | undefined> };
 // account (migration 012): rpc_record_payment() staff gate, the
 // members_update_staff_only policy, and that member booking still works.
 // Requires JYM_TEST_EMAIL/JYM_TEST_PASSWORD (staff, for setup/cleanup) and
-// JYM_MEMBER_EMAIL/JYM_MEMBER_PASSWORD (jms.member@demo.jms / Jms!Member2026).
+// JYM_MEMBER_EMAIL/JYM_MEMBER_PASSWORD (credentials via JYM_MEMBER_* env vars).
 // Skipped entirely when those env vars are absent (keeps `npm test` green in CI).
 // NOTE: the member account and its invoice persist (invoices delete_none RLS).
 
@@ -63,7 +63,7 @@ describeLive('Member limits (live)', () => {
     const { data: memberData, error: memberError } = await supabase
       .from('members')
       .select('id, full_name')
-      .eq('email', 'jms.member@demo.jms')
+      .eq('email', process.env.JYM_MEMBER_EMAIL as string)
       .maybeSingle();
     expect(memberError).toBeNull();
     expect(memberData?.id).toBeTruthy();

@@ -34,14 +34,14 @@ function seedProfiles() {
     {
       id: 'profile-1',
       name: 'Jairus Inge',
-      email: 'jairusingente3@gmail.com',
+      email: 'owner@example.com',
       role: 'owner',
       createdAt: '2026-08-01T00:00:00.000Z'
     },
     {
       id: 'profile-2',
       name: 'Test Staff',
-      email: 'jms.test@demo.jms',
+      email: 'owner-test@example.com',
       role: 'staff',
       createdAt: '2026-08-02T00:00:00.000Z'
     }
@@ -67,9 +67,9 @@ describe('StaffPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/jairusingente3@gmail\.com/)).toBeTruthy();
+      expect(screen.getByText(/owner@example\.com/)).toBeTruthy();
     });
-    expect(screen.getByText(/jms\.test@demo\.jms/)).toBeTruthy();
+    expect(screen.getByText(/owner-test@example\.com/)).toBeTruthy();
     expect(screen.queryByRole('combobox')).toBeNull();
 
     openRowMenu('Test Staff');
@@ -93,7 +93,7 @@ describe('StaffPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/owner access required/i)).toBeTruthy();
     });
-    expect(screen.queryByText('jms.test@demo.jms')).toBeNull();
+    expect(screen.queryByText('owner-test@example.com')).toBeNull();
   });
 
   it('hides member accounts behind an explicit toggle', async () => {
@@ -101,14 +101,14 @@ describe('StaffPage', () => {
       {
         id: 'profile-1',
         name: 'Jairus Inge',
-        email: 'jairusingente3@gmail.com',
+        email: 'owner@example.com',
         role: 'owner',
         createdAt: '2026-08-01T00:00:00.000Z'
       },
       {
         id: 'profile-2',
         name: 'Test Staff',
-        email: 'jms.test@demo.jms',
+        email: 'owner-test@example.com',
         role: 'staff',
         createdAt: '2026-08-02T00:00:00.000Z'
       },
@@ -123,7 +123,7 @@ describe('StaffPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/jairusingente3@gmail\.com/)).toBeTruthy();
+      expect(screen.getByText(/owner@example\.com/)).toBeTruthy();
     });
     expect(screen.queryByText(/stray@example\.com/)).toBeNull();
 
@@ -142,7 +142,7 @@ describe('StaffPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/jairusingente3@gmail\.com/)).toBeTruthy();
+      expect(screen.getByText(/owner@example\.com/)).toBeTruthy();
     });
 
     openRowMenu('Jairus Inge');
@@ -175,7 +175,7 @@ describe('StaffPage', () => {
     const noticeBox = screen.getByRole('alert').closest('div');
     expect(noticeBox?.className).toContain('border-[#FFB300]');
     expect(noticeBox?.className).toContain('bg-[#1A1A1A]');
-    expect(screen.queryByText(/jairusingente3@gmail\.com/)).toBeNull();
+    expect(screen.queryByText(/owner@example\.com/)).toBeNull();
 
     SupabaseStaffRepositoryMock.mockImplementation(
       () =>
@@ -186,7 +186,7 @@ describe('StaffPage', () => {
             {
               id: 'profile-1',
               name: 'Jairus Inge',
-              email: 'jairusingente3@gmail.com',
+              email: 'owner@example.com',
               role: 'owner',
               createdAt: '2026-08-01T00:00:00.000Z'
             }
@@ -198,7 +198,7 @@ describe('StaffPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     await waitFor(() => {
-      expect(screen.getByText(/jairusingente3@gmail\.com/)).toBeTruthy();
+      expect(screen.getByText(/owner@example\.com/)).toBeTruthy();
     });
     expect(screen.queryByRole('alert')).toBeNull();
   });

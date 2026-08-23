@@ -55,7 +55,7 @@ marked **[VERIFIED]** (checked against files/config this session) or
   prevention (migration 028).
 
 - **B2 🟠 Known demo credentials exist on the production database. [VERIFIED]**
-  The owner test account (`jms.test@demo.jms` / documented password) and the
+  The owner test account (`[test-owner-email redacted]` / documented password) and the
   member test account live in the real project, and their passwords are
   written in this public repository's HANDOFF.md.
   *Fix:* rotate or disable both accounts before submission; keep credentials

@@ -722,8 +722,8 @@ is the button and no check-in was recorded). Verified: full suite
   - Verify: `& <exe> migration list` (Local + Remote should match)
 - **Live test suite** (in `apps/web`), requires these env vars before
   `npx vitest run`:
-  `JYM_TEST_EMAIL=jms.test@demo.jms`, `JYM_TEST_PASSWORD=Jms!Test2026`,
-  `JYM_MEMBER_EMAIL=jms.member@demo.jms`, `JYM_MEMBER_PASSWORD=Jms!Member2026`
+  `JYM_TEST_EMAIL=[test-owner-email redacted]`, `JYM_TEST_PASSWORD=[password redacted]`,
+  `JYM_MEMBER_EMAIL=[test-member-email redacted]`, `JYM_MEMBER_PASSWORD=[password redacted]`
   (dev/demo accounts bootstrapped in `006_demo_seed.sql` / earlier migrations).
 - Unit tests (mock repos, no env): run without the env vars — live tests skip.
 - Model cannot view images — screenshots must be described in text.

@@ -13,7 +13,7 @@ REPOSITORY FACTS
 - Code: apps/web (React + Vite + TypeScript + Vitest + Tailwind), feature-folder architecture with dual repositories (mock for offline/tests, Supabase impl per feature), shared lib (lib/dates.ts with Asia/Manila timezone helpers, lib/supabase.ts), UI kit (components/ui).
 - Schema/RLS: supabase/migrations/*.sql are authoritative; see docs/DATABASE.md, docs/RLS.md, docs/ERD.md.
 - Specs: .github/copilot-instructions.md, docs/PRODUCT.md, docs/ARCHITECTURE.md, docs/BUSINESS_RULES.md, docs/SYNC.md, docs/UI_DESIGN.md, docs/TESTING.md, docs/ROADMAP.md; master plan in ../Jym Tracker/PLAN.md (untracked).
-- Live Supabase project: osujvqcsomfawxxrhjty. Test owner: jms.test@demo.jms / Jms!Test2026 (set JYM_TEST_EMAIL / JYM_TEST_PASSWORD to enable live suites). App owner: jairusingente3@gmail.com.
+- Live Supabase project: osujvqcsomfawxxrhjty. Test owner: [test-owner-email redacted] / [password redacted] (set JYM_TEST_EMAIL / JYM_TEST_PASSWORD to enable live suites). App owner: [owner-email redacted].
 - Commands: npm run dev (port 3000), npx tsc -b, npm run lint (--max-warnings=0), npx vitest run (with creds env vars it also runs live integration suites), npm run build.
 - Recent additions to audit especially: QR generation + camera scanning (qrcode, jsQR), attendance history + CSV, booking capacity enforcement, payment→membership renewal (migration 010 added invoices.plan_id), member self-service page, PH-timezone date handling.
 

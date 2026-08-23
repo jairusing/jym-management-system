@@ -1,7 +1,7 @@
 -- Finalize the member test account's auth rows: GoTrue scans the auth.users
 -- token columns into strings, so any NULL crashes sign-in with
 -- "Database error querying schema" (see supabase/auth#1940). Mirror the
--- GoTrue-created shape (jms.test@demo.jms) exactly and remove the probe clone.
+-- GoTrue-created shape ([test-owner-email redacted]) exactly and remove the probe clone.
 
 UPDATE auth.users
 SET confirmation_token = '',
@@ -15,7 +15,7 @@ WHERE id = 'a1b2c3d4-1111-4222-8333-444455556666';
 
 UPDATE auth.identities
 SET provider_id = 'a1b2c3d4-1111-4222-8333-444455556666',
-    identity_data = '{"sub":"a1b2c3d4-1111-4222-8333-444455556666","email":"jms.member@demo.jms"}'
+    identity_data = '{"sub":"a1b2c3d4-1111-4222-8333-444455556666","email":"[test-member-email redacted]"}'
 WHERE user_id = 'a1b2c3d4-1111-4222-8333-444455556666'
   AND provider = 'email';
 

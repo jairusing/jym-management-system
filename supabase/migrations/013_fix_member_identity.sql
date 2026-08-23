@@ -16,6 +16,6 @@ WHERE id = 'a1b2c3d4-1111-4222-8333-444455556666';
 
 UPDATE auth.identities
 SET provider_id = 'a1b2c3d4-1111-4222-8333-444455556666',
-    identity_data = '{"sub":"a1b2c3d4-1111-4222-8333-444455556666","email":"jms.member@demo.jms"}'
+    identity_data = '{"sub":"a1b2c3d4-1111-4222-8333-444455556666","email":"[test-member-email redacted]"}'
 WHERE user_id = 'a1b2c3d4-1111-4222-8333-444455556666'
   AND provider = 'email';

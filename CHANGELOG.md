@@ -5,7 +5,27 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.044 — Re-critique sweep: every page now scores 30+; footer credits Jairus Co. (2026-08-21)
+## v1.045 — Security scrub: all credentials removed from the repository (2026-08-21)
+
+- Removed every plaintext credential from files pushed to GitHub
+  (SYSTEMS_INTEGRATION_REVIEW finding B2):
+  - Test-account passwords and emails in HANDOFF.md, PLAN.md,
+    SYSTEMS_AUDIT_PROMPT.md, and this review's own B2 entry are replaced
+    with `[redacted]` placeholders.
+  - Applied migration files 008/009/012/013/016 had their embedded
+    emails/password literals redacted (they are historical record; the
+    live database is unaffected).
+  - Live integration tests no longer hardcode account emails — they read
+    `JYM_TEST_EMAIL` / `JYM_MEMBER_EMAIL` from environment variables, so
+    rotating a password or renaming an account no longer requires code
+    changes.
+  - Mock test data switched to generic `@example.com` addresses.
+- Honest caveat: removing literals from current files does not erase old
+  commits in git history. The accepted mitigation is that these are
+  low-value demo accounts on a thesis project; rotation remains available
+  via the Supabase dashboard at any time.
+- Verified: StaffPage suite 5/5 after email swap, tsc clean, repo-wide grep
+  for all credential literals returns zero matches.
 
 - All five sub-30 pages were re-scored dual-agent after their fix waves:
   - **Check-ins 28 → 36** — remaining: three P2s (delete-refresh misreport,

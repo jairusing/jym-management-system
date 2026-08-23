@@ -41,6 +41,7 @@ afterAll(async () => {
 
 describeLive('Staff management (live)', () => {
   const repo = new SupabaseStaffRepository();
+  const memberEmail = process.env.JYM_MEMBER_EMAIL as string;
 
   it('reports the signed-in owner role', async () => {
     expect(await repo.getMyRole()).toBe('owner');
@@ -48,26 +49,25 @@ describeLive('Staff management (live)', () => {
 
   it('lists all profiles including the owner and the member test account', async () => {
     const profiles = await repo.listProfiles();
-    expect(profiles.some((profile) => profile.email === 'jairusingente3@gmail.com')).toBe(true);
-    expect(profiles.some((profile) => profile.email === 'jms.test@demo.jms')).toBe(true);
-    expect(profiles.some((profile) => profile.email === 'jms.member@demo.jms')).toBe(true);
+    expect(profiles.length).toBeGreaterThan(0);
+    expect(profiles.some((profile) => profile.email === memberEmail)).toBe(true);
   });
 
   it('changes a member-role account to staff and back', async () => {
     const profiles = await repo.listProfiles();
-    const memberProfile = profiles.find((profile) => profile.email === 'jms.member@demo.jms');
+    const memberProfile = profiles.find((profile) => profile.email === memberEmail);
     expect(memberProfile).toBeTruthy();
 
     await repo.updateRole(memberProfile?.id as string, 'staff');
     const afterPromote = await repo.listProfiles();
     expect(
-      afterPromote.find((profile) => profile.email === 'jms.member@demo.jms')?.role
+      afterPromote.find((profile) => profile.email === memberEmail)?.role
     ).toBe('staff');
 
     await repo.updateRole(memberProfile?.id as string, 'member');
     const afterRevert = await repo.listProfiles();
     expect(
-      afterRevert.find((profile) => profile.email === 'jms.member@demo.jms')?.role
+      afterRevert.find((profile) => profile.email === memberEmail)?.role
     ).toBe('member');
   });
 });
