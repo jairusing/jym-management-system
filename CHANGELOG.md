@@ -5,6 +5,20 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.044 — Re-critique sweep: every page now scores 30+; footer credits Jairus Co. (2026-08-21)
+
+- All five sub-30 pages were re-scored dual-agent after their fix waves:
+  - **Check-ins 28 → 36** — remaining: three P2s (delete-refresh misreport,
+    raw e.message in LoadError headline, empty-query Enter targeting).
+  - **Members 26 → 33** — remaining P1: silent create success.
+  - **Classes 19 → 35** — the re-critique caught a real v1.040 gap
+    (create-class never set its success message), fixed immediately along
+    with name-required and end>start validation; only P3s remain.
+  - **Activity log 17 → 33** and **Staff 17 → 32** — only P3s remain.
+- The sidebar footer now reads "© Jairus Co. {year}" instead of a bare year.
+- No other code changed; the Classes create-success/validation fixes from
+  this sweep shipped in this release too.
+
 ## v1.043 — F2 + polish batch: auto-dismiss success, Tabs arrow keys, Check-ins cleanup (2026-08-21)
 
 - The final batch from the agreed plan closes F2 and the accumulated

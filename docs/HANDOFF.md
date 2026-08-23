@@ -515,6 +515,20 @@ is the button and no check-in was recorded). Verified: full suite
    Remaining open items all need explicit product/schema approval: A5
    void_reason, partial payments, PIN-bypassed flag, D5 server-side
    pagination, E1 password policy scope, G-series features.
+- **v1.044** — re-critique sweep + copyright: all five sub-30 pages re-
+   scored dual-agent after their fix waves — Check-ins 28→36 (round 16;
+   remaining: three P2s — delete-refresh misreport, raw e.message in
+   LoadError headline, empty-query Enter targeting), Members 26→33 (round
+   7; remaining P1: silent create success), Classes 19→35 (round 2; the
+   re-critique caught a real v1.040 gap — create-class success message —
+   fixed immediately along with name-required and end>start validation;
+   only P3s left), Activity log 17→33 (round 2; only P3s, filters scoped
+   to D5), Staff 17→32 (round 2; only P3s). Every critiqued page now 30+.
+   Also: CreditsFooter now reads "© Jairus Co. {year}". Verified: full
+   suite 292/292 at v1.043 baseline before this docs/footer change; footer
+   has no test coupling. SESSION CLOSE: v1.027→v1.044, every surface ≥30,
+   audit C1+B5 closed, four previously-unreviewed surfaces brought up to
+   standard.
 - **v1.040** — critique round 1 (Classes page, FIRST review, 19/40; user
    approved fixing all five): (1) P0 — silent mock fallback removed;
    loadError state gates ALL page content behind one amber LoadError panel

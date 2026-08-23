@@ -54,7 +54,7 @@ function BrandLink() {
 function CreditsFooter() {
   return (
     <p className="border-t border-[#262626] px-6 py-4 text-[0.7rem] uppercase tracking-[0.2em] text-[#A3A3A3]">
-      © {new Date().getFullYear()}
+      © Jairus Co. {new Date().getFullYear()}
     </p>
   );
 }
