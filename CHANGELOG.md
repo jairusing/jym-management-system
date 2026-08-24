@@ -5,7 +5,26 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.047 — Tier-1 sweep: member-create confirmation, honest delete warnings, clean error copy, README refresh (2026-08-24)
+## v1.048 — Tier-2 fixes: My Membership and the Auth gate brought to standard (2026-08-24)
+
+- **My membership (was 19/40)**: load failures now render the amber
+  LoadError panel with human copy (raw e.message and the silent mock
+  fallback are gone; demo mode is labeled like the Dashboard); the status
+  badge no longer hardcodes a green "Active" — it now reflects the real
+  state, including amber "Grace" with dated explanation for members inside
+  the 3-day window, plus an expiring-soon notice.
+- **Auth page (was 23/40)**: raw Supabase errors on the public sign-in gate
+  now map through a human-copy filter (rate-limit and email-confirmation
+  cases get specific guidance); submit buttons disable while working and
+  carry the standard focus ring; the reset-mode title bug is fixed;
+  developer-facing copy ("Phase 1", "Authentication foundation", env-var
+  text) replaced with member-appropriate wording; errors/confirmations have
+  proper aria roles.
+- Tier-2 critique sweep complete: all 11 user-facing surfaces scored, all
+  P0/P1 findings from those scores fixed. Remaining items are P3 polish or
+  approval-gated (see HANDOFF).
+- Verified: full suite 294/294 (225 runnable + 69 skipped live DB), lint/
+  tsc/build clean, detector 0 findings.
 
 - **Members: adding a member now confirms.** "Maria Santos added." renders in
   green with role="status" and auto-dismisses after five seconds (F2 pattern).

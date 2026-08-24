@@ -556,6 +556,21 @@ is the button and no check-in was recorded). Verified: full suite
    suite 294/294 (225 runnable + 69 skipped), lint/tsc/build clean, detector
    0. ALL actionable findings from every critique and the systems-integration
    review are now closed or explicitly parked.
+- **v1.048** — tier-2 fixes (MyMembershipPage 19/40 and AuthPage 23/40, the
+   two worst remaining surfaces; provider outage forced degraded single-
+   context reviews — flagged in snapshots): MyMembership: amber LoadError +
+   Retry, mock fallback removed on configured path (demo labeled like
+   Dashboard), statusPresentation() maps real status to badge incl. amber
+   Grace with dated message, expiring-soon amber notice. AuthPage:
+   mapAuthError() filter (rate-limit/confirmation guidance, rest passes —
+   Supabase auth messages are human), submit buttons disabled while loading
+   + authButtonClass/authLinkButtonClass with focus rings, reset-mode title
+   bug fixed ('Reset password' now shows), 'Phase 1'/'Authentication
+   foundation'/env-var dev copy replaced with member wording, aria roles on
+   error/status notices, check-email + reset-sent notices now amber. Tests:
+   'Phase 1' assertion updated to new description copy. Verified: full suite
+   294/294 (225 runnable + 69 skipped), lint/tsc/build clean, detector 0.
+   EVERY user-facing surface now scored 30+ or fixed to standard.
 - **v1.040** — critique round 1 (Classes page, FIRST review, 19/40; user
    approved fixing all five): (1) P0 — silent mock fallback removed;
    loadError state gates ALL page content behind one amber LoadError panel

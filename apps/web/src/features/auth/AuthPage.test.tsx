@@ -28,7 +28,7 @@ describe('AuthPage', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/Phase 1/i)).toBeTruthy();
+    expect(screen.getByText(/Sign in to manage the gym/i)).toBeTruthy();
   });
 
   it('shows an error when sign in fails', async () => {

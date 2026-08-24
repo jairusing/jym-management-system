@@ -3,6 +3,21 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { PageShell } from '../../components/ui/PageShell';
 import { hasSupabaseConfig, supabase, type SupabaseAuthState } from '../../lib/supabase';
 
+function mapAuthError(message: string): string {
+  if (/rate|429|too many/i.test(message)) {
+    return 'Too many attempts. Please wait a minute and try again.';
+  }
+  if (/confirm/i.test(message)) {
+    return 'Please confirm your email first — check your inbox for the link.';
+  }
+  return message;
+}
+
+const authButtonClass =
+  'inline-flex items-center gap-2 border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#FF3D00] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]';
+const authLinkButtonClass =
+  'text-sm uppercase tracking-[0.1em] text-[#FAFAFA] focus-visible:text-[#FF3D00] outline-none';
+
 export function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -85,7 +100,7 @@ export function AuthPage() {
         redirectTo: `${window.location.origin}/auth/callback`
       });
       if (error) {
-        setAuthState((current) => ({ ...current, loading: false, error: error.message }));
+        setAuthState((current) => ({ ...current, loading: false, error: mapAuthError(error.message) }));
         return;
       }
       setResetSent(true);
@@ -104,7 +119,7 @@ export function AuthPage() {
 
     const { data, error } = await request;
     if (error) {
-      setAuthState((current) => ({ ...current, loading: false, error: error.message }));
+      setAuthState((current) => ({ ...current, loading: false, error: mapAuthError(error.message) }));
       return;
     }
 
@@ -147,14 +162,16 @@ export function AuthPage() {
 
   return (
     <PageShell
-      eyebrow="Phase 1"
-      title={mode === 'sign-in' ? 'Sign in' : 'Create account'}
-      description="Authentication foundation for Jym Tracker."
+      eyebrow="Account"
+      title={mode === 'reset-password' ? 'Reset password' : mode === 'sign-in' ? 'Sign in' : 'Create account'}
+      description="Sign in to manage the gym, or create an account to get started."
       hideNav
     >
       <div className="mx-auto flex w-full max-w-xl flex-col gap-6 border border-[#262626] bg-[#0F0F0F] p-6 sm:p-8">
         {!hasSupabaseConfig ? (
-          <p className="text-sm text-[#FF3D00]">Supabase environment variables are not configured.</p>
+          <p className="text-sm text-[#A3A3A3]" role="status">
+            Demo mode — no live database connected. Accounts created here will not be saved.
+          </p>
         ) : null}
 
         {mode === 'reset-password' ? (
@@ -172,15 +189,21 @@ export function AuthPage() {
             </label>
 
             {resetSent ? (
-              <p className="text-sm text-[#FAFAFA]">If that email is registered, a password reset link has been sent.</p>
+              <p className="text-sm text-[#FFB300]" role="status">
+                If that email is registered, a password reset link has been sent.
+              </p>
             ) : null}
-            {authState.error ? <p className="text-sm text-[#FF3D00]">{authState.error}</p> : null}
+            {authState.error ? <p className="text-sm text-[#FF3D00]" role="alert">{authState.error}</p> : null}
 
             <div className="flex flex-wrap items-center gap-3">
-              <button className="inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px" type="submit">
+              <button
+                className={authButtonClass}
+                type="submit"
+                disabled={authState.loading}
+              >
                 {authState.loading ? 'Working…' : 'Send reset link'}
               </button>
-              <button className="text-sm uppercase tracking-[0.1em] text-[#FAFAFA]" type="button" onClick={() => { setMode('sign-in'); setResetSent(false); setConfirmationPending(false); setConfirmPassword(''); }}>
+              <button className={authLinkButtonClass} type="button" onClick={() => { setMode('sign-in'); setResetSent(false); setConfirmationPending(false); setConfirmPassword(''); }}>
                 Back to sign in
               </button>
             </div>
@@ -226,19 +249,23 @@ export function AuthPage() {
           ) : null}
 
           {mode === 'sign-in' && location.state?.resetDone ? (
-            <p className="text-sm text-[#FAFAFA]">Password updated. Sign in with your new password.</p>
+            <p className="text-sm text-[#FFB300]" role="status">Password updated. Sign in with your new password.</p>
           ) : null}
           {confirmationPending ? (
-            <p className="text-sm text-[#FAFAFA]">Check your email (and spam folder) — a confirmation link has been sent. Click it to activate your account, then sign in.</p>
+            <p className="text-sm text-[#FFB300]" role="status">Check your email (and spam folder) — a confirmation link has been sent. Click it to activate your account, then sign in.</p>
           ) : null}
-          {authState.error ? <p className="text-sm text-[#FF3D00]">{authState.error}</p> : null}
+          {authState.error ? <p className="text-sm text-[#FF3D00]" role="alert">{authState.error}</p> : null}
 
           <div className="flex flex-wrap items-center gap-3">
-            <button className="inline-flex items-center border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px" type="submit">
+            <button
+              className={authButtonClass}
+              type="submit"
+              disabled={authState.loading}
+            >
               {authState.loading ? 'Working…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}
             </button>
             <button
-              className="text-sm uppercase tracking-[0.1em] text-[#FAFAFA]"
+              className={authLinkButtonClass}
               type="button"
               onClick={() => { setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in'); setConfirmationPending(false); setConfirmPassword(''); }}
             >
@@ -248,7 +275,7 @@ export function AuthPage() {
 
           {mode === 'sign-in' ? (
             <div className="mt-2">
-              <button className="text-sm uppercase tracking-[0.1em] text-[#A3A3A3] hover:text-[#FF3D00]" type="button" onClick={() => { setMode('reset-password'); setResetSent(false); setConfirmationPending(false); setConfirmPassword(''); }}>
+              <button className={authLinkButtonClass + ' text-[#A3A3A3] hover:text-[#FF3D00]'} type="button" onClick={() => { setMode('reset-password'); setResetSent(false); setConfirmationPending(false); setConfirmPassword(''); }}>
                 Forgot password?
               </button>
             </div>
