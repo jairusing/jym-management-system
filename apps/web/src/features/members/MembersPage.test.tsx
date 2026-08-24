@@ -79,7 +79,9 @@ describe('MembersPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+      expect(screen.getByRole('status').textContent).toBe('Juan Dela Cruz added.');
     });
+    expect(screen.getByRole('status').className).toContain('text-[#22C55E]');
     expect(screen.getByText(/0917 123 4567/)).toBeTruthy();
     expect(screen.getByText(/Prefers morning sessions/)).toBeTruthy();
     openRowMenu('Juan Dela Cruz');
@@ -202,19 +204,19 @@ describe('MembersPage', () => {
     mockMemberRepository.setMembership(member.id, {
       planName: 'Monthly Pass',
       startsAt: '2026-08-01',
-      endsAt: '2026-08-31',
+      endsAt: '2099-08-31',
       status: 'active'
     });
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
+      expect(screen.getByText('Monthly Pass until Aug 31, 2099')).toBeTruthy();
     });
 
     openRowMenu('Maria Santos');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Pause' }));
     expect(
-      screen.getByText(/Pause Maria Santos's membership\? Monthly Pass until Aug 31, 2026\. Check-ins will be blocked until resumed\./)
+      screen.getByText(/Pause Maria Santos's membership\? Monthly Pass until Aug 31, 2099\. Check-ins will be blocked until resumed\./)
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     await waitFor(() => {
@@ -226,17 +228,17 @@ describe('MembersPage', () => {
 
     fireEvent.click(screen.getByRole('menuitem', { name: 'Resume' }));
     expect(
-      screen.getByText(/Resume Maria Santos's membership\? Monthly Pass until Aug 31, 2026\./)
+      screen.getByText(/Resume Maria Santos's membership\? Monthly Pass until Aug 31, 2099\./)
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
     await waitFor(() => {
-      expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
+      expect(screen.getByText('Monthly Pass until Aug 31, 2099')).toBeTruthy();
     });
 
     openRowMenu('Maria Santos');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Cancel membership' }));
     expect(
-      screen.getByText(/Cancel Maria Santos's membership\? Monthly Pass until Aug 31, 2026\. This cannot be undone/)
+      screen.getByText(/Cancel Maria Santos's membership\? Monthly Pass until Aug 31, 2099\. This cannot be undone/)
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel membership' }));
     await waitFor(() => {
@@ -259,13 +261,13 @@ describe('MembersPage', () => {
     mockMemberRepository.setMembership(member.id, {
       planName: 'Monthly Pass',
       startsAt: '2026-08-01',
-      endsAt: '2026-08-31',
+      endsAt: '2099-08-31',
       status: 'active'
     });
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
+      expect(screen.getByText('Monthly Pass until Aug 31, 2099')).toBeTruthy();
     });
 
     let release: () => void = () => {};
@@ -295,13 +297,13 @@ describe('MembersPage', () => {
     mockMemberRepository.setMembership(member.id, {
       planName: 'Monthly Pass',
       startsAt: '2026-08-01',
-      endsAt: '2026-08-31',
+      endsAt: '2099-08-31',
       status: 'active'
     });
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
+      expect(screen.getByText('Monthly Pass until Aug 31, 2099')).toBeTruthy();
     });
 
     openRowMenu('Maria Santos');
@@ -312,7 +314,7 @@ describe('MembersPage', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Monthly Pass until Aug 31, 2026')).toBeTruthy();
+      expect(screen.getByText('Monthly Pass until Aug 31, 2099')).toBeTruthy();
     });
     expect(screen.queryByRole('menuitem', { name: 'Resume' })).toBeNull();
   });
@@ -365,7 +367,7 @@ describe('MembersPage', () => {
     mockMemberRepository.setMembership(member.id, {
       planName: 'Monthly Pass',
       startsAt: '2026-08-01',
-      endsAt: '2026-08-31',
+      endsAt: '2099-08-31',
       status: 'active'
     });
     renderPage();
@@ -378,7 +380,7 @@ describe('MembersPage', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Deactivate' }));
     expect(screen.getByText('Deactivate Maria Santos?')).toBeTruthy();
     expect(
-      screen.getByText(/They have an active Monthly Pass \(until Aug 31, 2026\) — check-ins will be blocked immediately\./)
+      screen.getByText(/They have an active Monthly Pass \(until Aug 31, 2099\) — check-ins will be blocked immediately\./)
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
     await waitFor(() => {

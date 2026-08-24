@@ -183,8 +183,8 @@ export function CheckInsPage() {
       setMembers(loadedMembers);
       setCheckIns(loadedCheckIns);
     } catch (e) {
-      console.warn('Failed to load check-in data from Supabase', e);
-      setLoadError(e instanceof Error ? e.message : 'Failed to load check-in data.');
+      console.warn("Couldn't load check-in data. Check your connection and try again.", e);
+      setLoadError('Check your connection and try again.');
       setMembers([]);
       setCheckIns([]);
     } finally {
@@ -202,8 +202,8 @@ export function CheckInsPage() {
       const repo = hasSupabaseConfig ? new SupabaseCheckInRepository() : mockCheckInRepository;
       setHistory(await repo.listCheckIns(phDayStartUtc(historyFrom), phDayEndUtc(historyTo)));
     } catch (e) {
-      console.warn('Failed to load attendance history', e);
-      setHistoryLoadError(e instanceof Error ? e.message : 'Failed to load attendance history.');
+      console.warn("Couldn't load attendance history. Check your connection and try again.", e);
+      setHistoryLoadError('Check your connection and try again.');
       setHistory([]);
     } finally {
       setHistoryLoading(false);
@@ -285,6 +285,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
   const handleEntrySubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = query.trim();
+    if (!trimmed) {
+      document.getElementById('member-search')?.focus();
+      return;
+    }
     const exactMember = members.find((candidate) => candidate.id === trimmed);
     if (exactMember) {
       void handleQrCheckIn(trimmed);
@@ -444,8 +448,13 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
       await repo.deleteCheckIn(checkIn.id);
       setPendingDelete(null);
       showSuccess('Check-in deleted.');
-      await refreshTodayCheckIns();
-      await loadHistory();
+      try {
+        await refreshTodayCheckIns();
+        await loadHistory();
+      } catch (e) {
+        console.warn('Check-in deleted, but the refresh failed', e);
+        showError('Check-in deleted, but the list may be out of date.');
+      }
       window.setTimeout(() => {
         if (neighbor) {
           document.getElementById(`checkin-menu-${neighbor.id}`)?.focus();
@@ -455,10 +464,10 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
           heading?.focus();
         }
       }, 0);
-} catch (e) {
-  setDeleteError(toUserError(e, "Couldn't delete the check-in. Please try again."));
-  } finally {
-  setDeletePending(false);
+    } catch (e) {
+      setDeleteError(toUserError(e, "Couldn't delete the check-in. Please try again."));
+    } finally {
+      setDeletePending(false);
     }
   };
 
@@ -514,6 +523,7 @@ const membershipExpiry = (member: Member): { blocked: boolean; message: string }
                   className={inputClass}
                   type="search"
                   autoFocus
+                  id="member-search"
                   placeholder="Type a name or paste a member ID…"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}

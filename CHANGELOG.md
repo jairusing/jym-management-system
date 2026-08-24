@@ -5,7 +5,28 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.046 — Systems-integration review items A2/A3/D2 shipped (2026-08-21)
+## v1.047 — Tier-1 sweep: member-create confirmation, honest delete warnings, clean error copy, README refresh (2026-08-24)
+
+- **Members: adding a member now confirms.** "Maria Santos added." renders in
+  green with role="status" and auto-dismisses after five seconds (F2 pattern).
+  This closes the last remaining P1 from any critique.
+- **Check-ins: deleting no longer lies when the refresh fails.** A successful
+  delete followed by a failed list-refresh previously reported "Couldn't
+  delete the check-in" — the delete-refresh path is now split so it warns
+  "Check-in deleted, but the list may be out of date." instead.
+- **Check-ins: load errors are fully human.** The amber LoadError panels on
+  Check-in and History tabs no longer interpolate raw exception text; they
+  say "Check your connection and try again."
+- **Check-ins: empty-query Enter is inert** — it refocuses the search field
+  instead of silently arming the newest member's check-in button.
+- Removed the stray `test_rpc.json` file from the repo root and refreshed
+  README.md to reflect the current feature set with links to the new docs
+  (ARCHITECTURE, API_CONTRACTS).
+- Also date-proofed Members tests that hardcoded `2026-08-31` membership end
+  dates — the calendar rolling into the 7-day expiry window changed their
+  expected labels (now use far-future 2099 dates like the existing suites).
+- Verified: full suite 294/294 (225 runnable + 69 skipped live DB), lint/
+  tsc/build clean, detector 0 findings.
 
 - **A2 — CI exists now.** `.github/workflows/ci.yml` runs lint, the unit
   suite (live-database tests skip without secrets), and the production build

@@ -743,7 +743,8 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain("Couldn't load check-in data.");
     });
-    expect(screen.getByText(/db unavailable/)).toBeTruthy();
+    expect(screen.getByText(/Check your connection and try again/)).toBeTruthy();
+    expect(screen.queryByText(/db unavailable/)).toBeNull();
     const loadErrorBox = screen.getByRole('alert').closest('div');
     expect(loadErrorBox?.className).toContain('border-[#FFB300]');
     expect(loadErrorBox?.className).toContain('bg-[#1A1A1A]');
@@ -779,7 +780,8 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain("Couldn't load check-in data.");
     });
-    expect(screen.getByText(/history db down/)).toBeTruthy();
+    expect(screen.getByText(/Check your connection and try again/)).toBeTruthy();
+    expect(screen.queryByText(/history db down/)).toBeNull();
     const loadErrorBox = screen.getByRole('alert').closest('div');
     expect(loadErrorBox?.className).toContain('border-[#FFB300]');
     expect(loadErrorBox?.className).toContain('bg-[#1A1A1A]');
@@ -956,6 +958,24 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
     });
   });
 
+  it('does not arm a check-in when Enter is pressed with an empty query', async () => {
+    await seedMembers();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    const input = screen.getByLabelText(/Search or member ID/);
+    fireEvent.submit(screen.getByRole('form', { name: 'Check in a member' }));
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(0);
+  });
+
   it('moves Enter focus to the next actionable match when the first is already checked in', async () => {
     const members = await seedMembers();
     await mockCheckInRepository.recordCheckIn({ memberId: members[0]?.id ?? '', memberName: 'Juan Dela Cruz' });
@@ -1022,6 +1042,35 @@ fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4321' } });
       const trigger = remaining?.querySelector<HTMLButtonElement>('button[id^="checkin-menu-"]');
       expect(document.activeElement).toBe(trigger);
     });
+  });
+
+  it('warns honestly when the delete succeeds but the refresh fails', async () => {
+    const members = await seedMembers();
+    await mockCheckInRepository.recordCheckIn({ memberId: members[0]?.id ?? '', memberName: 'Juan Dela Cruz' });
+    const savedRows = await mockCheckInRepository.listTodayCheckIns();
+
+    vi.spyOn(mockCheckInRepository, 'listTodayCheckIns')
+      .mockResolvedValueOnce(savedRows)
+      .mockRejectedValueOnce(new Error('Network failure'));
+
+    renderPage();
+
+    goToTab('Today');
+    await waitFor(() => {
+      expect(screen.getByText('Juan Dela Cruz')).toBeTruthy();
+    });
+
+    const row = screen.getByText('Juan Dela Cruz').closest('li');
+    const trigger = row?.querySelector<HTMLButtonElement>('button[id^="checkin-menu-"]');
+    fireEvent.click(trigger as HTMLButtonElement);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toMatch(/deleted, but the list may be out of date/i);
+    });
+    const saved = await mockCheckInRepository.listTodayCheckIns();
+    expect(saved.length).toBe(0);
   });
 
   it('deletes a check-in from the today list after confirming in the modal', async () => {

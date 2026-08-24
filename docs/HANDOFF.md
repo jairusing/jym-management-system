@@ -541,6 +541,21 @@ is the button and no check-in was recorded). Verified: full suite
    remediation shipped in v1.045 (credential scrub). REMAINING from the
    review: A1 contract tests for mock/live parity, A5/D5 capacity notes now
    documented in ARCHITECTURE.md, B3 rate-limit scope note, B5 observability.
+- **v1.047** — tier-1 sweep closing all remaining actionable critique items:
+   (1) Members create now confirms "<Name> added." green role=status with 5s
+   auto-dismiss — closes the last open P1 across all critiques. (2) Check-ins
+   delete path split like completeCheckIn: refresh failure after successful
+   delete warns "Check-in deleted, but the list may be out of date." instead
+   of claiming the delete failed. (3) Check-ins load/history LoadError copy
+   fully humanized ('Check your connection and try again.'), raw e.message
+   gone. (4) empty-query Enter refocuses search instead of arming first
+   member. (5) test_rpc.json deleted; README rewritten for current feature
+   set + doc links. LESSON: pause/resume tests hardcoded endsAt 2026-08-31
+   and silently broke when the calendar entered the 7-day expiry window on
+   Aug 24 — replaced with 2099 dates (match existing suites). Verified: full
+   suite 294/294 (225 runnable + 69 skipped), lint/tsc/build clean, detector
+   0. ALL actionable findings from every critique and the systems-integration
+   review are now closed or explicitly parked.
 - **v1.040** — critique round 1 (Classes page, FIRST review, 19/40; user
    approved fixing all five): (1) P0 — silent mock fallback removed;
    loadError state gates ALL page content behind one amber LoadError panel

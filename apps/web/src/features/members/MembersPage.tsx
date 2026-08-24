@@ -119,6 +119,16 @@ export function MembersPage() {
   const [loading, setLoading] = useState(hasSupabaseConfig);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
+  const [addSuccess, setAddSuccess] = useState<string | null>(null);
+
+  // F2: creation confirmations auto-dismiss after five seconds.
+  useEffect(() => {
+    if (!addSuccess) {
+      return;
+    }
+    const timer = window.setTimeout(() => setAddSuccess(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [addSuccess]);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [confirmPending, setConfirmPending] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -228,8 +238,10 @@ export function MembersPage() {
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAddError(null);
+    setAddSuccess(null);
 
-    if (!fullName.trim()) {
+    const trimmedName = fullName.trim();
+    if (!trimmedName) {
       setAddError('Member name is required.');
       return;
     }
@@ -249,6 +261,7 @@ export function MembersPage() {
       setPhone('');
       setJoinedAt(today());
       setNotes('');
+      setAddSuccess(`${trimmedName} added.`);
       await load();
     } catch (e) {
       setAddError(toUserError(e, "Couldn't add the member. Please try again."));
@@ -604,7 +617,8 @@ export function MembersPage() {
             />
           </label>
 
-          {addError ? <p className="text-sm text-[#FF3D00]">{addError}</p> : null}
+          {addSuccess ? <p role="status" className="text-sm text-[#22C55E]">{addSuccess}</p> : null}
+          {addError ? <p role="alert" className="text-sm text-[#FF3D00]">{addError}</p> : null}
 
           <div>
             <button className={primaryButtonClass} type="submit" disabled={saving}>
