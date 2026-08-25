@@ -5,7 +5,26 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
-## v1.048 — Tier-2 fixes: My Membership and the Auth gate brought to standard (2026-08-24)
+## v1.049 — Systems-integration review items B3/B5/A1 shipped (2026-08-24)
+
+- **B3 — auth rate-limiting documented as accepted scope** in `docs/RLS.md`:
+  no application-level throttling/CAPTCHA; Supabase Auth's built-in
+  per-project throttling is the mitigation; revisit if a real gym with
+  public sign-ups comes onboard.
+- **B5 — runtime error reporting exists now.** New `lib/reportError.ts`
+  installs global handlers for uncaught errors and unhandled rejections at
+  startup, and provides `reportError(source, error)` for call sites. It
+  always logs to console and additionally POSTs to a webhook when
+  `VITE_ERROR_WEBHOOK_URL` is configured (any receiver works — Sentry-mini,
+  Discord, a log drain). Zero new dependencies; inert until a URL is set.
+- **A1 — repository parity contracts started.** New `repoParity.test.ts`
+  pins that the mock and Supabase implementations of
+  `members.listMembers()` and `invoices.listInvoices()` return objects with
+  identical key-sets and value types, using a canned PostgREST row fed
+  through a fake query chain. The pattern extends to remaining repositories;
+  this closes the drift class that caused the dashboard timezone bug.
+- Verified: full suite 296/296 (227 runnable + 69 skipped live DB), lint/
+  tsc/build clean, detector clean.
 
 - **My membership (was 19/40)**: load failures now render the amber
   LoadError panel with human copy (raw e.message and the silent mock

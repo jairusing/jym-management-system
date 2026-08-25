@@ -571,6 +571,16 @@ is the button and no check-in was recorded). Verified: full suite
    'Phase 1' assertion updated to new description copy. Verified: full suite
    294/294 (225 runnable + 69 skipped), lint/tsc/build clean, detector 0.
    EVERY user-facing surface now scored 30+ or fixed to standard.
+- **v1.049** — systems-integration review B3/B5/A1 shipped: (B3) RLS.md
+   documents accepted auth-throttling scope. (B5) lib/reportError.ts:
+   installGlobalErrorReporting() wires window error/unhandledrejection at
+   startup; reportError() logs + POSTs JSON to VITE_ERROR_WEBHOOK_URL when
+   set (zero deps, inert until configured). (A1) src/repoParity.test.ts —
+   shape-contract tests diffing mock vs Supabase outputs for members.
+   listMembers and invoices.listInvoices via canned PostgREST rows through a
+   fake thenable query chain (builder.then resolves; maybeSingle/single as
+   promises). Pattern extends to other repos. Verified: full suite 296/296
+   (227 runnable + 69 skipped), lint/tsc/build clean, detector clean.
 - **v1.040** — critique round 1 (Classes page, FIRST review, 19/40; user
    approved fixing all five): (1) P0 — silent mock fallback removed;
    loadError state gates ALL page content behind one amber LoadError panel

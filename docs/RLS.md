@@ -93,6 +93,10 @@ member's own row and records tied to it (`memberships`, `invoices`,
   but out of thesis scope (single-owner operation).
 - Unique constraint `class_bookings (session_id, member_id)` blocks double
   bookings at the data layer.
+- Accepted scope (B3): no application-level rate limiting or CAPTCHA on
+  auth. Supabase Auth applies built-in request throttling per project; the
+  six-character password minimum is documented as audit item E1. Revisit if
+  deployed to a real gym with public sign-ups.
 
 ## Verification evidence
 
