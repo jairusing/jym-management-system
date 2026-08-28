@@ -171,10 +171,11 @@ actual code, schema, and migrations. Severity: 🔴 CRITICAL · 🟠 MAJOR · �
 ## G. Feature-level gaps (document as deliberate "future work")
 
 1. No recurring billing / renewal reminders — every renewal invoice is manual.
-2. Member self-service unreachable (B1).
-3. No analytics (attendance rate, retention, churn, revenue-per-member).
-4. No receipts.
-5. No backup/export story in the app (attendance CSV only).
+2. ✅ FIXED (v1.050) — Member self-service unreachable (B1): now `/app/my-account`.
+3. ✅ FIXED (v1.050) — No analytics: now `/app/analytics` (client-side snapshot).
+4. ✅ FIXED (v1.050) — No receipts: payment records open a print receipt dialog.
+5. ✅ FIXED (v1.050) — No backup/export story: now `/app/exports`
+   (members/invoices/payments/attendance CSV + JSON backup).
 
 ## Defensible strengths
 

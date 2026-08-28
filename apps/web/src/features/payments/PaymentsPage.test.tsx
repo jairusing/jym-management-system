@@ -191,9 +191,16 @@ describe('PaymentsPage', () => {
       expect(screen.getByText('paid')).toBeTruthy();
     });
     expect(screen.getByText('Payment recorded.')).toBeTruthy();
-    const paidInvoices = await mockInvoiceRepository.listInvoices();
+
+    const dialog = await screen.findByRole('dialog', { name: /Receipt for INV-/ });
+    expect(within(dialog).getByText(/GCash/)).toBeTruthy();
+    expect(within(dialog).getByText(/G-12345/)).toBeTruthy();
     await waitFor(() => {
-      expect(document.activeElement).toBe(document.getElementById(`invoice-statement-${paidInvoices[0]?.id}`));
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Print receipt' }));
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     goToTab('Payments');
@@ -285,7 +292,7 @@ describe('PaymentsPage', () => {
     expect(await mockPaymentRepository.listPayments()).toHaveLength(0);
   });
 
-  it('shows Void to staff on issued invoices and hides the menu on paid rows', async () => {
+  it('shows Void to staff on issued invoices and only Print receipt on paid rows', async () => {
     mockStaffRepository.setMyRole('staff');
     const member = await seedMember();
     renderPage();
@@ -321,7 +328,9 @@ describe('PaymentsPage', () => {
       .map((element) => element.closest('li'))
       .find((element) => element !== null);
     expect(paidRow).not.toBeNull();
-    expect(within(paidRow as HTMLElement).queryByRole('button', { name: 'More' })).toBeNull();
+    fireEvent.click(within(paidRow as HTMLElement).getByRole('button', { name: 'More' }));
+    expect(screen.getByRole('menuitem', { name: 'Print receipt' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Undo payment' })).toBeNull();
   });
 
   it('keeps the invoice when void is cancelled and restores focus to the trigger', async () => {
@@ -900,5 +909,39 @@ describe('PaymentsPage', () => {
     expect((screen.getByRole('button', { name: 'Issue invoice' }).closest('fieldset') as HTMLFieldSetElement).disabled).toBe(false);
     expect(within(summaryCard as HTMLElement).getAllByText('₱' + '1,000.00').length).toBeGreaterThan(0);
     expect(within(summaryCard as HTMLElement).queryAllByText('—').length).toBe(0);
+  });
+
+  it('opens a print receipt from the paid invoice menu and closes it', async () => {
+    const member = await seedMember();
+    await mockInvoiceRepository.createInvoice({
+      memberId: member?.id ?? 'member-1',
+      memberName: 'Juan Dela Cruz',
+      total: 1500,
+      dueAt: null
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm payment' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('paid')).toBeTruthy();
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
+
+    openInvoiceMenu('Juan Dela Cruz');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Print receipt' }));
+
+    const dialog = await screen.findByRole('dialog', { name: /Receipt for INV-/ });
+    expect(within(dialog).getByText('Juan Dela Cruz')).toBeTruthy();
+    expect(within(dialog).getByText('Cash')).toBeTruthy();
+    expect(within(dialog).getByText('₱1,500.00')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
   });
 });

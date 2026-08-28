@@ -5,6 +5,27 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.050 — Feature gaps G2–G5 shipped: self-service, analytics, receipts, exports (2026-08-28)
+
+- **G2 — member self-service hub** at `/app/my-account` (Account menu). Shows
+  the signed-in member's record and current membership (read via RLS from the
+  session user id — no schema change), plus quick links to membership,
+  statement and classes. Unlinked logins get a "no member record" state.
+- **G3 — analytics page** at `/app/analytics` (Management menu). 30 / 90 / 365-day
+  snapshots computed fully client-side from the existing RLS-safe reads:
+  attendance rate, retention, churn and revenue cards, plus top members.
+- **G4 — print receipts.** Recording a payment now opens a receipt dialog
+  (also reachable from the paid-row menu). Shows method, reference, taken by
+  and the amount in words; printing renders a clean white-on-black copy via
+  `print:` CSS. Pure UI — no schema change.
+- **G5 — exports page** at `/app/exports` (Management menu). Members,
+  invoices, payments and attendance download as Excel-friendly CSV (UTF-8 BOM,
+  CRLF), and a full JSON backup of all four tables. Read-only, on-demand.
+- **Implementation note:** all four are read-only UI features — no migration,
+  RLS policy or RPC changed.
+- Verified: `npm run lint`, `tsc -b`, `npx vitest run` (265 passed / 69
+  integration skipped without live-DB env vars), `npm run build` — all clean.
+
 ## v1.049 — Systems-integration review items B3/B5/A1 shipped (2026-08-24)
 
 - **B3 — auth rate-limiting documented as accepted scope** in `docs/RLS.md`:

@@ -13,6 +13,9 @@ import { MyMembershipPage } from './features/membership/MyMembershipPage';
 import { MemberStatementPage } from './features/ledger/MemberStatementPage';
 import { StaffPage } from './features/staff/StaffPage';
 import { AuditPage } from './features/audit/AuditPage';
+import { AnalyticsPage } from './features/analytics/AnalyticsPage';
+import { MyAccountPage } from './features/selfservice/MyAccountPage';
+import { ExportPage } from './features/exports/ExportPage';
 
 export default function App() {
   return (
@@ -30,6 +33,9 @@ export default function App() {
             <Route path="/app/payments" element={<PaymentsPage />} />
             <Route path="/app/staff" element={<StaffPage />} />
             <Route path="/app/audit" element={<AuditPage />} />
+            <Route path="/app/analytics" element={<AnalyticsPage />} />
+            <Route path="/app/exports" element={<ExportPage />} />
+            <Route path="/app/my-account" element={<MyAccountPage />} />
             <Route path="/app/my-membership" element={<MyMembershipPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>

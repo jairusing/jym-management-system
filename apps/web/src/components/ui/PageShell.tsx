@@ -20,6 +20,8 @@ const navGroups: { label: string; items: { label: string; href: string }[] }[] =
       { label: 'Check-ins', href: '/app/checkins' },
       { label: 'Classes', href: '/app/classes' },
       { label: 'Payments', href: '/app/payments' },
+      { label: 'Analytics', href: '/app/analytics' },
+      { label: 'Exports', href: '/app/exports' },
       { label: 'Staff', href: '/app/staff' },
       { label: 'Activity log', href: '/app/audit' }
     ]
@@ -27,6 +29,7 @@ const navGroups: { label: string; items: { label: string; href: string }[] }[] =
   {
     label: 'Account',
     items: [
+      { label: 'My account', href: '/app/my-account' },
       { label: 'My membership', href: '/app/my-membership' },
       { label: 'Profile', href: '/profile' }
     ]

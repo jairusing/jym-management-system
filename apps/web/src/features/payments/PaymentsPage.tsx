@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Ban } from 'lucide-react';
+import { Ban, Printer } from 'lucide-react';
 import { BackLink } from '../../components/ui/BackLink';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PageShell } from '../../components/ui/PageShell';
@@ -14,6 +14,8 @@ import { mockInvoiceRepository, type Invoice, type Plan } from './invoiceReposit
 import { SupabaseInvoiceRepository } from './supabaseInvoiceRepository';
 import { mockPaymentRepository, type Payment, type PaymentMethod } from './paymentRepository';
 import { SupabasePaymentRepository } from './supabasePaymentRepository';
+import { ReceiptDialog } from './ReceiptDialog';
+import { buildReceipt, receiptFromPayment, type ReceiptData } from './receipt';
 import { mockMemberRepository, type Member } from '../members/memberRepository';
 import { SupabaseMemberRepository } from '../members/supabaseMemberRepository';
 import { mockStaffRepository, type UserRole } from '../staff/staffRepository';
@@ -107,6 +109,8 @@ export function PaymentsPage() {
   const [pendingVoid, setPendingVoid] = useState<Invoice | null>(null);
   const [voidPending, setVoidPending] = useState(false);
   const [voidError, setVoidError] = useState<string | null>(null);
+
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   const [myRole, setMyRole] = useState<UserRole | null>(null);
   const [roleError, setRoleError] = useState(false);
@@ -250,8 +254,9 @@ setPlanId('');
     setError(null);
     setSuccess(null);
     setPaying(true);
+    let openedReceipt = false;
     try {
-      await repo.recordPayment({
+      const payment = await repo.recordPayment({
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
         memberId: invoice.memberId,
@@ -263,6 +268,10 @@ setPlanId('');
       setPaymentFor(null);
       setPayAmount('');
       setPayReference('');
+      if (payment) {
+        setReceipt(buildReceipt(receiptFromPayment(invoice, payment)));
+        openedReceipt = true;
+      }
       showSuccess('Payment recorded.', 'invoices');
     } catch (e) {
       showError(e instanceof Error ? e.message : 'Failed to record payment.', 'invoices');
@@ -274,12 +283,37 @@ setPlanId('');
       showError('Payment recorded, but the list may be out of date — Retry to refresh.', 'invoices');
     }
     setPaying(false);
-    document.getElementById(`invoice-statement-${invoice.id}`)?.focus();
+    // The print dialog owns focus after success; otherwise hand focus to the
+    // statement link so the invoice stays reachable.
+    if (!openedReceipt) {
+      document.getElementById(`invoice-statement-${invoice.id}`)?.focus();
+    }
   };
 
   const handleVoid = (invoice: Invoice) => {
     setPendingVoid(invoice);
     setVoidError(null);
+  };
+
+  const openReceiptFor = (invoice: Invoice) => {
+    const payment = payments.find((candidate) => candidate.invoiceId === invoice.id);
+    if (payment) {
+      setReceipt(buildReceipt(receiptFromPayment(invoice, payment)));
+      return;
+    }
+    // No payment row on record (e.g. legacy seed) — fall back to invoice data.
+    setReceipt(
+      buildReceipt({
+        invoiceNumber: invoice.invoiceNumber,
+        memberName: invoice.memberName,
+        planName: invoice.planName,
+        amount: invoice.total,
+        method: 'cash',
+        reference: null,
+        paidAt: invoice.paidAt ?? new Date().toISOString(),
+        takenBy: null
+      })
+    );
   };
 
   const handleConfirmVoid = async () => {
@@ -655,19 +689,28 @@ setPlanId('');
                                     ]}
                                   />
                                 </>
-                              ) : myRole === 'owner' ? (
+                              ) : status === 'paid' ? (
                                 <RowMenu
                                   id={`invoice-menu-${invoice.id}`}
                                   open={openInvoiceMenu === invoice.id}
                                   onOpenChange={(next) => setOpenInvoiceMenu(next ? invoice.id : null)}
                                   items={[
                                     {
-                                      label: 'Undo payment',
-                                      icon: Ban,
-                                      danger: true,
-                                      disabled: voidPending,
-                                      onClick: () => handleVoid(invoice)
-                                    }
+                                      label: 'Print receipt',
+                                      icon: Printer,
+                                      onClick: () => openReceiptFor(invoice)
+                                    },
+                                    ...(myRole === 'owner'
+                                      ? [
+                                          {
+                                            label: 'Undo payment',
+                                            icon: Ban,
+                                            danger: true,
+                                            disabled: voidPending,
+                                            onClick: () => handleVoid(invoice)
+                                          }
+                                        ]
+                                      : [])
                                   ]}
                                 />
                               ) : null}
@@ -868,6 +911,15 @@ setPlanId('');
           )}
         </SectionCard>
       )}
+
+      {receipt ? (
+        <ReceiptDialog
+          receipt={receipt}
+          onClose={() => {
+            setReceipt(null);
+          }}
+        />
+      ) : null}
 
       {pendingVoid ? (
         <ConfirmModal
