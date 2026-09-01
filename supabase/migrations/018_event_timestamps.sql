@@ -25,6 +25,7 @@ CREATE OR REPLACE FUNCTION public.rpc_record_payment(
 RETURNS public.payments
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET check_function_args = off
 SET search_path = public
 AS $$
 DECLARE

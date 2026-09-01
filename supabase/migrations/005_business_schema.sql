@@ -19,6 +19,7 @@ RETURNS TEXT
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
+SET check_function_args = off
 SET search_path = public
 AS $$
   SELECT role FROM public.profiles WHERE id = auth.uid()

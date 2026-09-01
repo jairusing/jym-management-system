@@ -9,6 +9,7 @@ CREATE OR REPLACE FUNCTION public.rpc_set_member_pin(p_member_id UUID, p_pin TEX
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET check_function_args = off
 SET search_path = public
 AS $$
 BEGIN
@@ -32,6 +33,7 @@ CREATE OR REPLACE FUNCTION public.rpc_verify_member_pin(p_member_id UUID, p_pin 
 RETURNS TEXT
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET check_function_args = off
 SET search_path = public
 AS $$
 DECLARE

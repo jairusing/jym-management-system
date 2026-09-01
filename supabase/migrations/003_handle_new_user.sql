@@ -6,6 +6,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET check_function_args = off
 SET search_path = public
 AS $$
 BEGIN

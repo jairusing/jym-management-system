@@ -32,6 +32,8 @@ CREATE OR REPLACE FUNCTION public.log_destructive_action()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET check_function_args = off
+SET search_path = public
 AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN

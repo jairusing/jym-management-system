@@ -43,6 +43,7 @@ CREATE OR REPLACE FUNCTION public.rpc_void_invoice(p_invoice_id UUID)
 RETURNS public.invoices
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET check_function_args = off
 SET search_path = public
 AS $$
 DECLARE
