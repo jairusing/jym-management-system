@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { version as appVersion } from '../../../package.json';
 import { ActionLink } from '../../components/ui/ActionLink';
 import { BackLink } from '../../components/ui/BackLink';
 import { PageShell } from '../../components/ui/PageShell';
 import { SectionCard } from '../../components/ui/SectionCard';
+import { StatusBadge, type StatusTone } from '../../components/ui/StatusBadge';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from './AuthContext';
+
+type UserRole = 'owner' | 'staff' | 'member';
+
+const roleTone: Record<UserRole, StatusTone> = {
+  owner: 'warning',
+  staff: 'good',
+  member: 'neutral'
+};
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -16,8 +25,16 @@ export function ProfilePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<UserRole | null>(null);
 
   const joined = user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long' }) : null;
+
+  useEffect(() => {
+    if (!supabase || !user) return;
+    void supabase.from('profiles').select('role').eq('id', user.id).single().then(({ data }) => {
+      if (data?.role) setRole(data.role as UserRole);
+    });
+  }, [user]);
 
   const handleChangePassword = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -68,6 +85,7 @@ export function ProfilePage() {
           <SectionCard title="Account" description={user.email ?? 'Unknown email'}>
             <div className="mt-2 space-y-1 text-sm text-[#A3A3A3]">
               <p>User ID: {user.id}</p>
+              {role && <p>Role: <StatusBadge tone={roleTone[role]}>{role}</StatusBadge></p>}
               {joined ? <p>Joined: {joined}</p> : null}
             </div>
             <div className="mt-6">
