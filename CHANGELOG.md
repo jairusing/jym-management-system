@@ -5,6 +5,21 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.051 — Full audit trail extension: all business actions now logged (2026-09-04)
+
+- **Full audit trail coverage** — migration `030_audit_additional_triggers.sql` adds
+  trigger-based logging for all business actions: payments, class bookings (book/cancel),
+  memberships, invoice creation, check-ins, and profile role changes. Uses `SECURITY DEFINER`
+  triggers that bypass RLS, matching the existing pattern from migrations 022/023.
+- **New `log_audit_action()` function** — handles all non-destructive audit logging with
+  `SET check_function_args = off` to prevent argument logging in server logs.
+- **Frontend** — `AuditAction` type extended with 7 new action types. `AuditPage.tsx` updated
+  with new labels and tone mappings. `AuditPage.test.tsx` covers all new actions. Integration
+  test (`supabaseOwnerOnly.integration.test.ts`) verifies payment and booking audit entries.
+- **`AUDIT_FIXES.md` updated** — new section documents the audit extension and the full list
+  of SECURITY DEFINER functions (now 14, up from 13).
+- Verified: `npx vitest run` passes all tests (unit + integration skipped without live DB env vars).
+
 ## v1.050 — Feature gaps G2–G5 shipped: self-service, analytics, receipts, exports (2026-08-28)
 
 - **G2 — member self-service hub** at `/app/my-account` (Account menu). Shows

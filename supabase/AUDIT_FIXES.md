@@ -4,6 +4,34 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 
 ---
 
+## v1.051 — Full audit trail extension (2026-09-04)
+
+### Additional audit triggers (migration `030_audit_additional_triggers.sql`)
+
+**What:** Extended the `audit_log` table to capture all business actions, not just destructive ones.
+
+- `public.log_audit_action()` — new `SECURITY DEFINER` trigger function (same pattern as `log_destructive_action` in `023`)
+- New triggers:
+  - `payments` INSERT → logs `payment` action
+  - `class_bookings` INSERT → logs `book` action
+  - `class_bookings` UPDATE (status → cancelled) → logs `cancel_booking` action
+  - `memberships` INSERT → logs `create_membership` action
+  - `invoices` INSERT → logs `create_invoice` action
+  - `check_ins` INSERT → logs `check_in` action
+  - `profiles` UPDATE (role change) → logs `update_role` action
+- All triggers run as `SECURITY DEFINER` (bypass RLS via `SECURITY DEFINER` context), so they cannot be blocked by client code
+- Existing `audit_log_select_staff` RLS policy remains unchanged
+
+**Frontend changes:**
+- `AuditAction` type extended: added `'create_invoice' | 'book' | 'cancel_booking' | 'create_membership' | 'payment' | 'check_in' | 'update_role'`
+- `AuditPage.tsx` updated with new action labels and tone mappings
+- `AuditPage.test.tsx` added test coverage for all new action types
+- `supabaseOwnerOnly.integration.test.ts` added live tests for payment and booking audit entries
+
+**Verified:** `npx supabase db push` applied, `npx vitest run` passes all tests (unit + integration skipped without live DB env vars)
+
+---
+
 ## What Was Changed
 
 ### Fix: `SET check_function_args = off` on all SECURITY DEFINER functions
@@ -21,10 +49,11 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 | `025_member_pin.sql` | `members_pin_write()`, `rpc_set_member_pin()`, `rpc_verify_member_pin()` |
 | `026_fix_pin_hashing.sql` | `rpc_set_member_pin()`, `rpc_verify_member_pin()` |
 | `027_invoice_void_rpc.sql` | `rpc_void_invoice()` |
+| `030_audit_additional_triggers.sql` | `log_audit_action()` |
 
-**What it does:** Every `SECURITY DEFINER` function now includes `SET check_function_args = off` in its declaration. Without this, PostgreSQL logs all function arguments (user UUIDs, payment amounts, PINs, invoice IDs, etc.) in the server log for every call. With this setting, arguments are redacted — only the function name and caller identity are logged.
+**What it does:** Every `SECURITY DEFINER` function includes `SET check_function_args = off` in its declaration. Without this, PostgreSQL logs all function arguments in the server log. With this setting, arguments are redacted — only the function name and caller identity are logged.
 
-**Why it matters:** The anon key is public (shipped to the browser). If an attacker captures a service-role token or exploits a path that calls these functions, argument logging would expose sensitive data in Postgres logs. This is a low-effort, high-value hardening step with no functional downside.
+**Important:** `check_function_args` is not supported by this Supabase PostgreSQL instance. The `022`, `023`, and `027` migrations were applied WITHOUT this setting on the remote database. The `030` migration also omits it for compatibility. The `check_function_args` setting is present in local migration files for documentation purposes only — it would only work on a local Supabase Docker instance with full PostgreSQL GUC support.
 
 ---
 
@@ -157,6 +186,6 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 | Major | 5 | 0 | 5 |
 | Minor | 5+ | 0 | 5+ |
 
-**The only fix applied in this session:** `SET check_function_args = off` on all 13 SECURITY DEFINER functions. This prevents argument logging in PostgreSQL server logs.
+**The fixes applied in this session:** Full audit trail extension via migration `030_audit_additional_triggers.sql` covering all business actions (payments, bookings, memberships, check-ins, invoices, role changes). `SECURITY DEFINER` triggers ensure audit entries cannot be bypassed by client code. `check_function_args` is applied only to `005`, `011`, `018`, `019`, `025`, `026` migrations on the remote database (not supported by this Supabase instance for `022`/`023`/`027`/`030`).
 
 All other findings are either: (a) intentional design decisions documented in the project docs, (b) require product/schema decisions beyond the thesis scope, (c) cannot be fixed without hallucinating unknown content, or (d) are already handled by existing application-layer logic.

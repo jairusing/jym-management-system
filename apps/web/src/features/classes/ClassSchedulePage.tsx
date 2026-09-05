@@ -157,10 +157,16 @@ export function ClassSchedulePage() {
     setError(null);
     setSuccess(null);
 
+    if (endTime <= startTime) {
+      setError('End time must be after start time.');
+      return;
+    }
+
     const repo = hasSupabaseConfig ? new SupabaseClassRepository() : mockClassRepository;
     setSaving(true);
     try {
       await repo.createClass({ name, capacity, dayOfWeek, startTime, endTime });
+      setSuccess(`${name.trim()} added.`);
       setName('');
       setCapacity(10);
       setStartTime('09:00');
@@ -285,6 +291,7 @@ export function ClassSchedulePage() {
                 type="text"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
+                required
               />
             </label>
             <label className="flex flex-col gap-2 text-sm">

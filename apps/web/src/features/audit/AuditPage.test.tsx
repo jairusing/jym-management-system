@@ -88,6 +88,53 @@ describe('AuditPage', () => {
     expect(screen.getByText(/Unknown account/)).toBeTruthy();
   });
 
+  it('labels all new action types correctly', async () => {
+    mockAuditRepository.addEntry({
+      action: 'create_invoice',
+      targetType: 'invoices',
+      targetId: 'invoice-2',
+      details: 'INV-456',
+      performedByName: 'Owner'
+    });
+    mockAuditRepository.addEntry({
+      action: 'book',
+      targetType: 'class_bookings',
+      targetId: 'booking-1',
+      details: null,
+      performedByName: 'Juan Dela Cruz'
+    });
+    mockAuditRepository.addEntry({
+      action: 'payment',
+      targetType: 'payments',
+      targetId: 'payment-1',
+      details: null,
+      performedByName: 'Maria Santos'
+    });
+    mockAuditRepository.addEntry({
+      action: 'check_in',
+      targetType: 'check_ins',
+      targetId: 'checkin-2',
+      details: null,
+      performedByName: null
+    });
+    mockAuditRepository.addEntry({
+      action: 'update_role',
+      targetType: 'profiles',
+      targetId: 'profile-1',
+      details: null,
+      performedByName: 'Owner'
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/created invoice/i)).toBeTruthy();
+    });
+    expect(screen.getByText(/booked a class/i)).toBeTruthy();
+    expect(screen.getByText(/recorded a payment/i)).toBeTruthy();
+    expect(screen.getAllByText(/checked in/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/updated a role/i)).toBeTruthy();
+  });
+
   it('shows an amber load error instead of mock data when the live load fails, then recovers', async () => {
     supabaseConfig.hasSupabaseConfig = true;
     const sampleEntry: AuditEntry = {

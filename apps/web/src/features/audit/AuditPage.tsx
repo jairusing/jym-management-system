@@ -11,7 +11,14 @@ import { SupabaseAuditRepository } from './supabaseAuditRepository';
 
 const actionTones: Record<AuditEntry['action'], StatusTone> = {
   delete: 'bad',
-  void: 'neutral'
+  void: 'neutral',
+  create_invoice: 'neutral',
+  book: 'good',
+  cancel_booking: 'neutral',
+  create_membership: 'good',
+  payment: 'neutral',
+  check_in: 'neutral',
+  update_role: 'neutral',
 };
 
 const actionLabels: Record<AuditEntry['action'], (targetType: string) => string> = {
@@ -19,7 +26,14 @@ const actionLabels: Record<AuditEntry['action'], (targetType: string) => string>
     const target = targetType === 'members' ? 'member' : targetType === 'check_ins' ? 'check-in' : targetType;
     return `deleted ${target}`;
   },
-  void: (targetType) => `voided ${targetType}`
+  void: (targetType) => `voided ${targetType}`,
+  create_invoice: () => 'created invoice',
+  book: () => 'booked a class',
+  cancel_booking: () => 'cancelled a booking',
+  create_membership: () => 'created membership',
+  payment: () => 'recorded a payment',
+  check_in: () => 'checked in',
+  update_role: () => 'updated a role',
 };
 
 function actionTone(action: AuditEntry['action']): StatusTone {
@@ -67,7 +81,7 @@ export function AuditPage() {
     <PageShell
       title="Activity log"
       eyebrow="Audit trail"
-      description="Destructive actions — voided invoices, deleted members, and deleted check-ins — are recorded here automatically."
+      description="All actions are recorded automatically — payments, bookings, memberships, check-ins, invoices, and role changes."
     >
       {!hasSupabaseConfig ? (
         <p className="text-sm text-[#A3A3A3]" role="status">

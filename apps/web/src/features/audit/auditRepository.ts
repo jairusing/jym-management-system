@@ -1,4 +1,4 @@
-export type AuditAction = 'delete' | 'void';
+export type AuditAction = 'delete' | 'void' | 'create_invoice' | 'book' | 'cancel_booking' | 'create_membership' | 'payment' | 'check_in' | 'update_role';
 
 export type AuditEntry = {
   id: string;

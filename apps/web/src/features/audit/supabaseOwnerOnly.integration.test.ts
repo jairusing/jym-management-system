@@ -5,6 +5,9 @@ import { SupabaseInvoiceRepository } from '../payments/supabaseInvoiceRepository
 import { SupabaseMemberRepository } from '../members/supabaseMemberRepository';
 import { SupabaseStaffRepository } from '../staff/supabaseStaffRepository';
 import { SupabaseAuditRepository } from './supabaseAuditRepository';
+import { SupabasePaymentRepository } from '../payments/supabasePaymentRepository';
+import { SupabaseBookingRepository } from '../classes/supabaseBookingRepository';
+import { SupabaseClassRepository } from '../classes/supabaseClassRepository';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -153,5 +156,44 @@ describeLive('Owner-only enforcement + audit log (live)', () => {
     const after = await staffRepo.listProfiles();
     expect(after.find((candidate) => candidate.id === memberProfileId)?.role).toBe('member');
     expect(memberName).toBeTruthy();
+  });
+
+  it('records a payment in the audit log', async () => {
+    await signInAsOwner();
+    const paymentRepo = new SupabasePaymentRepository();
+    const payment = await paymentRepo.recordPayment({
+      invoiceId: invoiceId as string,
+      memberId: memberId as string,
+      amount: 1200,
+      method: 'cash',
+      reference: null
+    });
+
+    const entries = await auditRepo.listAuditEntries();
+    const entry = entries.find(
+      (candidate) => candidate.action === 'payment' && candidate.targetId === payment.id
+    );
+    expect(entry).toBeTruthy();
+    expect(entry?.performedByName).toBeTruthy();
+  });
+
+  it('records a booking in the audit log', async () => {
+    await signInAsOwner();
+    const classRepo = new SupabaseClassRepository();
+    const bookingRepo = new SupabaseBookingRepository();
+    const classes = await classRepo.listClasses();
+    const activeClass = classes.find((c) => c.isActive);
+    expect(activeClass).toBeTruthy();
+
+    const booking = await bookingRepo.bookSession(
+      activeClass!.id,
+      memberId as string
+    );
+
+    const entries = await auditRepo.listAuditEntries();
+    const entry = entries.find(
+      (candidate) => candidate.action === 'book' && candidate.targetId === booking.id
+    );
+    expect(entry).toBeTruthy();
   });
 });
