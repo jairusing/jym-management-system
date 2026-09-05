@@ -61,16 +61,16 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 
 ### 🔴 Critical — Not Fixed
 
-#### 1. Missing migration files: 007, 014, 015, 017
+#### 1. Missing migration files: 007, 014, 015, 017 ✅ FIXED (v1.051)
 
-**What:** The migration sequence jumps from 006 → 008, 013 → 016, 016 → 18. Four migration files are absent.
+**What:** The migration sequence had gaps (006 → 008, 013 → 016, 016 → 018).
 
-**Why not fixed:** Cannot recreate migration files without knowing their original content — that would be hallucination.
+**Fix:** Added placeholder migrations (`007_placeholder.sql`, `014_placeholder.sql`, `015_placeholder.sql`, `017_placeholder.sql`) containing `SELECT 1;`. 
+- `007` was originally planned as `007_bootstrap_test_user.sql` but was replaced by `008_promote_test_user_owner.sql`.
+- `014`, `015`, `017` content was never documented in the repo — no git history or docs reference them.
+- Placeholders maintain an unbroken sequence without hallucinating unknown content.
 
-- **007**: Was `007_bootstrap_test_user.sql`, intentionally deleted and replaced by 008 (`008_promote_test_user_owner.sql`). Documented in `docs/HANDOFF.md` v1.005.
-- **014, 015, 017**: Content is unknown. No documentation in the repo references these files by name or describes their contents.
-
-**Action needed:** If the original content is recoverable from git history (`git show HEAD:migrations/007_*.sql`), restore the files. Otherwise, add a `007_placeholder.sql` (or similar) with a comment documenting the gap and what the migration contained, to maintain an unbroken sequence.
+**Action needed:** None required. The gaps are now documented and the sequence is continuous.
 
 #### 2. `enforce_owner_only_actions()` is missing `SECURITY DEFINER`
 
