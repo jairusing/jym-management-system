@@ -828,6 +828,21 @@ is the button and no check-in was recorded). Verified: full suite
    status messages, and the persisting "PIN bypassed" flag (schema
    change — deferred pending approval).
 
+### ✅ v1.052 — schema & audit fixes (shipped 2026-09-05)
+- **class_bookings** now has `updated_at` + `handle_updated_at()` trigger
+- **class_bookings** unique constraint replaced with partial index `WHERE status <> 'cancelled'` — allows re-booking
+- **Member deactivation** now logged to `audit_log` via `log_member_deactivation()` trigger
+- **`memberships.status`/`ended_at` consistency** enforced via CHECK constraint
+- **Migration sequence gaps** (007, 014, 015, 017) closed with placeholder files
+- All minor items (#8, #9, #11, #13) from `AUDIT_FIXES.md` are now FIXED
+
+### Remaining (requires product decision)
+- **#10**: Mixed temporal types (DATE vs TIMESTAMPTZ)
+- **#12**: No soft-delete pattern
+- **#7**: PIN verification non-constant-time comparison
+- **#4**: `profiles`/`members` data redundancy (intentional design)
+- **#5**: `invoices.status = 'overdue'` dead/unreachable (accepted design)
+
 Deploy note for v1.005: before the live create-login path works, set
 `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project env (and confirm
 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` are already there — they are
