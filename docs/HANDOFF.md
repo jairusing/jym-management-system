@@ -836,12 +836,15 @@ is the button and no check-in was recorded). Verified: full suite
 - **Migration sequence gaps** (007, 014, 015, 017) closed with placeholder files
 - All minor items (#8, #9, #11, #13) from `AUDIT_FIXES.md` are now FIXED
 
+### ✅ v1.053 — audit cleanup (shipped 2026-09-05)
+- **`invoices.status` CHECK** — removed `'overdue'` enum value (nothing ever sets it; `is_overdue` handles this). Invalid rows auto-fixed.
+- **Password change audit** — added `password_changed_at` column to `profiles` + `log_password_change()` SECURITY DEFINER trigger. `ProfilePage.tsx` and `PasswordResetCallback.tsx` set it after `supabase.auth.updateUser({ password })`. `audit_log` now captures password changes.
+
 ### Remaining (requires product decision)
 - **#10**: Mixed temporal types (DATE vs TIMESTAMPTZ)
 - **#12**: No soft-delete pattern
 - **#7**: PIN verification non-constant-time comparison
 - **#4**: `profiles`/`members` data redundancy (intentional design)
-- **#5**: `invoices.status = 'overdue'` dead/unreachable (accepted design)
 
 Deploy note for v1.005: before the live create-login path works, set
 `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project env (and confirm

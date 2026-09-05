@@ -5,6 +5,17 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.053 — Audit cleanup: remove overdue enum, password change logging (2026-09-05)
+
+- **`032_audit_cleanup.sql`** migration applied to remote DB:
+  - Removed `'overdue'` from `invoices.status` CHECK constraint (nothing ever sets it — `is_overdue` handles this). Invalid rows auto-fixed.
+  - Added `password_changed_at TIMESTAMPTZ` column to `profiles` + `log_password_change()` SECURITY DEFINER trigger + `audit_profiles_password_change` trigger. `audit_log` now captures password changes.
+- **`ProfilePage.tsx`** — sets `password_changed_at` on the `profiles` table after `supabase.auth.updateUser({ password })`.
+- **`PasswordResetCallback.tsx`** — same `password_changed_at` update after password reset.
+- **`AUDIT_FIXES.md`** — updated with v1.053 section documenting both fixes.
+- **`HANDOFF.md`** — updated with v1.053 status and remaining items.
+- Verified: `npx supabase db push` applied migration. `npx vitest run` passes all tests.
+
 ## v1.052 — Schema & audit fixes: class_bookings updated_at, partial unique index, member deactivation audit, memberships constraint (2026-09-05)
 
 - **`031_audit_and_schema_fixes.sql`** migration applied to remote DB:

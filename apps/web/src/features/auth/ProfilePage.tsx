@@ -63,6 +63,8 @@ export function ProfilePage() {
       return;
     }
 
+    await supabase.from('profiles').update({ password_changed_at: new Date().toISOString() }).eq('id', user!.id);
+
     setPassword('');
     setConfirm('');
     setMessage('Password updated successfully.');

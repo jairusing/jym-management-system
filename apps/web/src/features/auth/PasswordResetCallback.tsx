@@ -79,6 +79,11 @@ export function PasswordResetCallback() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('profiles').update({ password_changed_at: new Date().toISOString() }).eq('id', user.id);
+    }
+
     await supabase.auth.signOut();
     navigate('/auth', { replace: true, state: { resetDone: true } });
   };

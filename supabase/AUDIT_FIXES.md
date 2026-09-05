@@ -60,6 +60,26 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 
 ---
 
+## v1.053 — Audit cleanup: remove overdue enum, password change logging (2026-09-05)
+
+### Migration `032_audit_cleanup.sql`
+
+**What:** Fixed remaining minor items (#5, #2).
+
+#### #5: Remove `'overdue'` from invoices.status CHECK constraint
+- Dropped and recreated `invoices_status_check` without `'overdue'`
+- Fixed invalid existing rows (`UPDATE invoices SET status = 'issued' WHERE status = 'overdue'`)
+
+#### #2: Add password change audit logging
+- Added `password_changed_at TIMESTAMPTZ` column to `profiles`
+- Created `public.log_password_change()` SECURITY DEFINER trigger function
+- Created `audit_profiles_password_change` trigger on `profiles` AFTER UPDATE
+- Updated `ProfilePage.tsx` and `PasswordResetCallback.tsx` to set `password_changed_at` after `supabase.auth.updateUser({ password })`
+
+**Verified:** `npx supabase db push` applied migration. `npx vitest run` passes all tests.
+
+---
+
 ## What Was Changed
 
 ### Fix: `SET check_function_args = off` on all SECURITY DEFINER functions
@@ -212,8 +232,13 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 |---|---|---|---|
 | Critical | 3 | 1 (migration gaps ✅) | 2 (by-design: #2 SECURITY DEFINER correct, #3 service_role by design) |
 | Major | 5 | 0 | 5 (all require product decision) |
-| Minor | 6 | 4 (#8, #9, #11, #13 ✅ v1.052) | 2 (#10 temporal types, #12 soft-delete — product decision) |
+| Minor | 6 | 5 (#8, #9, #11, #13 ✅ v1.052; #5 overdue ✅ v1.053; #2 password audit ✅ v1.053) | 1 (#10 temporal types — product decision) |
 
-**Fixes applied:** Full audit trail extension via migration `030_audit_additional_triggers.sql` (v1.051). Schema & audit fixes via migration `031_audit_and_schema_fixes.sql` (v1.052): `class_bookings` `updated_at`, partial unique index for re-booking, member deactivation audit logging, `memberships.status`/`ended_at` CHECK constraint. Also added 4 placeholder migrations (007, 014, 015, 017) to close sequence gaps.
+**Fixes applied across all sessions:**
+- `v1.051` (migration `030`): Full audit trail extension — 7 new trigger types, frontend + test coverage
+- `v1.051` (migration placeholders): Closed migration sequence gaps 007/014/015/017
+- `v1.052` (migration `031`): Schema & audit fixes — `class_bookings` `updated_at`, partial unique index for re-booking, member deactivation audit logging, `memberships.status`/`ended_at` CHECK constraint
+- `v1.053` (migration `032`): Audit cleanup — removed `'overdue'` from `invoices.status` CHECK, added `password_changed_at` column + trigger for password change audit logging
+- **Remaining:** #10 mixed temporal types (DATE vs TIMESTAMPTZ) needs product decision
 
-**Verified:** `npx supabase db push --include-all` applied all migrations successfully. `npx vitest run` passes all tests (integration skipped without live DB env vars).
+**Verified:** `npx supabase db push` applied all migrations. `npx vitest run` passes all tests (integration skipped without live DB env vars).
