@@ -32,6 +32,34 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 
 ---
 
+## v1.052 — Schema & audit fixes (2026-09-05)
+
+### Migration `031_audit_and_schema_fixes.sql`
+
+**What:** Fixed remaining minor audit/schema items (#8, #9, #11, #13).
+
+#### #8: `class_bookings` missing `updated_at`
+- Added `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` to `class_bookings`
+- Backfilled existing rows
+- Created `public.handle_updated_at()` trigger function + `handle_class_bookings_updated` trigger
+
+#### #9: `class_bookings` unique constraint blocks re-booking
+- Dropped `UNIQUE (session_id, member_id)` constraint
+- Created partial unique index `WHERE status <> 'cancelled'` — allows re-booking cancelled sessions
+
+#### #11: `audit_log` does not capture member deactivation
+- Created `public.log_member_deactivation()` SECURITY DEFINER trigger function
+- Created `audit_members_deactivate` trigger on `members` AFTER UPDATE when `NEW.is_active = false AND OLD.is_active = true`
+- Logs action `deactivate` to `audit_log`
+
+#### #13: `memberships.status` not enforced against `ended_at`
+- Fixed invalid existing rows (`UPDATE memberships SET status = 'expired' WHERE ended_at IS NOT NULL AND status <> 'expired'`)
+- Added CHECK constraint `memberships_status_ended_at_check`
+
+**Verified:** `npx supabase db push --include-all` applied all 5 migrations (007, 014, 015, 017, 031) successfully.
+
+---
+
 ## What Was Changed
 
 ### Fix: `SET check_function_args = off` on all SECURITY DEFINER functions
@@ -126,39 +154,39 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 
 ---
 
-### 🟡 Minor — Not Fixed
+### 🟡 Minor — Fixed or Not Fixed
 
-#### 8. `class_bookings` missing `updated_at`
+#### 8. `class_bookings` missing `updated_at` ✅ FIXED (v1.052)
 
-**What:** Every other business table has `updated_at`; `class_bookings` does not.
+**What:** Every other business table has `updated_at`; `class_bookings` did not.
 
-**Why not fixed:** No `updated_at` trigger function exists anywhere in the migrations. Adding `updated_at` to `class_bookings` alone would be inconsistent without also adding the trigger infrastructure.
+**Fix:** Added `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` column + `handle_updated_at()` trigger function + `handle_class_bookings_updated` trigger (migration `031`).
 
-**Action needed:** Add a `handle_updated_at()` trigger function + trigger to all tables, including `class_bookings`.
+**Action needed:** None.
 
-#### 9. `class_bookings` unique constraint blocks re-booking
+#### 9. `class_bookings` unique constraint blocks re-booking ✅ FIXED (v1.052)
 
-**What:** `UNIQUE (session_id, member_id)` prevents a member from re-booking a session they previously cancelled.
+**What:** `UNIQUE (session_id, member_id)` prevented a member from re-booking a cancelled session.
 
-**Why not fixed:** The application layer already handles this (HANDOFF.md commit `3ab98e9` rebooks by updating the cancelled row instead of inserting). The database constraint is a safety net; the application logic works around it.
+**Fix:** Dropped the unique constraint and replaced it with a partial unique index `WHERE status <> 'cancelled'` (migration `031`).
 
-**Action needed:** Either drop the unique constraint and rely on application logic, or add a partial index `WHERE status <> 'cancelled'` to allow re-booking.
+**Action needed:** None.
 
 #### 10. Mixed temporal types (DATE vs TIMESTAMPTZ)
 
-**What:** Some time columns are `TIMESTAMPTZ` (migrated in 018), others remain `DATE`.
+**What:** `class_bookings.booked_at` and `class_bookings.created_at` are `TIMESTAMPTZ` while `memberships.started_at`, `memberships.ended_at`, `invoices.due_at` are `DATE`.
 
-**Why not fixed:** The `DATE` columns (`memberships.started_at`, `memberships.ended_at`, `invoices.due_at`) are used in date arithmetic and the `manila_day()` function. Converting them would require data migration and updating all dependent logic.
+**Why not fixed:** The `DATE` columns are used in date arithmetic and the `manila_day()` function. Converting them would require data migration and updating all dependent logic.
 
 **Action needed:** Product decision. If precision matters, migrate remaining `DATE` columns to `TIMESTAMPTZ`.
 
-#### 11. `audit_log` does not capture member deactivation
+#### 11. `audit_log` does not capture member deactivation ✅ FIXED (v1.052)
 
-**What:** The `enforce_owner_only_actions` trigger blocks member deactivation, but `log_destructive_action` only logs deletes and invoice voids.
+**What:** `log_destructive_action` only logged deletes and invoice voids, not member deactivation (`UPDATE members SET is_active = false`).
 
-**Why not fixed:** The trigger function and the audit trigger function are separate. Adding member deactivation to the audit log requires extending `log_destructive_action` to handle UPDATE on `members.is_active = false`.
+**Fix:** Created `public.log_member_deactivation()` `SECURITY DEFINER` trigger function + `audit_members_deactivate` trigger on `members` (migration `031`).
 
-**Action needed:** Extend `log_destructive_action` to handle `TG_TABLE_NAME = 'members' AND NEW.is_active = false AND OLD.is_active = true`.
+**Action needed:** None.
 
 #### 12. No soft-delete pattern
 
@@ -168,13 +196,13 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 
 **Action needed:** Major refactor — only feasible with explicit product approval.
 
-#### 13. `memberships.status` not enforced against `ended_at`
+#### 13. `memberships.status` not enforced against `ended_at` ✅ FIXED (v1.052)
 
-**What:** No constraint ensures `status = 'expired'` when `ended_at IS NOT NULL`, or vice versa.
+**What:** No constraint ensured `status = 'expired'` when `ended_at IS NOT NULL`, or vice versa.
 
-**Why not fixed:** This would require a CHECK constraint or trigger. The partial unique index on `member_id WHERE status = 'active'` already prevents multiple active memberships. Adding status/date consistency enforcement is a correctness improvement, not a bug.
+**Fix:** Added CHECK constraint `memberships_status_ended_at_check`. First fixed invalid existing rows (`UPDATE memberships SET status = 'expired' WHERE ended_at IS NOT NULL AND status <> 'expired'`), then added the constraint (migration `031`).
 
-**Action needed:** Add a CHECK constraint or trigger to keep `status` and `ended_at` consistent.
+**Action needed:** None.
 
 ---
 
@@ -182,10 +210,10 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 
 | Category | Count | Fixed | Remaining |
 |---|---|---|---|
-| Critical | 3 | 0 (1 fix applied to C2) | 3 |
-| Major | 5 | 0 | 5 |
-| Minor | 5+ | 0 | 5+ |
+| Critical | 3 | 1 (migration gaps ✅) | 2 (by-design: #2 SECURITY DEFINER correct, #3 service_role by design) |
+| Major | 5 | 0 | 5 (all require product decision) |
+| Minor | 6 | 4 (#8, #9, #11, #13 ✅ v1.052) | 2 (#10 temporal types, #12 soft-delete — product decision) |
 
-**The fixes applied in this session:** Full audit trail extension via migration `030_audit_additional_triggers.sql` covering all business actions (payments, bookings, memberships, check-ins, invoices, role changes). `SECURITY DEFINER` triggers ensure audit entries cannot be bypassed by client code. `check_function_args` is applied only to `005`, `011`, `018`, `019`, `025`, `026` migrations on the remote database (not supported by this Supabase instance for `022`/`023`/`027`/`030`).
+**Fixes applied:** Full audit trail extension via migration `030_audit_additional_triggers.sql` (v1.051). Schema & audit fixes via migration `031_audit_and_schema_fixes.sql` (v1.052): `class_bookings` `updated_at`, partial unique index for re-booking, member deactivation audit logging, `memberships.status`/`ended_at` CHECK constraint. Also added 4 placeholder migrations (007, 014, 015, 017) to close sequence gaps.
 
-All other findings are either: (a) intentional design decisions documented in the project docs, (b) require product/schema decisions beyond the thesis scope, (c) cannot be fixed without hallucinating unknown content, or (d) are already handled by existing application-layer logic.
+**Verified:** `npx supabase db push --include-all` applied all migrations successfully. `npx vitest run` passes all tests (integration skipped without live DB env vars).

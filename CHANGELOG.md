@@ -5,6 +5,17 @@ Profile page (and in `apps/web/package.json`) always matches the latest entry be
 Every time a change ships, the version bumps (1.001 → 1.002 → 1.003, …) and a new
 entry is added at the top of this file.
 
+## v1.052 — Schema & audit fixes: class_bookings updated_at, partial unique index, member deactivation audit, memberships constraint (2026-09-05)
+
+- **`031_audit_and_schema_fixes.sql`** migration applied to remote DB:
+  - `class_bookings` now has `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` + `handle_updated_at()` trigger
+  - Replaced `UNIQUE (session_id, member_id)` constraint with partial unique index `WHERE status <> 'cancelled'` — allows re-booking cancelled sessions
+  - Added `public.log_member_deactivation()` SECURITY DEFINER trigger function + `audit_members_deactivate` trigger — logs `deactivate` action to `audit_log`
+  - Added CHECK constraint `memberships_status_ended_at_check` to enforce `status = 'expired'` when `ended_at IS NOT NULL`
+- **Placeholder migrations added** (`007`, `014`, `015`, `017`) — closed sequence gaps in `supabase/migrations/`
+- **`AUDIT_FIXES.md` updated** — v1.052 section documents all 4 fixed minor items (#8, #9, #11, #13). Summary table updated: 4 minor items fixed, 2 remaining (product decisions).
+- Verified: `npx supabase db push --include-all` applied all migrations. `npx vitest run` passes all tests.
+
 ## v1.051 — Full audit trail extension: all business actions now logged (2026-09-04)
 
 - **Full audit trail coverage** — migration `030_audit_additional_triggers.sql` adds
