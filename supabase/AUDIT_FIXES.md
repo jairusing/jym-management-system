@@ -226,11 +226,39 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 
 ---
 
+## v1.054 — Profile role escalation fix (2026-09-07)
+
+### Migration `033_fix_profile_role_escalation.sql`
+
+**What:** Prevents non-owners from changing the `profiles.role` column via direct UPDATE, closing a CRITICAL role escalation vulnerability.
+
+**Root cause:** `profiles_update_self` (migration 001) allows any user to update their own profile row without column restrictions. `profiles_update_role_owner` (migration 005) was added to restrict role changes to owners, but it is OR-ed with `profiles_update_self` in PostgreSQL RLS policy evaluation. Since `profiles_update_self` matches (`id = auth.uid()`) and `profiles_update_role_owner` does not block it (`auth.role()` returns the pre-update role, which is not 'owner'), a member or staff can update their own `profiles.role` to 'owner'.
+
+**Fix:** A `BEFORE UPDATE OF role` trigger on `public.profiles` checks if the `role` column is being changed. If `NEW.role IS DISTINCT FROM OLD.role` and `auth_role() <> 'owner'`, the trigger raises an exception. Legitimate self-updates (non-role fields) are unaffected. Owners can still change any role.
+
+**Technical details:**
+- Trigger function `public.prevent_profile_role_change()` is NOT `SECURITY DEFINER` (follows pattern of `enforce_owner_only_actions()`)
+- Uses `public.auth_role()` which is `SECURITY DEFINER` and always returns the caller's current role
+- `BEFORE UPDATE OF role` fires only when the `role` column is explicitly updated
+- `IS DISTINCT FROM` handles NULL-safe comparison
+
+**Regression tests added:**
+- `apps/web/src/features/members/supabaseProfileRoleEscalation.integration.test.ts`
+  - Member cannot change own role to owner
+  - Staff cannot change own role to owner
+  - Member cannot change another user's role
+  - Staff cannot change another user's role
+  - Owner can change another user's role
+  - Member can update legitimate self-editable profile fields
+  - Role remains unchanged after failed escalation attempt
+
+---
+
 ## Summary
 
 | Category | Count | Fixed | Remaining |
 |---|---|---|---|
-| Critical | 3 | 1 (migration gaps ✅) | 2 (by-design: #2 SECURITY DEFINER correct, #3 service_role by design) |
+| Critical | 3 | 2 (migration gaps ✅, role escalation ✅ v1.054) | 1 (by-design: #3 service_role by design) |
 | Major | 5 | 0 | 5 (all require product decision) |
 | Minor | 6 | 5 (#8, #9, #11, #13 ✅ v1.052; #5 overdue ✅ v1.053; #2 password audit ✅ v1.053) | 1 (#10 temporal types — product decision) |
 
@@ -239,6 +267,7 @@ Generated from a full review of `supabase/migrations/` (001–028) and all proje
 - `v1.051` (migration placeholders): Closed migration sequence gaps 007/014/015/017
 - `v1.052` (migration `031`): Schema & audit fixes — `class_bookings` `updated_at`, partial unique index for re-booking, member deactivation audit logging, `memberships.status`/`ended_at` CHECK constraint
 - `v1.053` (migration `032`): Audit cleanup — removed `'overdue'` from `invoices.status` CHECK, added `password_changed_at` column + trigger for password change audit logging
+- `v1.054` (migration `033`): Profile role escalation fix — BEFORE UPDATE trigger prevents non-owner role changes
 - **Remaining:** #10 mixed temporal types (DATE vs TIMESTAMPTZ) needs product decision
 
-**Verified:** `npx supabase db push` applied all migrations. `npx vitest run` passes all tests (integration skipped without live DB env vars).
+**Verified:** `npx supabase db push` applied all migrations. `npx vitest run` passes all tests (integration skipped without live DB env vars). `npx tsc -b` compiles cleanly (1 pre-existing error in `supabaseOwnerOnly.integration.test.ts` unrelated to this fix). `npx eslint .` passes with no warnings.
