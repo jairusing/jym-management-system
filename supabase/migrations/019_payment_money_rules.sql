@@ -75,7 +75,7 @@ BEGIN
       LIMIT 1;
 
       UPDATE public.memberships
-      SET status = 'expired'
+      SET status = 'expired', ended_at = p_paid_at::date
       WHERE member_id = p_member_id AND status = 'active';
 
       v_start := p_paid_at::date;
@@ -85,7 +85,7 @@ BEGIN
       END IF;
 
       INSERT INTO public.memberships (member_id, plan_id, started_at, ended_at, status)
-      VALUES (p_member_id, v_invoice.plan_id, v_start, v_end, 'active');
+      VALUES (p_member_id, v_invoice.plan_id, v_start, NULL, 'active');
     END IF;
   END IF;
 
