@@ -16,3 +16,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.class_sessions TO anon, aut
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.class_bookings TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.audit_log TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.auth_role() TO anon, authenticated, service_role;
+
+-- Rate limiting (migration 034). Only service_role can execute check_rate_limit;
+-- anon and authenticated are explicitly revoked to prevent browser clients from
+-- manipulating rate-limit state directly.
+GRANT EXECUTE ON FUNCTION public.check_rate_limit(TEXT, TEXT, INTEGER, INTEGER) TO service_role;

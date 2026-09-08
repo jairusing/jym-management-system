@@ -10,9 +10,15 @@ vi.mock('../../lib/supabase', () => {
     auth: {
       exchangeCodeForSession: vi.fn(),
       getSession: vi.fn(),
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-123' } } }),
       updateUser: vi.fn(),
       signOut: vi.fn()
-    }
+    },
+    from: vi.fn(() => ({
+      update: vi.fn(() => ({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null })
+      }))
+    }))
   };
   return { hasSupabaseConfig: true, supabase };
 });

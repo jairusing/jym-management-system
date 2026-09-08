@@ -4,6 +4,9 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+const RATE_LIMIT_MAX_REQUESTS = 5;
+
 export type LinkAccountInput = {
   memberId: string;
   email: string;
@@ -38,6 +41,39 @@ function bearerToken(authorization: string | string[] | undefined) {
     return value.slice('Bearer '.length);
   }
   return null;
+}
+
+function getClientIp(headers: Record<string, string | string[] | undefined> | undefined): string {
+  // In Vercel's deployment model, all requests pass through Vercel's edge network,
+  // which sets x-forwarded-for with the real client IP as the first entry.
+  // Vercel overwrites this header with the actual client IP, so an attacker cannot
+  // spoof it by supplying their own x-forwarded-for value. The first entry is
+  // therefore the trusted client IP.
+  const forwarded = headers?.['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  if (Array.isArray(forwarded)) {
+    return forwarded[0]?.trim() ?? 'unknown';
+  }
+  return 'unknown';
+}
+
+export async function checkRateLimit(adminClient: SupabaseClient, ip: string, endpoint: string): Promise<boolean> {
+  try {
+    const { data, error } = await adminClient.rpc('check_rate_limit', {
+      p_identifier: ip,
+      p_endpoint: endpoint,
+      p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+      p_max_requests: RATE_LIMIT_MAX_REQUESTS
+    });
+    if (error) {
+      return true;
+    }
+    return data === true;
+  } catch {
+    return true;
+  }
 }
 
 export async function linkAccountWithClients(
@@ -153,6 +189,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false }
   });
+
+  const ip = getClientIp(req.headers);
+  if (!(await checkRateLimit(adminClient, ip, '/api/link-account'))) {
+    res.status(429).json({ error: 'Too many requests.' });
+    return;
+  }
 
   const outcome = await linkAccountWithClients(anonClient, adminClient, accessToken, {
     memberId: typeof body.memberId === 'string' ? body.memberId : '',

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { type SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
-import { linkAccountWithClients, type LinkAccountInput } from './link-account';
+import { linkAccountWithClients, checkRateLimit, type LinkAccountInput } from './link-account';
 
 type FakeOptions = {
   tokenUser?: { id: string } | null;
@@ -16,35 +16,37 @@ type FakeOptions = {
 };
 
 function buildFakes(options: FakeOptions) {
-  const getUser = vi.fn(async () => {
+  const getUser = vi.fn();
+  getUser.mockImplementation(async () => {
     if (options.getUserError) {
       return { data: null, error: options.getUserError };
     }
     return { data: { user: options.tokenUser ?? null }, error: null };
   });
 
-  const profileSingle = vi.fn(async () =>
+  const profileSingle = vi.fn();
+  profileSingle.mockImplementation(async () =>
     options.role
       ? { data: { role: options.role }, error: null }
       : { data: null, error: { message: 'profile not found' } }
   );
-  const profileEq = vi.fn(() => ({ single: profileSingle }));
-  const profileSelect = vi.fn(() => ({ eq: profileEq }));
+  const profileEq = vi.fn().mockReturnValue({ single: profileSingle });
+  const profileSelect = vi.fn().mockReturnValue({ eq: profileEq });
 
-  const memberMaybeSingle = vi.fn(async () => {
-    if (options.member) {
-      return { data: options.member, error: null };
-    }
-    return { data: null, error: options.memberError ?? { message: 'member not found' } };
-  });
-  const memberEq = vi.fn(() => ({ maybeSingle: memberMaybeSingle }));
-
-  const linkCheckMaybeSingle = vi.fn(async () =>
+  const memberMaybeSingle = vi.fn();
+  memberMaybeSingle.mockImplementation(async () =>
+    options.member
+      ? { data: options.member, error: null }
+      : { data: null, error: options.memberError ?? { message: 'member not found' } }
+  );
+  const memberEq = vi.fn().mockReturnValue({ maybeSingle: memberMaybeSingle });
+  const linkCheckMaybeSingle = vi.fn();
+  linkCheckMaybeSingle.mockImplementation(async () =>
     options.alreadyLinkedMember
       ? { data: options.alreadyLinkedMember, error: null }
       : { data: null, error: null }
   );
-  const linkCheckEq = vi.fn(() => ({ maybeSingle: linkCheckMaybeSingle }));
+  const linkCheckEq = vi.fn().mockReturnValue({ maybeSingle: linkCheckMaybeSingle });
   const memberSelect = vi.fn((columns: string) => {
     if (columns === 'id') {
       return { eq: linkCheckEq };
@@ -52,18 +54,20 @@ function buildFakes(options: FakeOptions) {
     return { eq: memberEq };
   });
 
-  const listUsers = vi.fn(async () =>
+  const listUsers = vi.fn();
+  listUsers.mockImplementation(async () =>
     options.listUsersError
       ? { data: null, error: options.listUsersError }
       : { data: { users: options.users ?? [] }, error: null }
   );
 
-  const linkSingle = vi.fn(async () =>
+  const linkSingle = vi.fn();
+  linkSingle.mockImplementation(async () =>
     options.linkError
       ? { data: null, error: options.linkError }
       : { data: { user_id: options.users?.[0]?.id ?? 'linked-user-1' }, error: null }
   );
-  const linkSelect = vi.fn(() => ({ single: linkSingle }));
+  const linkSelect = vi.fn().mockReturnValue({ single: linkSingle });
   const linkState = { lastEqCall: undefined as [string, string] | undefined };
   const eqChain = vi.fn((column: string, value: string) => {
     linkState.lastEqCall = [column, value];
@@ -85,12 +89,14 @@ function buildFakes(options: FakeOptions) {
     throw new Error(`unexpected table: ${table}`);
   });
 
+  const rpc = vi.fn().mockResolvedValue({ data: true, error: null });
+
   const auth = {
     getUser,
     admin: { listUsers }
   };
 
-  const client = { auth, from } as unknown as SupabaseClient;
+  const client = { auth, from, rpc } as unknown as SupabaseClient;
   return {
     client,
     getUser,
@@ -99,7 +105,9 @@ function buildFakes(options: FakeOptions) {
     listUsers,
     linkCheckEq,
     linkUpdate,
-    linkState
+    linkState,
+    memberMaybeSingle,
+    rpc
   };
 }
 
@@ -235,3 +243,45 @@ describe('linkAccountWithClients', () => {
     expect(linkUpdate).toHaveBeenCalledWith({ user_id: 'juan-user' });
   });
 });
+
+describe('link-account rate limiting', () => {
+    it('first request is allowed', async () => {
+      const { client, rpc } = buildFakes({ tokenUser: { id: 'staff-1' }, role: 'staff', users: [{ id: 'juan-user', email: 'juan@example.com' }] });
+      rpc.mockResolvedValue({ data: true, error: null });
+      const result = await checkRateLimit(client, '192.168.1.1', '/api/link-account');
+      expect(result).toBe(true);
+      expect(rpc).toHaveBeenCalledWith('check_rate_limit', expect.objectContaining({ p_identifier: '192.168.1.1', p_endpoint: '/api/link-account', p_window_seconds: 60, p_max_requests: 5 }));
+    });
+
+    it('requests beyond the limit are rejected', async () => {
+      const { client, rpc } = buildFakes({ tokenUser: { id: 'staff-1' }, role: 'staff', users: [{ id: 'juan-user', email: 'juan@example.com' }] });
+      rpc.mockResolvedValue({ data: false, error: null });
+      const result = await checkRateLimit(client, '192.168.1.1', '/api/link-account');
+      expect(result).toBe(false);
+    });
+
+    it('different identifiers have separate limits', async () => {
+      const { client, rpc } = buildFakes({ tokenUser: { id: 'staff-1' }, role: 'staff', users: [{ id: 'juan-user', email: 'juan@example.com' }] });
+      rpc.mockResolvedValue({ data: true, error: null });
+      const result1 = await checkRateLimit(client, '192.168.1.1', '/api/link-account');
+      const result2 = await checkRateLimit(client, '10.0.0.1', '/api/link-account');
+      expect(result1).toBe(true);
+      expect(result2).toBe(true);
+    });
+  });
+
+  describe('link-account handler authorization', () => {
+    it('rejects unauthenticated requests with 401', async () => {
+      const { client, getUser } = buildFakes({ tokenUser: null, role: null });
+      getUser.mockResolvedValueOnce({ data: { user: null }, error: { message: 'invalid token' } });
+      const outcome = await linkAccountWithClients(client, client, null, baseInput);
+      expect(outcome.status).toBe(401);
+    });
+
+    it('rejects non-owner/staff requests with 403', async () => {
+      const { client } = buildFakes({ tokenUser: { id: 'member-9' }, role: 'member' });
+      const outcome = await linkAccountWithClients(client, client, 'token', baseInput);
+      expect(outcome.status).toBe(403);
+      expect(outcome.body.error).toMatch(/only owner or staff/i);
+    });
+  });

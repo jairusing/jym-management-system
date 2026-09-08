@@ -22,6 +22,7 @@ export function ProfilePage() {
   const { user, signOut } = useAuth();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,25 +50,44 @@ export function ProfilePage() {
       setError('Password must be at least 6 characters.');
       return;
     }
-    if (!supabase) {
+    if (!currentPassword) {
+      setError('Current password is required.');
+      return;
+    }
+    if (!supabase || !user) {
       setError('Supabase is not configured.');
       return;
     }
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email ?? '',
+        password: currentPassword
+      });
+      if (signInError) {
+        setError('Current password is incorrect.');
+        setLoading(false);
+        return;
+      }
 
-    if (updateError) {
-      setError(updateError.message);
-      return;
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) {
+        setError(updateError.message);
+        setLoading(false);
+        return;
+      }
+
+      await supabase.from('profiles').update({ password_changed_at: new Date().toISOString() }).eq('id', user!.id);
+
+      setPassword('');
+      setConfirm('');
+      setCurrentPassword('');
+      setMessage('Password updated successfully.');
+    } catch {
+      setError('An unexpected error occurred.');
     }
-
-    await supabase.from('profiles').update({ password_changed_at: new Date().toISOString() }).eq('id', user!.id);
-
-    setPassword('');
-    setConfirm('');
-    setMessage('Password updated successfully.');
+    setLoading(false);
   };
 
   const handleSignOut = async () => {
@@ -95,8 +115,19 @@ export function ProfilePage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Change password" description="Update the password used to sign in.">
+            <SectionCard title="Change password" description="Update the password used to sign in.">
             <form className="flex flex-col gap-4" onSubmit={handleChangePassword}>
+              <label className="flex flex-col gap-2 text-sm">
+                <span>Current password</span>
+                <input
+                  autoComplete="current-password"
+                  className="border border-[#262626] bg-[#1A1A1A] px-4 py-3 text-base text-[#FAFAFA] outline-none transition-colors duration-150 focus:border-[#FF3D00]"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  required
+                />
+              </label>
               <label className="flex flex-col gap-2 text-sm">
                 <span>New password</span>
                 <input

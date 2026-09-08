@@ -3,16 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { PageShell } from '../../components/ui/PageShell';
 import { hasSupabaseConfig, supabase, type SupabaseAuthState } from '../../lib/supabase';
 
-function mapAuthError(message: string): string {
-  if (/rate|429|too many/i.test(message)) {
-    return 'Too many attempts. Please wait a minute and try again.';
-  }
-  if (/confirm/i.test(message)) {
-    return 'Please confirm your email first — check your inbox for the link.';
-  }
-  return message;
-}
-
 const authButtonClass =
   'inline-flex items-center gap-2 border border-[#FF3D00] px-4 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#FF3D00] transition-all duration-150 hover:translate-y-px disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#FF3D00] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]';
 const authLinkButtonClass =
@@ -99,8 +89,11 @@ export function AuthPage() {
       const { error } = await supabase.auth.resetPasswordForEmail(form.email, {
         redirectTo: `${window.location.origin}/auth/callback`
       });
-      if (error) {
-        setAuthState((current) => ({ ...current, loading: false, error: mapAuthError(error.message) }));
+      // Intentionally non-enumerating: same generic response regardless
+      // of whether the email exists, is unconfirmed, or otherwise cannot
+      // receive a reset link. Generic failures are surfaced directly.
+      if (error && /rate|429|too many/i.test(error.message)) {
+        setAuthState((current) => ({ ...current, loading: false, error: error.message }));
         return;
       }
       setResetSent(true);
@@ -119,34 +112,12 @@ export function AuthPage() {
 
     const { data, error } = await request;
     if (error) {
-      setAuthState((current) => ({ ...current, loading: false, error: mapAuthError(error.message) }));
+      setAuthState((current) => ({ ...current, loading: false, error: error.message }));
       return;
     }
 
     if (data.session) {
       setAuthState({ session: data.session, user: data.user, loading: false, error: null });
-      // Create a minimal profile row for new users. If this fails, do not block
-      // the UX — the user is authenticated and can continue. This expects RLS
-      // policies to allow inserts by the authenticated user (id = auth.uid()).
-      try {
-        if (supabase && data.user) {
-          await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: data.user.id,
-                name: data.user.email?.split('@')[0] ?? 'Member',
-                email: data.user.email,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }
-            ]);
-        }
-      } catch (e) {
-        // Non-fatal — log for diagnostics
-        console.warn('Could not create profile row after signup', e);
-      }
-
       navigate('/app');
       return;
     }
