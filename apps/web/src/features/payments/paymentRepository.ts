@@ -53,6 +53,10 @@ class MockPaymentRepository implements PaymentRepository {
     if (input.amount !== invoice.total) {
       throw new Error(`Payment amount must equal the invoice total (${invoice.total}).`);
     }
+    const existingPayment = this.payments.find((p) => p.invoiceId === input.invoiceId);
+    if (existingPayment) {
+      throw new Error('Invoice already has a payment.');
+    }
     const paidInvoice = await mockInvoiceRepository.markPaid(input.invoiceId);
     const plan = paidInvoice.planId
       ? (await mockInvoiceRepository.listPlans()).find((candidate) => candidate.id === paidInvoice.planId)

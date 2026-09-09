@@ -258,11 +258,73 @@ describeLive('SupabasePaymentRepository (live)', () => {
     expect(reloaded?.paidAt).toBeNull();
   });
 
-  it('lists payments including the created one', async () => {
-    const payments = await paymentRepo.listPayments();
-    const found = payments.find((payment) => payment.id === paymentId);
-    expect(found).toBeTruthy();
-    expect(found?.memberName).toBe(memberName);
-    expect(found?.invoiceNumber).toBe(invoiceNumber);
-  });
-});
+it('lists payments including the created one', async () => {
+     const payments = await paymentRepo.listPayments();
+     const found = payments.find((payment) => payment.id === paymentId);
+     expect(found).toBeTruthy();
+     expect(found?.memberName).toBe(memberName);
+     expect(found?.invoiceNumber).toBe(invoiceNumber);
+   });
+
+   it('rejects a second payment for the same invoice', async () => {
+     const invoice = await invoiceRepo.createInvoice({
+       memberId: memberId as string,
+       memberName: memberName as string,
+       total: 900,
+       dueAt: null
+     });
+     await paymentRepo.recordPayment({
+       invoiceId: invoice.id,
+       invoiceNumber: invoice.invoiceNumber,
+       memberId: memberId as string,
+       memberName: memberName as string,
+       amount: 900,
+       method: 'cash',
+       reference: null
+     });
+
+     await expect(
+       paymentRepo.recordPayment({
+         invoiceId: invoice.id,
+         invoiceNumber: invoice.invoiceNumber,
+         memberId: memberId as string,
+         memberName: memberName as string,
+         amount: 900,
+         method: 'cash',
+         reference: null
+       })
+     ).rejects.toThrow('Invoice already has a payment.');
+   });
+
+   it('still allows paying after undoing a payment', async () => {
+     const invoice = await invoiceRepo.createInvoice({
+       memberId: memberId as string,
+       memberName: memberName as string,
+       total: 600,
+       dueAt: null
+     });
+     await paymentRepo.recordPayment({
+       invoiceId: invoice.id,
+       invoiceNumber: invoice.invoiceNumber,
+       memberId: memberId as string,
+       memberName: memberName as string,
+       amount: 600,
+       method: 'cash',
+       reference: null
+     });
+
+     await invoiceRepo.voidInvoice(invoice.id);
+
+     const payment = await paymentRepo.recordPayment({
+       invoiceId: invoice.id,
+       invoiceNumber: invoice.invoiceNumber,
+       memberId: memberId as string,
+       memberName: memberName as string,
+       amount: 600,
+       method: 'cash',
+       reference: null
+     });
+
+     expect(payment.id).toBeTruthy();
+   });
+ });

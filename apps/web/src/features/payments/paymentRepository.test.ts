@@ -30,7 +30,7 @@ describe('mockPaymentRepository', () => {
     };
 
     await mockPaymentRepository.recordPayment(input);
-    await expect(mockPaymentRepository.recordPayment(input)).rejects.toThrow('Invoice is not payable.');
+    await expect(mockPaymentRepository.recordPayment(input)).rejects.toThrow('Invoice already has a payment.');
   });
 
   it('rejects a payment for a voided invoice', async () => {
