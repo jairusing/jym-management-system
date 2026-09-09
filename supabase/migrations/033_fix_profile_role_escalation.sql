@@ -16,7 +16,7 @@
 CREATE OR REPLACE FUNCTION public.prevent_profile_role_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
-SET searchPath = public
+SET search_path = public
 AS $$
 BEGIN
   IF TG_OP = 'UPDATE'

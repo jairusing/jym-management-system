@@ -23,14 +23,6 @@ CREATE TABLE IF NOT EXISTS public.rate_limits (
   PRIMARY KEY (identifier, endpoint)
 );
 
--- Revoke any prior direct client access. Only the server-side service_role
--- role should be able to execute this function.
-REVOKE EXECUTE ON FUNCTION public.check_rate_limit(TEXT, TEXT, INTEGER, INTEGER) FROM authenticated;
-REVOKE EXECUTE ON FUNCTION public.check_rate_limit(TEXT, TEXT, INTEGER, INTEGER) FROM anon;
-
--- Only the Vercel serverless function (running as service_role) can call this.
-GRANT EXECUTE ON FUNCTION public.check_rate_limit(TEXT, TEXT, INTEGER, INTEGER) TO service_role;
-
 CREATE OR REPLACE FUNCTION public.check_rate_limit(
   p_identifier TEXT,
   p_endpoint TEXT,
@@ -40,7 +32,6 @@ CREATE OR REPLACE FUNCTION public.check_rate_limit(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET check_function_args = off
 SET search_path = public
 AS $$
 DECLARE
@@ -90,6 +81,14 @@ BEGIN
   RETURN v_result;
 END;
 $$;
+
+-- Revoke any prior direct client access. Only the server-side service_role
+-- role should be able to execute this function.
+REVOKE EXECUTE ON FUNCTION public.check_rate_limit(TEXT, TEXT, INTEGER, INTEGER) FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.check_rate_limit(TEXT, TEXT, INTEGER, INTEGER) FROM anon;
+
+-- Only the Vercel serverless function (running as service_role) can call this.
+GRANT EXECUTE ON FUNCTION public.check_rate_limit(TEXT, TEXT, INTEGER, INTEGER) TO service_role;
 
 -- No direct table grants needed: rate_limits is not in 002_table_grants.sql
 -- and is only accessible through the SECURITY DEFINER function.

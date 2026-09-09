@@ -1,11 +1,16 @@
--- Phase 8.7 (audit fixes A1 + A2): payment money rules.
--- 1. A1: a payment must equal the invoice total exactly. No partial payments
---        or overpayments silently marking an invoice paid.
--- 2. A2: renewals extend from the CURRENT membership end date instead of
---        today, so renewing early never loses paid days. E.g. a monthly plan
---        ending Sep 15 renewed on Aug 10 now ends Oct 15 instead of Sep 9.
---        (The paid periods overlap on paper Aug 10 - Sep 15, which is the
---        standard gym convention for early renewals.)
+-- 035_fix_payment_membership_constraint.sql
+-- Fix rpc_record_payment() to comply with memberships_status_ended_at_check constraint
+-- (added in migration 031).
+--
+-- The constraint requires:
+--   - If ended_at IS NOT NULL, then status must be 'expired'
+--   - If ended_at IS NULL, then status must NOT be 'expired'
+--
+-- Previous rpc_record_payment() violated this by:
+--   1. INSERT with status='active' AND ended_at=<future date> (active membership can't have ended_at set)
+--   2. UPDATE setting status='expired' without setting ended_at (expired membership must have ended_at)
+--
+-- Fix: Set ended_at=NULL for new active memberships; set ended_at=p_paid_at::date when expiring.
 
 CREATE OR REPLACE FUNCTION public.rpc_record_payment(
   p_invoice_id UUID,
