@@ -130,11 +130,86 @@ describeLive('SupabaseBookingRepository (live)', () => {
     expect(booking.status).toBe('cancelled');
   });
 
-  it('rebooks the cancelled booking for the same member', async () => {
-    const rebooked = await bookingRepo.bookSession(sessionId as string, memberId as string);
-    expect(rebooked.id).toBe(bookingId);
-    expect(rebooked.status).toBe('booked');
-  });
+it('rebooks the cancelled booking for the same member', async () => {
+     const rebooked = await bookingRepo.bookSession(sessionId as string, memberId as string);
+     expect(rebooked.id).toBe(bookingId);
+     expect(rebooked.status).toBe('booked');
+   });
+
+   it('audit log records booking cancellation', async () => {
+     const { data: auditEntries } = await supabase
+       .from('audit_log')
+       .select('action, target_type, target_id')
+       .eq('target_id', bookingId as string)
+       .eq('action', 'cancel_booking');
+     expect(auditEntries).toBeTruthy();
+     expect((auditEntries as { action: string }[]).length).toBeGreaterThanOrEqual(1);
+   });
+
+   it('audit log records rebooking after cancellation', async () => {
+     const { data: auditEntries } = await supabase
+       .from('audit_log')
+       .select('action, target_type, target_id')
+       .eq('target_id', bookingId as string)
+       .eq('action', 'rebook');
+     expect(auditEntries).toBeTruthy();
+     expect((auditEntries as { action: string }[]).length).toBeGreaterThanOrEqual(1);
+   });
+
+   it('audit log does not create cancel/rebook events for unrelated updates', async () => {
+     const { data: auditEntries } = await supabase
+       .from('audit_log')
+       .select('action')
+       .eq('target_id', bookingId as string)
+       .in('action', ['cancel_booking', 'rebook']);
+     const actions = (auditEntries as { action: string }[]).map(e => e.action);
+     const rebookCount = actions.filter(a => a === 'rebook').length;
+     const cancelCount = actions.filter(a => a === 'cancel_booking').length;
+     expect(rebookCount).toBe(1);
+     expect(cancelCount).toBe(1);
+   });
+
+   it('cancellation does not create delete_booking audit entry', async () => {
+     const { data: auditEntries } = await supabase
+       .from('audit_log')
+       .select('action')
+       .eq('target_id', bookingId as string)
+       .eq('action', 'delete_booking');
+     expect((auditEntries as { action: string }[]).length).toBe(0);
+   });
+
+   it('audit log records booking cancellation', async () => {
+     const { data: auditEntries } = await supabase
+       .from('audit_log')
+       .select('action, target_type, target_id')
+       .eq('target_id', bookingId as string)
+       .eq('action', 'cancel_booking');
+     expect(auditEntries).toBeTruthy();
+     expect((auditEntries as { action: string }[]).length).toBeGreaterThanOrEqual(1);
+   });
+
+   it('audit log records rebooking after cancellation', async () => {
+     const { data: auditEntries } = await supabase
+       .from('audit_log')
+       .select('action, target_type, target_id')
+       .eq('target_id', bookingId as string)
+       .eq('action', 'rebook');
+     expect(auditEntries).toBeTruthy();
+     expect((auditEntries as { action: string }[]).length).toBeGreaterThanOrEqual(1);
+   });
+
+   it('audit log does not create cancel/rebook events for unrelated updates', async () => {
+     const { data: auditEntries } = await supabase
+       .from('audit_log')
+       .select('action')
+       .eq('target_id', bookingId as string)
+       .in('action', ['cancel_booking', 'rebook']);
+     const actions = (auditEntries as { action: string }[]).map(e => e.action);
+     const rebookCount = actions.filter(a => a === 'rebook').length;
+     const cancelCount = actions.filter(a => a === 'cancel_booking').length;
+     expect(rebookCount).toBe(1);
+     expect(cancelCount).toBe(1);
+   });
 
   it('rejects a duplicate active booking', async () => {
     await expect(bookingRepo.bookSession(sessionId as string, memberId as string)).rejects.toThrow(

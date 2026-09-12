@@ -15,10 +15,19 @@ const actionTones: Record<AuditEntry['action'], StatusTone> = {
   create_invoice: 'neutral',
   book: 'good',
   cancel_booking: 'neutral',
+  rebook: 'good',
   create_membership: 'good',
   payment: 'neutral',
   check_in: 'neutral',
   update_role: 'neutral',
+  create_class: 'good',
+  update_class: 'neutral',
+  delete_class: 'bad',
+  create_session: 'good',
+  update_session: 'neutral',
+  delete_session: 'bad',
+  delete_booking: 'bad',
+  create_member: 'good',
 };
 
 const actionLabels: Record<AuditEntry['action'], (targetType: string) => string> = {
@@ -30,10 +39,19 @@ const actionLabels: Record<AuditEntry['action'], (targetType: string) => string>
   create_invoice: () => 'created invoice',
   book: () => 'booked a class',
   cancel_booking: () => 'cancelled a booking',
+  rebook: () => 'rebooked a class',
   create_membership: () => 'created membership',
   payment: () => 'recorded a payment',
   check_in: () => 'checked in',
   update_role: () => 'updated a role',
+  create_class: () => 'created a class',
+  update_class: () => 'updated a class',
+  delete_class: () => 'deleted a class',
+  create_session: () => 'created a session',
+  update_session: () => 'updated a session',
+  delete_session: () => 'deleted a session',
+  delete_booking: () => 'deleted a booking',
+  create_member: () => 'created a member',
 };
 
 function actionTone(action: AuditEntry['action']): StatusTone {
