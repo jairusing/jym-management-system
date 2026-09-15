@@ -120,11 +120,23 @@ describeLive('SupabaseMemberRepository audit logging (live)', () => {
     expect(members.some((member) => member.id === createdId)).toBe(true);
   });
 
-  it('updates member details', async () => {
+  it('updates member details and records update_member audit', async () => {
     const updated = await repo.updateMember(createdId as string, {
       phone: `0918 ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
     });
     expect(updated.phone).toBeTruthy();
+
+    const { data: auditEntries } = await supabase
+      .from('audit_log')
+      .select('action, target_type, target_id, performed_by')
+      .eq('target_id', createdId as string)
+      .eq('action', 'update_member');
+    const entries = auditEntries as { action: string; target_type: string; target_id: string; performed_by: string }[];
+    expect(entries.length).toBe(1);
+    expect(entries[0].action).toBe('update_member');
+    expect(entries[0].target_type).toBe('members');
+    expect(entries[0].target_id).toBe(createdId);
+    expect(entries[0].performed_by).toBe(ownerId);
   });
 
   it('rejects a duplicate email', async () => {
@@ -169,9 +181,25 @@ describeLive('SupabaseMemberRepository audit logging (live)', () => {
     await repo.deleteMember(first.id);
   });
 
-  it('deactivates a member', async () => {
+  it('deactivates a member and records deactivate audit only', async () => {
     const updated = await repo.setMemberActive(createdId as string, false);
     expect(updated.isActive).toBe(false);
+
+    const { data: auditEntries } = await supabase
+      .from('audit_log')
+      .select('action, target_type, target_id')
+      .eq('target_id', createdId as string)
+      .eq('action', 'deactivate');
+    const deactivateEntries = auditEntries as { action: string; target_type: string; target_id: string }[];
+    expect(deactivateEntries.length).toBe(1);
+    expect(deactivateEntries[0].action).toBe('deactivate');
+
+    const { data: updateEntries } = await supabase
+      .from('audit_log')
+      .select('action')
+      .eq('target_id', createdId as string)
+      .eq('action', 'update_member');
+    expect((updateEntries as { action: string }[]).length).toBe(0);
   });
 
   it('pauses, resumes, and cancels a membership', async () => {
@@ -226,6 +254,16 @@ describeLive('SupabaseMemberRepository audit logging (live)', () => {
     await repo.setMemberPin(member.id, '1234');
     expect(await repo.verifyMemberPin(member.id, '1234')).toBe('ok');
     expect(await repo.verifyMemberPin(member.id, '9999')).toBe('fail');
+
+    const { data: pinAuditEntries } = await supabase
+      .from('audit_log')
+      .select('action, target_id, details')
+      .eq('target_id', member.id)
+      .eq('action', 'update_member');
+    const pinAudit = pinAuditEntries as { action: string; target_id: string; details: string }[];
+    expect(pinAudit.length).toBe(1);
+    expect(pinAudit[0].details).not.toContain('1234');
+    expect(pinAudit[0].details).toContain('full_name');
 
     const { data: stored, error: storedError } = await supabase!
       .from('members')

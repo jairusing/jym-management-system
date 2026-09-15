@@ -27,7 +27,9 @@ const actionTones: Record<AuditEntry['action'], StatusTone> = {
   update_session: 'neutral',
   delete_session: 'bad',
   delete_booking: 'bad',
+  delete_payment: 'bad',
   create_member: 'good',
+  update_member: 'neutral',
 };
 
 const actionLabels: Record<AuditEntry['action'], (targetType: string) => string> = {
@@ -51,7 +53,9 @@ const actionLabels: Record<AuditEntry['action'], (targetType: string) => string>
   update_session: () => 'updated a session',
   delete_session: () => 'deleted a session',
   delete_booking: () => 'deleted a booking',
+  delete_payment: () => 'deleted a payment',
   create_member: () => 'created a member',
+  update_member: () => 'updated a member',
 };
 
 function actionTone(action: AuditEntry['action']): StatusTone {

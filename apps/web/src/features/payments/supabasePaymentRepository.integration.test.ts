@@ -57,6 +57,7 @@ describeLive('SupabasePaymentRepository (live)', () => {
   const memberRepo = new SupabaseMemberRepository();
   let memberId: string | undefined;
   let memberName: string | undefined;
+  let ownerId: string | undefined;
   let invoiceId: string | undefined;
   let invoiceNumber: string | undefined;
   let paymentId: string | undefined;
@@ -72,6 +73,9 @@ describeLive('SupabasePaymentRepository (live)', () => {
     });
     memberId = member.id;
     memberName = member.fullName;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    ownerId = user?.id;
 
     const plans = await invoiceRepo.listPlans();
     planId = plans[0]?.id;
@@ -252,6 +256,27 @@ describeLive('SupabasePaymentRepository (live)', () => {
 
     const payments = await paymentRepo.listPayments();
     expect(payments.some((payment) => payment.invoiceId === invoice.id)).toBe(false);
+
+    const { data: deleteAuditEntries } = await supabase
+      .from('audit_log')
+      .select('action, target_type, target_id, performed_by')
+      .eq('target_type', 'payments')
+      .eq('action', 'delete_payment');
+    const deleteAudit = deleteAuditEntries as { action: string; target_type: string; target_id: string; performed_by: string }[];
+    expect(deleteAudit.length).toBe(1);
+    expect(deleteAudit[0].action).toBe('delete_payment');
+    expect(deleteAudit[0].target_type).toBe('payments');
+    expect(deleteAudit[0].performed_by).toBe(ownerId);
+
+    const { data: undoAuditEntries } = await supabase
+      .from('audit_log')
+      .select('action, target_type, target_id')
+      .eq('target_id', invoice.id as string)
+      .eq('action', 'undo_payment');
+    const undoAudit = undoAuditEntries as { action: string; target_type: string; target_id: string }[];
+    expect(undoAudit.length).toBe(1);
+    expect(undoAudit[0].action).toBe('undo_payment');
+    expect(undoAudit[0].target_type).toBe('invoice');
 
     const reloaded = (await invoiceRepo.listInvoices()).find((candidate) => candidate.id === invoice.id);
     expect(reloaded?.status).toBe('issued');
